@@ -1,10 +1,12 @@
 import { Navbar } from "@/components/Navbar";
 import { BannerSlider } from "@/components/BannerSlider";
 import { ProductsCarousel } from "@/components/ProductsCarousel";
+import { TopOffers } from "@/components/TopOffers";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
+      <TopOffers />
       <Navbar />
       <main>
         <BannerSlider />

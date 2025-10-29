@@ -77,7 +77,7 @@ export const ProductCard = ({
           </div>
 
           {/* Add to Cart Button */}
-          <Button className="w-full bg-destructive hover:bg-destructive/90 text-destructive-foreground font-black text-base py-6 rounded-lg">
+          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-black text-base py-6 rounded-lg">
             ADD TO CART
           </Button>
         </div>

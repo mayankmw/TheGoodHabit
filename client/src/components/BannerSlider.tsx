@@ -111,11 +111,11 @@ import { Button } from "@/components/ui/button";
 const banners = [
   {
     id: 1,
-    image: "/images/banners/banner1.jpeg", // 🖼️ Your full-width banner image
+    image: "/images/banners/banner-1.jpeg", // 🖼️ Your full-width banner image
   },
   {
     id: 2,
-    image: "/images/banners/banner2.png", // 🖼️ Your full-width banner image
+    image: "/images/banners/banner-2.png", // 🖼️ Your full-width banner image
   },
   //   {
   //   id: 2,
