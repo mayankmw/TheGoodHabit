@@ -42,7 +42,6 @@ const recommendedProducts = [
   },
 ];
 
-
 const menuItems = [
   { label: "Shop by Category", href: "#category", hasSubmenu: true },
   { label: "Our Story", href: "/our-story" },
@@ -53,6 +52,26 @@ export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+
+  // helper functions to prevent multiple overlays open
+  const handleOpenSearch = () => {
+    setShowSearch(true);
+    setCartOpen(false);
+    setOpen(false);
+  };
+
+  const handleOpenCart = () => {
+    setCartOpen(true);
+    setShowSearch(false);
+    setOpen(false);
+  };
+
+  const handleOpenMenu = () => {
+    setOpen(true);
+    setCartOpen(false);
+    setShowSearch(false);
+  };
 
   return (
     <>
@@ -66,6 +85,7 @@ export const Navbar = () => {
                   variant="ghost"
                   size="icon"
                   className="text-primary-foreground hover:bg-primary/80"
+                  onClick={handleOpenMenu}
                 >
                   <Menu className="h-6 w-6" />
                 </Button>
@@ -148,7 +168,7 @@ export const Navbar = () => {
                 variant="ghost"
                 size="icon"
                 className="text-primary-foreground hover:bg-primary/80"
-                onClick={() => setShowSearch(true)}
+                onClick={handleOpenSearch}
               >
                 <Search className="h-5 w-5" />
               </Button>
@@ -159,75 +179,218 @@ export const Navbar = () => {
               >
                 <User className="h-5 w-5" />
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-primary-foreground hover:bg-primary/80 relative"
+
+              {/* 🛒 Cart Sidebar */}
+              <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-primary-foreground hover:bg-primary/80 relative"
+                    onClick={handleOpenCart}
+                  >
+                    <ShoppingCart className="h-5 w-5" />
+                    <span className="absolute -top-1 -right-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                      2
+                    </span>
+                  </Button>
+                </SheetTrigger>
+
+              <SheetContent
+                side="right"
+                className="w-96 bg-background text-foreground flex flex-col h-full shadow-2xl !p-0 [&>button.absolute]:hidden"
               >
-                <ShoppingCart className="h-5 w-5" />
-                <span className="absolute -top-1 -right-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  0
-                </span>
-              </Button>
+                {/* 🧱 Sticky Header */}
+                <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex justify-between items-center">
+                  <h2 className="text-xl font-bold flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5" /> Your Cart
+                  </h2>
+                  <button
+                    onClick={() => setCartOpen(false)} // <-- your state handler
+                    className="text-muted-foreground hover:text-foreground transition"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                {/* 🧾 Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-4">
+                  {/* 🎁 Free Gift Progress */}
+                  <div className="bg-secondary/10 rounded-xl p-4 mt-4 mb-6">
+                    <p className="text-center text-sm font-semibold text-green-700">
+                      Get a free gift by adding items worth ₹999
+                    </p>
+                    <div className="relative mt-3">
+                      <div className="w-full bg-secondary/20 h-2 rounded-full overflow-hidden">
+                        <div
+                          className="bg-secondary h-2 rounded-full transition-all duration-500"
+                          style={{ width: "60%" }}
+                        ></div>
+                      </div>
+                      <div className="absolute right-0 top-[-6px] bg-white border border-secondary rounded-full w-6 h-6 flex items-center justify-center text-secondary text-xs font-bold shadow">
+                        🎁
+                      </div>
+                      <p className="text-xs text-right mt-2 text-green-700 font-medium">
+                        ₹999 Free Gift
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 🛍️ Cart Items */}
+                  <div className="space-y-4">
+                    {recommendedProducts.slice(0, 2).map((item, i) => (
+                      <div
+                        key={i}
+                        className="flex gap-3 border border-border/50 rounded-xl p-3 shadow-sm hover:shadow-md transition"
+                      >
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
+                        <div className="flex flex-col justify-between w-full">
+                          <div>
+                            <h3 className="text-sm font-semibold">{item.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-muted-foreground line-through text-xs">
+                                ₹{item.price + 50}
+                              </p>
+                              <p className="text-sm font-bold">₹{item.price}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center mt-2">
+                            <div className="flex items-center gap-2 border rounded-md px-2">
+                              <button className="text-lg">−</button>
+                              <span className="text-sm font-medium">1</span>
+                              <button className="text-lg">+</button>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              className="text-xs text-destructive w-fit p-0 hover:text-destructive/80"
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 💸 Offers & Rewards */}
+                  <div className="mt-6 border border-border/40 rounded-xl p-4">
+                    <h4 className="font-semibold mb-2 text-sm">Offers & Rewards</h4>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center text-sm">
+                      <span>
+                        ₹100 savings with <strong>'GET100'</strong> ✅
+                      </span>
+                      <button className="text-xs text-green-700 font-semibold hover:underline">
+                        Remove
+                      </button>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground underline cursor-pointer">
+                      Enter a coupon code
+                    </p>
+                  </div>
+
+                  {/* ⭐ Special Offers */}
+                  <div className="mt-6 mb-4">
+                    <h4 className="font-semibold text-sm mb-3">Special Offers For You</h4>
+                    <div className="flex gap-3 overflow-x-auto pb-2">
+                      {recommendedProducts.map((item, index) => (
+                        <div
+                          key={index}
+                          className="min-w-[120px] border border-border/50 rounded-lg p-2 relative"
+                        >
+                          <div className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold rounded px-1.5 py-0.5">
+                            10% OFF
+                          </div>
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-24 object-cover rounded-md mb-1"
+                          />
+                          <p className="text-xs font-semibold line-clamp-2">{item.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 💰 Sticky Checkout Footer */}
+                <div className="sticky bottom-0 border-t border-border bg-background p-4">
+                  <div className="flex justify-between text-sm font-semibold mb-3">
+                    <span>Estimated Total</span>
+                    <span>₹748</span>
+                  </div>
+                  <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-base py-2 rounded-xl">
+                    Checkout
+                  </Button>
+                  <p className="text-[10px] text-center text-muted-foreground mt-2 flex items-center justify-center gap-1">
+                    🔒 Secured by
+                    <img
+                      src="/images/logo/razorpay-icon.svg"
+                      alt="Razorpay"
+                      className="h-3 w-auto inline-block"
+                    />
+                  </p>
+                </div>
+              </SheetContent>
+
+
+              </Sheet>
             </div>
           </div>
         </div>
       </nav>
 
-      {/* 🔍 Search Bar Overlay */}
-    {showSearch && (
-      <div className="fixed top-0 left-0 w-full bg-background shadow-md border-b border-border z-[60] animate-fadeIn">
-        <div className="container mx-auto px-4 py-6">
-          {/* Close Button */}
-          <div className="flex justify-end mb-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setShowSearch(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+      {/* 🔍 Search Overlay */}
+      {showSearch && (
+        <div className="fixed top-0 left-0 w-full bg-background shadow-md border-b border-border z-[60] animate-fadeIn">
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowSearch(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
 
-          {/* Search Input */}
-          <div className="flex justify-center">
-            <input
-              type="text"
-              placeholder="Type to search products..."
-              className="w-[90%] md:w-[60%] border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+            <div className="flex justify-center">
+              <input
+                type="text"
+                placeholder="Type to search products..."
+                className="w-[90%] md:w-[60%] border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
 
-          {/* Recommended Section */}
-          <div className="mt-8 pb-6 text-center">
-            <h3 className="font-semibold mb-6 text-base md:text-md text-muted-foreground uppercase tracking-wide">
-              or select from our recommended products
-            </h3>
+            <div className="mt-8 pb-6 text-center">
+              <h3 className="font-semibold mb-6 text-base md:text-md text-muted-foreground uppercase tracking-wide">
+                or select from our recommended products
+              </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
-              {recommendedProducts.map((product, index) => (
-                <div
-                  key={index}
-                  className="max-w-[220px] mx-auto transform scale-90 md:scale-95 lg:scale-100 transition-transform duration-200"
-                >
-                  <ProductCardMini
-                    {...product}
-                    rating={4.5}
-                    reviews={80 + index * 10}
-                    discount={10}
-                    originalPrice={product.price + 50}
-                  />
-                </div>
-              ))}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
+                {recommendedProducts.map((product, index) => (
+                  <div
+                    key={index}
+                    className="max-w-[220px] mx-auto transform scale-90 md:scale-95 lg:scale-100 transition-transform duration-200"
+                  >
+                    <ProductCardMini
+                      {...product}
+                      rating={4.5}
+                      reviews={80 + index * 10}
+                      discount={10}
+                      originalPrice={product.price + 50}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-
-
         </div>
-      </div>
-    )}
-
-
+      )}
     </>
   );
 };
