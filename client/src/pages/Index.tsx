@@ -1,6 +1,7 @@
 import { Navbar } from "@/components/Navbar";
 import { BannerSlider } from "@/components/BannerSlider";
 import { ProductsCarousel } from "@/components/ProductsCarousel";
+import { ReelsCarousel } from "@/components/ReelsCarousel";
 import { TopOffers } from "@/components/TopOffers";
 
 const Index = () => {
@@ -11,7 +12,7 @@ const Index = () => {
       <main>
         <BannerSlider />
         <ProductsCarousel />
-        
+        <ReelsCarousel />
         {/* Marquee Footer */}
           <div className="bg-foreground text-background py-4 overflow-hidden">
             <div className="animate-marquee whitespace-nowrap flex items-center gap-8 text-lg font-bold">
