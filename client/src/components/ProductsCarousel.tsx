@@ -3,10 +3,11 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "./ProductCard";
+import { Link } from "react-router-dom";
 
 const products = [
   {
-    id: 1,
+    id: "all-minis",
     image: "/images/products/product1.webp",
     name: "ALL MINIS IN 1",
     price: 900,
@@ -14,7 +15,7 @@ const products = [
     reviews: 2,
   },
   {
-    id: 2,
+    id: "cheese-wafer-pack10",
     image: "/images/products/product2.webp",
     name: "CHEESE PROTEIN WAFER – PACK OF 10",
     price: 499,
@@ -24,7 +25,7 @@ const products = [
     reviews: 118,
   },
   {
-    id: 3,
+    id: "choco-hazelnut-combo",
     image: "/images/products/product3.webp",
     name: "CHOCO HAZELNUT + COOKIES & CREAM",
     price: 600,
@@ -32,7 +33,7 @@ const products = [
     reviews: 5,
   },
   {
-    id: 4,
+    id: "pb-wafer-pack10",
     image: "/images/products/product4.webp",
     name: "CHOCO PEANUT BUTTER PROTEIN WAFER – PACK OF 10",
     price: 499,
@@ -42,7 +43,7 @@ const products = [
     reviews: 104,
   },
   {
-    id: 5,
+    id: "protein-power-bars",
     image: "/images/products/product5.webp",
     name: "PROTEIN POWER BARS",
     price: 450,
@@ -50,7 +51,7 @@ const products = [
     reviews: 89,
   },
   {
-    id: 6,
+    id: "super-greens-blend",
     image: "/images/products/product1.webp",
     name: "SUPER GREENS BLEND",
     price: 799,
@@ -130,7 +131,12 @@ export const ProductsCarousel = () => {
                 key={product.id}
                 className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_calc(50%-12px)] lg:flex-[0_0_calc(25%-18px)]"
               >
-                <ProductCard {...product} />
+                <Link
+                  to={`/products/${product.id}`}
+                  className="block transform transition-transform duration-200 hover:scale-105"
+                >
+                  <ProductCard {...product} />
+                </Link>
               </div>
             ))}
           </div>

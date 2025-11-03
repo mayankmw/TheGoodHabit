@@ -5,12 +5,14 @@ import {
   User,
   ShoppingCart,
   ChevronRight,
+  ChevronLeft,
   ChevronDown,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ProductCardMini } from "@/components/ProductCardMini";
+import { Link } from "react-router-dom";
 
 const categories = [
   { name: "All Products", image: "/images/categories/all.avif" },
@@ -21,21 +23,25 @@ const categories = [
 
 const recommendedProducts = [
   {
+    id: "choco-bar",
     name: "Chocolate Protein Bar",
     image: "/images/products/product1.webp",
     price: 249,
   },
   {
+    id: "almond-dates-combo",
     name: "Almond Dates Combo",
     image: "/images/products/product2.webp",
     price: 499,
   },
   {
+    id: "pb-minis",
     name: "Peanut Butter Minis",
     image: "/images/products/product3.webp",
     price: 299,
   },
   {
+    id: "kunafa-protein-dates",
     name: "Kunafa Protein Dates",
     image: "/images/products/product4.webp",
     price: 399,
@@ -45,7 +51,7 @@ const recommendedProducts = [
 const menuItems = [
   { label: "Shop by Category", href: "#category", hasSubmenu: true },
   { label: "Our Story", href: "/our-story" },
-  { label: "Track Your Order", href: "#track" },
+  { label: "Track Your Order", href: "/track-order" },
 ];
 
 export const Navbar = () => {
@@ -93,7 +99,7 @@ export const Navbar = () => {
 
               <SheetContent
                 side="left"
-                className="w-80 bg-accent text-accent-foreground overflow-y-auto"
+                className="w-80 bg-accent text-accent-foreground overflow-y-auto inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,215,0,0.08),transparent)]"
               >
                 <div className="flex flex-col gap-4 mt-8">
                   <h2 className="text-2xl font-bold mb-2">The Good Habit</h2>
@@ -110,13 +116,37 @@ export const Navbar = () => {
                         >
                           {item.label}
                           {submenuOpen ? (
-                            <ChevronDown size={18} />
+                            <ChevronLeft size={18} />
                           ) : (
                             <ChevronRight size={18} />
                           )}
                         </button>
 
                         {submenuOpen && (
+                          <div className="fixed left-80 top-20 w-[calc(100vw-20rem)] bg-[#3C0080] p-10 z-40 overflow-y-auto">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                              {categories.map((cat) => (
+                                <a
+                                  key={cat.name}
+                                  href={`#${cat.name.toLowerCase()}`}
+                                  className="bg-[#FFF6E9] rounded-2xl p-4 flex flex-col justify-between hover:scale-105 transition-transform duration-300"
+                                  onClick={() => setOpen(false)}
+                                >
+                                  <div className="font-semibold text-[#1E1E1E] text-lg leading-tight mb-3">
+                                    {cat.name}
+                                  </div>
+                                  <img
+                                    src={cat.image}
+                                    alt={cat.name}
+                                    className="w-full h-32 object-contain"
+                                  />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* {submenuOpen && (
                           <div className="pl-3 mt-3 grid grid-cols-2 gap-3">
                             {categories.map((cat) => (
                               <a
@@ -134,7 +164,8 @@ export const Navbar = () => {
                               </a>
                             ))}
                           </div>
-                        )}
+                        )} */}
+
                       </div>
                     ) : (
                       <a
@@ -177,7 +208,9 @@ export const Navbar = () => {
                 size="icon"
                 className="text-primary-foreground hover:bg-primary/80"
               >
-                <User className="h-5 w-5" />
+                <Link to="/signin">
+                <User className="h-6 w-6 cursor-pointer" />
+              </Link>
               </Button>
 
               {/* 🛒 Cart Sidebar */}
@@ -323,7 +356,7 @@ export const Navbar = () => {
                     <span>Estimated Total</span>
                     <span>₹748</span>
                   </div>
-                  <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-base py-2 rounded-xl">
+                  <Button className="mt-4 w-full bg-primary text-white hover:bg-primary/90 rounded-full font-bold">
                     Checkout
                   </Button>
                   <p className="text-[10px] text-center text-muted-foreground mt-2 flex items-center justify-center gap-1">
@@ -373,18 +406,20 @@ export const Navbar = () => {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                 {recommendedProducts.map((product, index) => (
-                  <div
-                    key={index}
-                    className="max-w-[220px] mx-auto transform scale-90 md:scale-95 lg:scale-100 transition-transform duration-200"
-                  >
-                    <ProductCardMini
-                      {...product}
-                      rating={4.5}
-                      reviews={80 + index * 10}
-                      discount={10}
-                      originalPrice={product.price + 50}
-                    />
-                  </div>
+                <Link
+                      key={index}
+                      to={`/products/${product.id}`}
+                      onClick={() => setShowSearch(false)}
+                      className="max-w-[220px] mx-auto transform scale-90 md:scale-95 lg:scale-100 transition-transform duration-200 hover:scale-105"
+                    >
+                      <ProductCardMini
+                        {...product}
+                        rating={4.5}
+                        reviews={80 + index * 10}
+                        discount={10}
+                        originalPrice={product.price + 50}
+                      />
+                    </Link>
                 ))}
               </div>
             </div>

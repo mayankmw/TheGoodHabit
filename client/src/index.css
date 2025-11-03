@@ -6,7 +6,7 @@
 All colors MUST be HSL.
 */
 
-@layer base {
+/* @layer base {
   :root {
     --background: 0 0% 100%;
     --foreground: 0 0% 15%;
@@ -101,6 +101,57 @@ All colors MUST be HSL.
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+} */
+
+@layer base {
+  :root {
+    /* Base */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 10%;
+
+    /* Brand Colors */
+    --primary: 335 82% 58%; /* Pink */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 54 100% 62%; /* Yellow */
+    --secondary-foreground: 0 0% 15%;
+
+    --accent: 0 0% 10%; /* Black */
+    --accent-foreground: 0 0% 100%;
+
+    /* Supporting Colors */
+    --muted: 35 30% 90%;
+    --muted-foreground: 0 0% 45%;
+
+    --card: 0 0% 98%;
+    --card-foreground: 0 0% 10%;
+
+    --success: 166 77% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 0 0% 85%;
+    --input: 0 0% 90%;
+    --ring: 335 82% 58%; /* Same as primary for focus rings */
+
+    --radius: 1rem;
+
+    /* Sidebar (optional if you have one) */
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 90%;
+  }
+
   * {
     @apply border-border;
   }

@@ -1,16 +1,12 @@
-import { Navbar } from "@/components/Navbar";
-
 const OurStory = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Navbar */}
-      <Navbar />
 
       {/* Main Section */}
       <main className="container mx-auto px-6 py-12">
         {/* Hero Section */}
         <section className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">💫 The Good Habit – Our Story</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold text-primary mb-4">💫 The Good Habit – Our Story</h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Every good habit begins with a purpose — and ours began with a passion for balance, flavor, and better living.
           </p>
