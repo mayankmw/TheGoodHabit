@@ -43,7 +43,7 @@ export const ProductCard = ({
           <img
             src={image}
             alt={name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            className="w-[80%] h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
           {discount && (
             <div className="absolute top-4 right-4 bg-success text-success-foreground px-3 py-1 rounded-full text-sm font-bold">

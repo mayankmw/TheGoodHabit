@@ -8,7 +8,8 @@ import { Link } from "react-router-dom";
 const products = [
   {
     id: "all-minis",
-    image: "/images/products/product1.webp",
+    // image: "/images/products/product1.webp",
+    image: "/images/products/productOne.jpeg",
     name: "ALL MINIS IN 1",
     price: 900,
     rating: 4.5,
@@ -16,7 +17,7 @@ const products = [
   },
   {
     id: "cheese-wafer-pack10",
-    image: "/images/products/product2.webp",
+    image: "/images/products/productTwo.jpeg",
     name: "CHEESE PROTEIN WAFER – PACK OF 10",
     price: 499,
     originalPrice: 550,
@@ -26,7 +27,7 @@ const products = [
   },
   {
     id: "choco-hazelnut-combo",
-    image: "/images/products/product3.webp",
+    image: "/images/products/productOne.jpeg",
     name: "CHOCO HAZELNUT + COOKIES & CREAM",
     price: 600,
     rating: 5,
@@ -34,7 +35,7 @@ const products = [
   },
   {
     id: "pb-wafer-pack10",
-    image: "/images/products/product4.webp",
+    image: "/images/products/productTwo.jpeg",
     name: "CHOCO PEANUT BUTTER PROTEIN WAFER – PACK OF 10",
     price: 499,
     originalPrice: 550,
@@ -44,7 +45,7 @@ const products = [
   },
   {
     id: "protein-power-bars",
-    image: "/images/products/product5.webp",
+    image: "/images/products/productOne.jpeg",
     name: "PROTEIN POWER BARS",
     price: 450,
     rating: 4.5,
@@ -52,7 +53,7 @@ const products = [
   },
   {
     id: "super-greens-blend",
-    image: "/images/products/product1.webp",
+    image: "/images/products/productTwo.jpeg",
     name: "SUPER GREENS BLEND",
     price: 799,
     originalPrice: 899,

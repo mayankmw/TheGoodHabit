@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronLeft,
   ChevronDown,
+  ChevronUp,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,7 @@ import { Link } from "react-router-dom";
 
 const categories = [
   { name: "All Products", image: "/images/categories/all.avif" },
-  { name: "Breakfast", image: "/images/categories/breakfast.avif" },
-  { name: "Bars", image: "/images/categories/bars.avif" },
-  { name: "Dry Fruits", image: "/images/categories/dry-fruits.avif" },
+  { name: "Dates", image: "/images/categories/breakfast.avif" }
 ];
 
 const recommendedProducts = [
@@ -116,13 +115,13 @@ export const Navbar = () => {
                         >
                           {item.label}
                           {submenuOpen ? (
-                            <ChevronLeft size={18} />
+                            <ChevronUp size={18} />
                           ) : (
-                            <ChevronRight size={18} />
+                            <ChevronDown size={18} />
                           )}
                         </button>
 
-                        {submenuOpen && (
+                        {/* {submenuOpen && (
                           <div className="fixed left-80 top-20 w-[calc(100vw-20rem)] bg-[#3C0080] p-10 z-40 overflow-y-auto">
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                               {categories.map((cat) => (
@@ -144,9 +143,9 @@ export const Navbar = () => {
                               ))}
                             </div>
                           </div>
-                        )}
+                        )} */}
 
-                        {/* {submenuOpen && (
+                        {submenuOpen && (
                           <div className="pl-3 mt-3 grid grid-cols-2 gap-3">
                             {categories.map((cat) => (
                               <a
@@ -164,7 +163,7 @@ export const Navbar = () => {
                               </a>
                             ))}
                           </div>
-                        )} */}
+                        )}
 
                       </div>
                     ) : (
