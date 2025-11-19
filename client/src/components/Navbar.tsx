@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ProductCardMini } from "@/components/ProductCardMini";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const categories = [
   { name: "All Products", image: "/images/categories/all.avif" },
@@ -76,6 +77,18 @@ export const Navbar = () => {
     setOpen(true);
     setCartOpen(false);
     setShowSearch(false);
+  };
+
+  const navigate = useNavigate();
+
+  const handleUserClick = () => {
+    const isLoggedIn = Boolean(localStorage.getItem("token"));
+
+    if (isLoggedIn) {
+      navigate("/profile"); 
+    } else {
+      navigate("/signin");
+    }
   };
 
   return (
@@ -205,11 +218,10 @@ export const Navbar = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                onClick={handleUserClick}
                 className="text-primary-foreground hover:bg-primary/80"
               >
-                <Link to="/signin">
                 <User className="h-6 w-6 cursor-pointer" />
-              </Link>
               </Button>
 
               {/* 🛒 Cart Sidebar */}

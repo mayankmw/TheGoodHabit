@@ -13,6 +13,7 @@ import Product from "./pages/Product";
 import TrackOrder from "./pages/TrackOrder";
 import Blogs from "./pages/Blogs";
 import Contact from "./pages/Contact";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/track-order" element={<TrackOrder />} />
             <Route path="/blogs" element={<Blogs />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
 
           {/* Standalone routes (no layout) */}

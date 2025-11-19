@@ -1,29 +1,31 @@
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether";
-
-const mockProduct = {
-  id: 1,
-  name: "Dates Delight",
-  type: "dates",
-  image: "/images/products/product1.webp",
-  originalPrice: 600,
-  discountedPrice: 450,
-  description:
-    "Sweet, soft, and packed with nature’s energy. Our handpicked dates are a natural source of fiber, iron, and sweetness — perfect for snacking or smoothies.",
-  rating: 4.8,
-  reviews: 212,
-  ingredients: ["Dates", "Love", "Sunshine", "Natural Sweetness"],
-};
+import { useProductStore } from "@/store/useProductStore";
 
 export const Product = () => {
   const { id } = useParams();
-  const product = mockProduct;
-  const isDatesProduct = product.type === "dates";
 
-  // Calculate discount percentage
+  const { product, fetchSingleProduct, loading } = useProductStore();
+
+  useEffect(() => {
+    if (id) fetchSingleProduct(id);
+  }, [id]);
+
+  if (loading || !product) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-2xl opacity-70">
+        Loading product...
+      </div>
+    );
+  }
+
+  // const isDatesProduct = product.type === "dates";
+  const isDatesProduct = true;
+
   const discountPercent = Math.round(
     ((product.originalPrice - product.discountedPrice) / product.originalPrice) * 100
   );
@@ -31,6 +33,7 @@ export const Product = () => {
   return (
     <section className="bg-gradient-to-b from-amber-50 via-white to-amber-100 text-foreground min-h-screen py-10 relative overflow-hidden">
       <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-12 items-center relative z-10">
+        
         {/* Product Image */}
         <motion.div
           className="relative group"
@@ -47,7 +50,7 @@ export const Product = () => {
           />
         </motion.div>
 
-        {/* Product Info + Storytelling */}
+        {/* Product Info */}
         <motion.div
           className="space-y-6"
           initial={{ opacity: 0, x: 60 }}
@@ -70,9 +73,7 @@ export const Product = () => {
                 }`}
               />
             ))}
-            <span className="text-sm text-muted-foreground">
-              ({product.reviews} reviews)
-            </span>
+            <span className="text-sm text-muted-foreground">({product.reviews} reviews)</span>
           </div>
 
           {/* Description */}
@@ -85,10 +86,9 @@ export const Product = () => {
             {product.description}
           </motion.p>
 
-          {/* Storytelling Inline */}
+          {/* Storytelling for dates */}
           {isDatesProduct && (
             <div className="space-y-4 mt-8">
-              {/* Line 1 */}
               <motion.div
                 className="flex items-center gap-3"
                 initial={{ opacity: 0, x: -40 }}
@@ -97,7 +97,6 @@ export const Product = () => {
               >
                 <motion.img
                   src="/images/elements/dates.png"
-                  alt="date character"
                   className="w-20 h-20"
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
@@ -107,7 +106,6 @@ export const Product = () => {
                 </div>
               </motion.div>
 
-              {/* Line 2 */}
               <motion.div
                 className="flex items-center justify-end gap-3 text-right"
                 initial={{ opacity: 0, x: 40 }}
@@ -119,14 +117,12 @@ export const Product = () => {
                 </div>
                 <motion.img
                   src="/images/elements/dates.png"
-                  alt="date character"
                   className="w-20 h-20"
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3.5, repeat: Infinity }}
                 />
               </motion.div>
 
-              {/* Line 3 */}
               <motion.div
                 className="flex items-center gap-3"
                 initial={{ opacity: 0, x: -40 }}
@@ -135,7 +131,6 @@ export const Product = () => {
               >
                 <motion.img
                   src="/images/elements/dates.png"
-                  alt="date character"
                   className="w-20 h-20"
                   animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3, repeat: Infinity }}
@@ -147,16 +142,12 @@ export const Product = () => {
             </div>
           )}
 
-          {/* Price Section with Discount */}
+          {/* Price */}
           <div className="flex items-center gap-4 mt-8">
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold">
-                  ₹{product.discountedPrice}
-                </span>
-                <span className="text-sm text-muted-foreground line-through">
-                  ₹{product.originalPrice}
-                </span>
+                <span className="text-2xl font-bold">₹{product.discountedPrice}</span>
+                <span className="text-sm text-muted-foreground line-through">₹{product.originalPrice}</span>
                 <span className="text-sm font-semibold text-green-600">
                   ({discountPercent}% OFF)
                 </span>
@@ -171,8 +162,12 @@ export const Product = () => {
           {/* Ingredients */}
           <div>
             <h3 className="text-lg font-semibold mt-6 mb-2">Ingredients</h3>
+
             <div className="flex flex-wrap gap-2">
-              {product.ingredients.map((item, i) => (
+              {(Array.isArray(product.ingredients)
+                ? product.ingredients
+                : JSON.parse(product.ingredients || "[]")
+              ).map((item, i) => (
                 <motion.span
                   key={i}
                   className="bg-accent text-accent-foreground px-3 py-1 rounded-full text-sm"
@@ -185,6 +180,7 @@ export const Product = () => {
               ))}
             </div>
           </div>
+
         </motion.div>
       </div>
 

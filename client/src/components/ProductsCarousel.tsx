@@ -4,66 +4,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ProductCard } from "./ProductCard";
 import { Link } from "react-router-dom";
-
-const products = [
-  {
-    id: "all-minis",
-    // image: "/images/products/product1.webp",
-    image: "/images/products/productOne.jpeg",
-    name: "ALL MINIS IN 1",
-    price: 900,
-    rating: 4.5,
-    reviews: 2,
-  },
-  {
-    id: "cheese-wafer-pack10",
-    image: "/images/products/productTwo.jpeg",
-    name: "CHEESE PROTEIN WAFER – PACK OF 10",
-    price: 499,
-    originalPrice: 550,
-    discount: 9,
-    rating: 4.5,
-    reviews: 118,
-  },
-  {
-    id: "choco-hazelnut-combo",
-    image: "/images/products/productOne.jpeg",
-    name: "CHOCO HAZELNUT + COOKIES & CREAM",
-    price: 600,
-    rating: 5,
-    reviews: 5,
-  },
-  {
-    id: "pb-wafer-pack10",
-    image: "/images/products/productTwo.jpeg",
-    name: "CHOCO PEANUT BUTTER PROTEIN WAFER – PACK OF 10",
-    price: 499,
-    originalPrice: 550,
-    discount: 9,
-    rating: 4.5,
-    reviews: 104,
-  },
-  {
-    id: "protein-power-bars",
-    image: "/images/products/productOne.jpeg",
-    name: "PROTEIN POWER BARS",
-    price: 450,
-    rating: 4.5,
-    reviews: 89,
-  },
-  {
-    id: "super-greens-blend",
-    image: "/images/products/productTwo.jpeg",
-    name: "SUPER GREENS BLEND",
-    price: 799,
-    originalPrice: 899,
-    discount: 11,
-    rating: 5,
-    reviews: 156,
-  },
-];
+import { useProductStore } from "@/store/useProductStore";
 
 export const ProductsCarousel = () => {
+  const { products, fetchProducts, loading } = useProductStore();
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: 1,
@@ -85,6 +30,11 @@ export const ProductsCarousel = () => {
     setCanScrollNext(emblaApi.canScrollNext());
   }, [emblaApi]);
 
+  // 👉 Fetch products on mount
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
   useEffect(() => {
     if (!emblaApi) return;
     onSelect();
@@ -103,6 +53,7 @@ export const ProductsCarousel = () => {
           <h2 className="text-3xl md:text-4xl font-black uppercase bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 bg-clip-text text-transparent tracking-wider">
             Our Products
           </h2>
+
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -113,6 +64,7 @@ export const ProductsCarousel = () => {
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
+
             <Button
               variant="outline"
               size="icon"
@@ -124,6 +76,16 @@ export const ProductsCarousel = () => {
             </Button>
           </div>
         </div>
+
+        {/* Loading UI */}
+        {loading && (
+          <p className="text-center text-lg opacity-60">Loading products...</p>
+        )}
+
+        {/* No products */}
+        {!loading && products.length === 0 && (
+          <p className="text-center text-lg opacity-60">No products found.</p>
+        )}
 
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex gap-6">
