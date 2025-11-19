@@ -5,9 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 interface ProductCardMiniProps {
   image: string;
   name: string;
-  price: number;
-  originalPrice?: number;
-  discount?: number;
+  originalPrice: number;
+  discountedPrice: number;
   rating: number;
   reviews: number;
 }
@@ -15,12 +14,16 @@ interface ProductCardMiniProps {
 export const ProductCardMini = ({
   image,
   name,
-  price,
   originalPrice,
-  discount,
+  discountedPrice,
   rating,
   reviews,
 }: ProductCardMiniProps) => {
+
+  const discountPercent = Math.round(
+    ((originalPrice - discountedPrice) / originalPrice) * 100
+  );
+
   const renderStars = () => {
     const stars = [];
     const fullStars = Math.floor(rating);
@@ -42,22 +45,26 @@ export const ProductCardMini = ({
   return (
     <Card className="group overflow-hidden border border-border hover:border-primary transition-all duration-300 hover:shadow-sm">
       <CardContent className="p-0">
-        {/* Image */}
+
+        {/* Image Section */}
         <div className="relative aspect-square overflow-hidden bg-card">
           <img
             src={image}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
-          {discount && (
-            <div className="absolute top-1.5 right-1.5 bg-success text-success-foreground px-1.5 py-0.5 rounded-full text-[9px] font-semibold">
-              -{discount}%
+
+          {/* Discount Badge */}
+          {discountPercent > 0 && (
+            <div className="absolute top-1.5 right-1.5 bg-green-600 text-white px-1.5 py-0.5 rounded-full text-[9px] font-semibold">
+              -{discountPercent}%
             </div>
           )}
         </div>
 
         {/* Content */}
         <div className="p-2.5 space-y-1.5">
+          
           {/* Rating */}
           <div className="flex items-center gap-1">
             <div className="flex gap-[1px]">{renderStars()}</div>
@@ -71,20 +78,19 @@ export const ProductCardMini = ({
 
           {/* Price */}
           <div className="flex items-center gap-1">
-            {originalPrice && (
-              <span className="text-muted-foreground line-through text-[10px]">
-                ₹{originalPrice}
-              </span>
-            )}
-            <span className="text-sm font-bold">₹{price}</span>
+            <span className="text-muted-foreground line-through text-[10px]">
+              ₹{originalPrice}
+            </span>
+            <span className="text-sm font-bold">₹{discountedPrice}</span>
           </div>
 
-          {/* Add to Cart Button */}
-        <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground text-[10px] font-bold py-1.5 rounded-md">
-          ADD
-        </Button>
+          {/* Add Button */}
+          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground text-[10px] font-bold py-1.5 rounded-md">
+            ADD
+          </Button>
 
         </div>
+
       </CardContent>
     </Card>
   );

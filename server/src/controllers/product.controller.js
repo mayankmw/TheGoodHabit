@@ -1,11 +1,37 @@
+import { Op } from "sequelize";
 import { Product } from "../models/Product.js";
 
 export const fetchProducts = async (req, res) => {
   try {
-    // You can extract filters from req.body later
-    // const { category, minPrice, maxPrice } = req.body;
+    const { search, recommended } = req.body;
 
-    const products = await Product.findAll();
+    let query = {};
+
+    // 🔍 SEARCH FEATURE
+    if (search) {
+      query.where = {
+        name: { [Op.like]: `%${search}%` }
+      };
+    }
+
+    // ⭐ RECOMMENDED PRODUCTS (Top 4 rated)
+    if (recommended) {
+      const products = await Product.findAll({
+        order: [["rating", "DESC"]],
+        limit: 4,
+      });
+
+      return res.json({
+        success: true,
+        products,
+      });
+    }
+
+    // 🎯 DEFAULT – Fetch All Products
+    const products = await Product.findAll({
+      order: [["createdAt", "DESC"]],
+      where: query.where || undefined,
+    });
 
     return res.json({
       success: true,
@@ -21,7 +47,6 @@ export const fetchProducts = async (req, res) => {
     });
   }
 };
-
 
 export const fetchSingleProduct = async (req, res) => {
   const { id } = req.body;

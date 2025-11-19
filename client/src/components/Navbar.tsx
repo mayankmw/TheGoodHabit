@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Menu,
   Search,
@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ProductCardMini } from "@/components/ProductCardMini";
 import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
+import { useProductStore } from "@/store/useProductStore";
 
 const categories = [
   { name: "All Products", image: "/images/categories/all.avif" },
@@ -59,6 +60,8 @@ export const Navbar = () => {
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const { recommended, fetchRecommended } = useProductStore();
+  const { searchProducts } = useProductStore();
 
   // helper functions to prevent multiple overlays open
   const handleOpenSearch = () => {
@@ -90,6 +93,36 @@ export const Navbar = () => {
       navigate("/signin");
     }
   };
+
+  useEffect(() => {
+  fetchRecommended();
+}, []);
+
+// ADD THIS AT TOP
+const [query, setQuery] = useState("");
+const [results, setResults] = useState([]);
+const [searching, setSearching] = useState(false);
+
+// 🔍 Debounced Search Handler
+useEffect(() => {
+  const delay = setTimeout(async () => {
+    if (query.trim().length === 0) {
+      setResults([]); // reset
+      return;
+    }
+
+    setSearching(true);
+    const res = await searchProducts(query);
+    setSearching(false);
+
+    if (res.success) {
+      setResults(res.products);
+    }
+  }, 400);
+
+  return () => clearTimeout(delay);
+}, [query, recommended]);
+
 
   return (
     <>
@@ -405,35 +438,77 @@ export const Navbar = () => {
             <div className="flex justify-center">
               <input
                 type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
                 placeholder="Type to search products..."
                 className="w-[90%] md:w-[60%] border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
 
             <div className="mt-8 pb-6 text-center">
+
+              {/* Title */}
               <h3 className="font-semibold mb-6 text-base md:text-md text-muted-foreground uppercase tracking-wide">
-                or select from our recommended products
+                {query.length > 0 ? "Search Results" : "Or Select From Our Recommended Products"}
               </h3>
 
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
-                {recommendedProducts.map((product, index) => (
-                <Link
-                      key={index}
+              {/* 🔄 Loading */}
+              {searching && (
+                <p className="text-sm text-muted-foreground">Searching...</p>
+              )}
+
+              {/* 🔍 Search Results */}
+              {query.length > 0 && !searching && results.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
+                  {results.map((product) => (
+                    <Link
+                      key={product.id}
                       to={`/products/${product.id}`}
                       onClick={() => setShowSearch(false)}
-                      className="max-w-[220px] mx-auto transform scale-90 md:scale-95 lg:scale-100 transition-transform duration-200 hover:scale-105"
+                      className="max-w-[220px] mx-auto transform transition hover:scale-105"
                     >
                       <ProductCardMini
-                        {...product}
-                        rating={4.5}
-                        reviews={80 + index * 10}
-                        discount={10}
-                        originalPrice={product.price + 50}
+                        image={product.image}
+                        name={product.name}
+                        rating={product.rating}
+                        reviews={product.reviews}
+                        originalPrice={product.originalPrice}
+                        discountedPrice={product.discountedPrice}
                       />
                     </Link>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ❌ No results */}
+              {query.length > 0 && !searching && results.length === 0 && (
+                <p className="text-sm text-muted-foreground">No products found.</p>
+              )}
+
+              {/* ⭐ Recommended Products */}
+              {query.length === 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
+                  {recommended.map((product) => (
+                    <Link
+                      key={product.id}
+                      to={`/products/${product.id}`}
+                      onClick={() => setShowSearch(false)}
+                      className="max-w-[220px] mx-auto transform transition hover:scale-105"
+                    >
+                      <ProductCardMini
+                        image={product.image}
+                        name={product.name}
+                        rating={product.rating}
+                        reviews={product.reviews}
+                        originalPrice={product.originalPrice}
+                        discountedPrice={product.discountedPrice}
+                      />
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
         </div>
       )}

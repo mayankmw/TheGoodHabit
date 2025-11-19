@@ -17,55 +17,53 @@ interface Product {
 
 interface ProductState {
   products: Product[];
+  recommended: Product[];
   product: Product | null;
   loading: boolean;
 
   fetchProducts: () => Promise<any>;
   fetchSingleProduct: (id: string) => Promise<any>;
+  fetchRecommended: () => Promise<any>;
+  searchProducts: (query: string) => Promise<any>;
 }
 
 export const useProductStore = create<ProductState>((set) => ({
   products: [],
+  recommended: [],
   product: null,
   loading: false,
 
-  // FETCH ALL PRODUCTS (POST request)
   fetchProducts: async () => {
     try {
       set({ loading: true });
-
       const { data } = await api.post("/products", {});
-
-      if (data.success) {
-        set({ products: data.products });
-      }
-
+      if (data.success) set({ products: data.products });
+    } finally {
       set({ loading: false });
-      return data;
-
-    } catch (error: any) {
-      set({ loading: false });
-      return error.response?.data;
     }
   },
 
-  // FETCH SINGLE PRODUCT (POST request)
+  fetchRecommended: async () => {
+    try {
+      const { data } = await api.post("/products", { recommended: true });
+      if (data.success) set({ recommended: data.products });
+    } catch {}
+  },
+
+  searchProducts: async (query) => {
+    const { data } = await api.post("/products", { search: query });
+    if (data.success) set({ products: data.products });
+    return data;
+  },
+
   fetchSingleProduct: async (id: string) => {
     try {
       set({ loading: true });
-
       const { data } = await api.post("/products/details", { id });
-
-      if (data.success) {
-        set({ product: data.product });
-      }
-
+      if (data.success) set({ product: data.product });
+    } finally {
       set({ loading: false });
-      return data;
-
-    } catch (error: any) {
-      set({ loading: false });
-      return error.response?.data;
     }
   },
 }));
+
