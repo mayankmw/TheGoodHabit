@@ -94,12 +94,7 @@ export const ProductsCarousel = () => {
                 key={product.id}
                 className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_calc(50%-12px)] lg:flex-[0_0_calc(25%-18px)]"
               >
-                <Link
-                  to={`/products/${product.id}`}
-                  className="block transform transition-transform duration-200 hover:scale-105"
-                >
                   <ProductCard {...product} />
-                </Link>
               </div>
             ))}
           </div>

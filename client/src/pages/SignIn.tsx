@@ -21,7 +21,7 @@ export const SignIn = () => {
     const res = await sendOtp(email);
 
     if (res.success) {
-      toast.success("OTP sent to your email");
+      toast.success(res.message);
       setStep("otp");
     } else {
       toast.error(res.message);
@@ -34,7 +34,7 @@ export const SignIn = () => {
     const res = await verifyOtp(email, otp);
 
     if (res.success) {
-      toast.success("Login Successful");
+      toast.success(res.message);
       navigate("/profile");
     } else {
       toast.error(res.message);

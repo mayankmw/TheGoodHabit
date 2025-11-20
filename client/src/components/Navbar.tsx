@@ -13,40 +13,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ProductCardMini } from "@/components/ProductCardMini";
-import { Link } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "@/store/useProductStore";
+import { useCartStore } from "@/store/useCartStore";
+import { useUIStore } from "@/store/useUIStore";
 
 const categories = [
   { name: "All Products", image: "/images/categories/all.avif" },
   { name: "Dates", image: "/images/categories/breakfast.avif" }
-];
-
-const recommendedProducts = [
-  {
-    id: "choco-bar",
-    name: "Chocolate Protein Bar",
-    image: "/images/products/product1.webp",
-    price: 249,
-  },
-  {
-    id: "almond-dates-combo",
-    name: "Almond Dates Combo",
-    image: "/images/products/product2.webp",
-    price: 499,
-  },
-  {
-    id: "pb-minis",
-    name: "Peanut Butter Minis",
-    image: "/images/products/product3.webp",
-    price: 299,
-  },
-  {
-    id: "kunafa-protein-dates",
-    name: "Kunafa Protein Dates",
-    image: "/images/products/product4.webp",
-    price: 399,
-  },
 ];
 
 const menuItems = [
@@ -58,28 +32,42 @@ const menuItems = [
 export const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [cartOpen, setCartOpen] = useState(false);
+  
+const openSearch = useUIStore((s) => s.openSearch);
+const setOpenSearch = useUIStore((s) => s.setOpenSearch);
+
+const cartOpen = useUIStore((s) => s.openCart);
+const setOpenCart = useUIStore((s) => s.setOpenCart);
+
   const { recommended, fetchRecommended } = useProductStore();
   const { searchProducts } = useProductStore();
 
-  // helper functions to prevent multiple overlays open
-  const handleOpenSearch = () => {
-    setShowSearch(true);
-    setCartOpen(false);
-    setOpen(false);
-  };
+  const cart = useCartStore((s) => s.cart);
+const removeFromCart = useCartStore((s) => s.removeFromCart);
+const updateQuantity = useCartStore((s) => s.updateQuantity);
 
-  const handleOpenCart = () => {
-    setCartOpen(true);
-    setShowSearch(false);
-    setOpen(false);
-  };
+const cartCount = useCartStore((s) =>
+  s.cart.reduce((acc, item) => acc + item.quantity, 0)
+);
+
+
+const handleOpenSearch = () => {
+  setOpenSearch(true);
+  setOpenCart(false);
+  setOpen(false);
+};
+
+const handleOpenCart = () => {
+  setOpenCart(true);
+  setOpenSearch(false);
+  setOpen(false);
+};
+
 
   const handleOpenMenu = () => {
     setOpen(true);
-    setCartOpen(false);
-    setShowSearch(false);
+    setOpenCart(false);
+    setOpenSearch(false);
   };
 
   const navigate = useNavigate();
@@ -167,30 +155,6 @@ useEffect(() => {
                           )}
                         </button>
 
-                        {/* {submenuOpen && (
-                          <div className="fixed left-80 top-20 w-[calc(100vw-20rem)] bg-[#3C0080] p-10 z-40 overflow-y-auto">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                              {categories.map((cat) => (
-                                <a
-                                  key={cat.name}
-                                  href={`#${cat.name.toLowerCase()}`}
-                                  className="bg-[#FFF6E9] rounded-2xl p-4 flex flex-col justify-between hover:scale-105 transition-transform duration-300"
-                                  onClick={() => setOpen(false)}
-                                >
-                                  <div className="font-semibold text-[#1E1E1E] text-lg leading-tight mb-3">
-                                    {cat.name}
-                                  </div>
-                                  <img
-                                    src={cat.image}
-                                    alt={cat.name}
-                                    className="w-full h-32 object-contain"
-                                  />
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        )} */}
-
                         {submenuOpen && (
                           <div className="pl-3 mt-3 grid grid-cols-2 gap-3">
                             {categories.map((cat) => (
@@ -258,7 +222,7 @@ useEffect(() => {
               </Button>
 
               {/* 🛒 Cart Sidebar */}
-              <Sheet open={cartOpen} onOpenChange={setCartOpen}>
+              <Sheet open={cartOpen} onOpenChange={setOpenCart}>
                 <SheetTrigger asChild>
                   <Button
                     variant="ghost"
@@ -268,7 +232,7 @@ useEffect(() => {
                   >
                     <ShoppingCart className="h-5 w-5" />
                     <span className="absolute -top-1 -right-1 bg-secondary text-secondary-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                      2
+                      {cartCount}
                     </span>
                   </Button>
                 </SheetTrigger>
@@ -283,7 +247,7 @@ useEffect(() => {
                     <ShoppingCart className="h-5 w-5" /> Your Cart
                   </h2>
                   <button
-                    onClick={() => setCartOpen(false)} // <-- your state handler
+                    onClick={() => setOpenCart(false)} // <-- your state handler
                     className="text-muted-foreground hover:text-foreground transition"
                   >
                     <X className="h-5 w-5" />
@@ -315,43 +279,45 @@ useEffect(() => {
 
                   {/* 🛍️ Cart Items */}
                   <div className="space-y-4">
-                    {recommendedProducts.slice(0, 2).map((item, i) => (
-                      <div
-                        key={i}
-                        className="flex gap-3 border border-border/50 rounded-xl p-3 shadow-sm hover:shadow-md transition"
-                      >
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-20 h-20 object-cover rounded-lg"
-                        />
-                        <div className="flex flex-col justify-between w-full">
-                          <div>
-                            <h3 className="text-sm font-semibold">{item.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-muted-foreground line-through text-xs">
-                                ₹{item.price + 50}
-                              </p>
-                              <p className="text-sm font-bold">₹{item.price}</p>
-                            </div>
+                  {cart.map((item) => (
+                    <div className="flex gap-3 border rounded-xl p-3" key={item.id}>
+                      <img src={item.image} className="w-20 h-20 rounded-lg" />
+
+                      <div className="flex-1">
+                        <div>
+                      <h3 className="text-sm font-semibold">{item.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <p className="text-muted-foreground line-through text-xs">
+                          ₹{item.originalPrice}
+                        </p>
+                        <p className="text-sm font-bold">₹{item.discountedPrice}</p>
+                          </div>
+                        </div>                                                      
+
+                        <div className="flex justify-between items-center mt-2">
+
+                          <div className="flex items-center gap-2 border rounded-md px-2">
+                            <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>
+                              –
+                            </button>
+                            <span>{item.quantity}</span>
+                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>
+                              +
+                            </button>
                           </div>
 
-                          <div className="flex justify-between items-center mt-2">
-                            <div className="flex items-center gap-2 border rounded-md px-2">
-                              <button className="text-lg">−</button>
-                              <span className="text-sm font-medium">1</span>
-                              <button className="text-lg">+</button>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              className="text-xs text-destructive w-fit p-0 hover:text-destructive/80"
-                            >
-                              Remove
-                            </Button>
-                          </div>
+                          <Button 
+                            variant="ghost" 
+                            className="text-xs text-destructive"
+                            onClick={() => removeFromCart(item.id)}
+                          >
+                            Remove
+                          </Button>
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  ))}
+
                   </div>
 
                   {/* 💸 Offers & Rewards */}
@@ -374,7 +340,7 @@ useEffect(() => {
                   <div className="mt-6 mb-4">
                     <h4 className="font-semibold text-sm mb-3">Special Offers For You</h4>
                     <div className="flex gap-3 overflow-x-auto pb-2">
-                      {recommendedProducts.map((item, index) => (
+                      {recommended.map((item, index) => (
                         <div
                           key={index}
                           className="min-w-[120px] border border-border/50 rounded-lg p-2 relative"
@@ -422,14 +388,14 @@ useEffect(() => {
       </nav>
 
       {/* 🔍 Search Overlay */}
-      {showSearch && (
+      {openSearch && (
         <div className="fixed top-0 left-0 w-full bg-background shadow-md border-b border-border z-[60] animate-fadeIn">
           <div className="container mx-auto px-4 py-6">
             <div className="flex justify-end mb-4">
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowSearch(false)}
+                onClick={() => setOpenSearch(false)}
               >
                 <X className="h-5 w-5" />
               </Button>
@@ -461,13 +427,8 @@ useEffect(() => {
               {query.length > 0 && !searching && results.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                   {results.map((product) => (
-                    <Link
-                      key={product.id}
-                      to={`/products/${product.id}`}
-                      onClick={() => setShowSearch(false)}
-                      className="max-w-[220px] mx-auto transform transition hover:scale-105"
-                    >
                       <ProductCardMini
+                        id={product.id}
                         image={product.image}
                         name={product.name}
                         rating={product.rating}
@@ -475,7 +436,6 @@ useEffect(() => {
                         originalPrice={product.originalPrice}
                         discountedPrice={product.discountedPrice}
                       />
-                    </Link>
                   ))}
                 </div>
               )}
@@ -489,13 +449,8 @@ useEffect(() => {
               {query.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                   {recommended.map((product) => (
-                    <Link
-                      key={product.id}
-                      to={`/products/${product.id}`}
-                      onClick={() => setShowSearch(false)}
-                      className="max-w-[220px] mx-auto transform transition hover:scale-105"
-                    >
                       <ProductCardMini
+                        id={product.id}
                         image={product.image}
                         name={product.name}
                         rating={product.rating}
@@ -503,7 +458,6 @@ useEffect(() => {
                         originalPrice={product.originalPrice}
                         discountedPrice={product.discountedPrice}
                       />
-                    </Link>
                   ))}
                 </div>
               )}

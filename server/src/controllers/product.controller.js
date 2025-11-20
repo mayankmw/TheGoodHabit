@@ -1,49 +1,45 @@
-import { Op } from "sequelize";
-import { Product } from "../models/Product.js";
+import { db } from "../config/db.js";
 
 export const fetchProducts = async (req, res) => {
   try {
     const { search, recommended } = req.body;
 
-    let query = {};
-
-    // 🔍 SEARCH FEATURE
-    if (search) {
-      query.where = {
-        name: { [Op.like]: `%${search}%` }
-      };
-    }
-
-    // ⭐ RECOMMENDED PRODUCTS (Top 4 rated)
+    // ⭐ RECOMMENDED (TOP 4 RATED)
     if (recommended) {
-      const products = await Product.findAll({
-        order: [["rating", "DESC"]],
-        limit: 4,
-      });
+      const [rows] = await db.query(
+        "SELECT * FROM products ORDER BY rating DESC LIMIT 4"
+      );
 
       return res.json({
         success: true,
-        products,
+        products: rows,
       });
     }
 
-    // 🎯 DEFAULT – Fetch All Products
-    const products = await Product.findAll({
-      order: [["createdAt", "DESC"]],
-      where: query.where || undefined,
-    });
+    let sql = "SELECT * FROM products";
+    let params = [];
+
+    // 🔍 SEARCH
+    if (search && search.trim().length > 0) {
+      sql += " WHERE name LIKE ?";
+      params.push(`%${search}%`);
+    }
+
+    // Order by latest created (DESC)
+    sql += " ORDER BY createdAt DESC";
+
+    const [products] = await db.query(sql, params);
 
     return res.json({
       success: true,
       count: products.length,
-      products
+      products,
     });
-
-  } catch (error) {
+  } catch (err) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch products",
-      error: error.message
+      error: err.message,
     });
   }
 };
@@ -54,30 +50,35 @@ export const fetchSingleProduct = async (req, res) => {
   if (!id) {
     return res.status(400).json({
       success: false,
-      message: "Product ID is required"
+      message: "Product ID is required",
     });
   }
 
   try {
-    const product = await Product.findOne({ where: { id } });
+    const [rows] = await db.query(
+      "SELECT * FROM products WHERE id = ? LIMIT 1",
+      [id]
+    );
+
+    const product = rows[0];
 
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Product not found"
+        message: "Product not found",
       });
     }
 
     return res.json({
       success: true,
-      product
+      product,
     });
-
-  } catch (error) {
+  } catch (err) {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch product",
-      error: error.message
+      error: err.message,
     });
   }
 };
+

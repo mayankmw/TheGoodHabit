@@ -1,8 +1,12 @@
 import { Star, StarHalf } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useCartStore } from "@/store/useCartStore";
+import { Link } from "react-router-dom";
+import { useUIStore } from "@/store/useUIStore";
 
 interface ProductCardProps {
+  id: string;
   image: string;
   name: string;
   originalPrice: number;
@@ -12,6 +16,7 @@ interface ProductCardProps {
 }
 
 export const ProductCard = ({
+  id,
   image,
   name,
   originalPrice,
@@ -37,22 +42,29 @@ export const ProductCard = ({
     return stars;
   };
 
+  const addToCart = useCartStore((s) => s.addToCart);
+const setOpenCart = useUIStore((s) => s.setOpenCart);
+const setOpenSearch = useUIStore((s) => s.setOpenSearch);
+
+  
   return (
     <Card className="group overflow-hidden border-2 border-border hover:border-primary transition-all duration-300 hover:shadow-xl">
       <CardContent className="p-0">
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden bg-card">
-          <img
-            src={image}
-            alt={name}
-            className="w-[80%] h-full object-cover group-hover:scale-105 transition-transform duration-300 mx-auto"
-          />
+        <Link to={`/products/${id}`}>
+          <div className="relative aspect-square overflow-hidden bg-card">
+            <img
+              src={image}
+              alt={name}
+              className="w-[80%] h-full object-cover group-hover:scale-105 transition-transform duration-300 mx-auto"
+            />
 
-          {/* Discount Badge */}
-          <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-            -{discountPercent}% OFF
+            {/* Discount Badge */}
+            <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+              -{discountPercent}% OFF
+            </div>
           </div>
-        </div>
+        </Link>
 
         {/* Content */}
         <div className="p-4 space-y-3">
@@ -64,9 +76,11 @@ export const ProductCard = ({
           </div>
 
           {/* Name */}
-          <h3 className="font-black text-lg uppercase leading-tight min-h-[3rem]">
-            {name}
-          </h3>
+          <Link to={`/products/${id}`}>
+            <h3 className="font-black text-lg uppercase leading-tight min-h-[3rem] hover:text-primary transition">
+              {name}
+            </h3>
+          </Link>
 
           {/* Price */}
           <div className="flex items-center gap-2">
@@ -82,7 +96,14 @@ export const ProductCard = ({
           </div>
 
           {/* Add to Cart */}
-          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-black text-base py-6 rounded-lg">
+          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-black text-base py-6 rounded-lg"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              addToCart({ id, name, image, originalPrice, discountedPrice });
+              setOpenSearch(false);
+              setOpenCart(true); 
+            }}>
             ADD TO CART
           </Button>
         </div>
