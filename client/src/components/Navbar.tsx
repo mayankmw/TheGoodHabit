@@ -203,7 +203,7 @@ useEffect(() => {
             </div>
 
             {/* Right: Icons */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.2 sm:gap-2">
               <Button
                 variant="ghost"
                 size="icon"

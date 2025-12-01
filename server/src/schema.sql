@@ -52,6 +52,37 @@ CREATE TABLE IF NOT EXISTS orders (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
+ALTER TABLE orders
+  ADD COLUMN addressId INT UNSIGNED NULL AFTER userId,
+  ADD COLUMN paymentStatus ENUM('pending','paid','failed') NOT NULL DEFAULT 'pending',
+  ADD COLUMN paymentMethod VARCHAR(50) NULL,
+  ADD COLUMN razorpayOrderId VARCHAR(255) NULL,
+  ADD COLUMN razorpayPaymentId VARCHAR(255) NULL;
+
+
+
+-- --------------------------------------------------
+-- ORDERS ITEMS TABLE
+-- --------------------------------------------------
+CREATE TABLE IF NOT EXISTS order_items (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+  orderId INT UNSIGNED NOT NULL,
+  productId VARCHAR(191) NOT NULL,
+
+  quantity INT NOT NULL DEFAULT 1,
+  price INT NOT NULL,
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+
+ALTER TABLE order_items
+  MODIFY productId VARCHAR(191)
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+
+
 -- --------------------------------------------------
 -- ADDRESSES TABLE
 -- --------------------------------------------------
@@ -74,6 +105,13 @@ CREATE TABLE IF NOT EXISTS addresses (
     REFERENCES users(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+ALTER TABLE addresses
+  CHANGE street addressLine1 VARCHAR(255) NOT NULL;
+
+ALTER TABLE addresses
+  ADD COLUMN addressLine2 VARCHAR(255) NULL AFTER addressLine1;
 
 
 -- --------------------------------------------------

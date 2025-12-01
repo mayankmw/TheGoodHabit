@@ -2,6 +2,8 @@ import { create } from "zustand";
 import api from "@/lib/api";
 
 interface User {
+  orders: any[];
+  addresses: any[];
   id?: number;
   email: string;
   name?: string;
@@ -65,8 +67,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const token = get().token;
     if (!token) return null;
 
-    const { data } = await api.get("/user/me");
-    set({ user: data.user });
-    return data.user;
+    const { data } = await api.post("/user/me");
+
+    set({
+      user: {
+        ...data.user,
+        addresses: data.addresses || [],
+        orders: data.orders || [],
+      },
+    });
+
+    return data;
   },
+
 }));

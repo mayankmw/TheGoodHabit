@@ -3,41 +3,6 @@ import jwt from "jsonwebtoken";
 import { db } from "../config/db.js";
 import sendEmail from "../utils/sendEmail.js";
 
-export const login = async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const [rows] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
-    const user = rows[0];
-
-    if (!user) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ success: false, message: "Invalid email or password" });
-    }
-
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    });
-
-    return res.json({
-      success: true,
-      message: "Welcome Back",
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-      },
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "Server error", error: err.message });
-  }
-};
-
 export const sendOtp = async (req, res) => {
   const { email } = req.body;
 
@@ -104,3 +69,86 @@ export const verifyOtp = async (req, res) => {
     user,
   });
 };
+
+export const me = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    // 1. USER
+    const [users] = await db.query(
+      "SELECT id, email, name FROM users WHERE id = ?",
+      [userId]
+    );
+    const user = users[0];
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 2. ADDRESSES
+    const [addresses] = await db.query(
+      `SELECT 
+         id, 
+         addressLine1, 
+         addressLine2, 
+         city, 
+         state, 
+         postalCode, 
+         country 
+       FROM addresses 
+       WHERE userId = ?`,
+      [userId]
+    );
+
+    // 3. ORDERS
+    const [orders] = await db.query(
+      `SELECT 
+         id, 
+         totalPrice,
+         status,
+         paymentStatus,
+         paymentMethod,
+         razorpayOrderId,
+         razorpayPaymentId,
+         createdAt
+       FROM orders 
+       WHERE userId = ?
+       ORDER BY createdAt DESC`,
+      [userId]
+    );
+
+    // 4. Attach order items to each order
+    for (let order of orders) {
+      const [items] = await db.query(
+        `SELECT 
+           oi.quantity, 
+           oi.price, 
+           p.name,
+           p.image,
+           p.id AS productId
+         FROM order_items oi
+         JOIN products p ON oi.productId = p.id
+         WHERE oi.orderId = ?`,
+        [order.id]
+      );
+
+      order.items = items;
+    }
+
+    return res.json({
+      success: true,
+      user,
+      addresses,
+      orders
+    });
+
+  } catch (err) {
+    console.error("ME API ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: err.message
+    });
+  }
+};
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Plus, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,36 +14,18 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useNavigate } from "react-router-dom";
 
 export const Profile = () => {
-  const [addresses, setAddresses] = useState([
-    {
-      id: 1,
-      name: "Mayank Wadhwa",
-      phone: "9876543210",
-      pincode: "110034",
-      city: "New Delhi",
-      state: "Delhi",
-      addressLine: "123, Model Town",
-      isDefault: true,
-    },
-  ]);
-
-  const [orders] = useState([
-    {
-      id: "GH123456",
-      date: "25 Oct 2025",
-      status: "Delivered",
-      total: 748,
-      items: [
-        { name: "Chocolate Protein Bar", qty: 2 },
-        { name: "Almond Dates Combo", qty: 1 },
-      ],
-    },
-  ]);
+  // ------------------------------
+  // Zustand data
+  // ------------------------------
+  const user = useAuthStore((s) => s.user);
+  const fetchMe = useAuthStore((s) => s.fetchMe);
+  const logout = useAuthStore((s) => s.logout);
 
   // ------------------------------
-  // MODAL STATES
+  // Local UI state
   // ------------------------------
-  const navigate = useNavigate();
+  const [addresses, setAddresses] = useState([]);
+  const [orders, setOrders] = useState([]);
 
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
@@ -52,22 +34,32 @@ export const Profile = () => {
   const [editAddress, setEditAddress] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  const logout = useAuthStore((state) => state.logout);
-  const user = useAuthStore((state) => state.user);
+  const navigate = useNavigate();
 
   // ------------------------------
-  // HANDLERS
+  // Fetch user data (real data)
+  // ------------------------------
+  useEffect(() => {
+    const load = async () => {
+      const data = await fetchMe(); // returns { user, addresses, orders }
+
+      if (data) {
+        setAddresses(data.addresses || []);
+        setOrders(data.orders || []);
+      }
+    };
+
+    load();
+  }, []);
+
+  // ------------------------------
+  // Handlers
   // ------------------------------
   const handleAddAddress = () => {
     const newAddress = {
       id: Date.now(),
-      name: "New User",
-      phone: "9999999999",
-      pincode: "000000",
-      city: "City",
-      state: "State",
-      addressLine: "Street Address",
-      isDefault: false,
+      ...editAddress,
+      isSelected: true,
     };
 
     setAddresses([...addresses, newAddress]);
@@ -76,36 +68,37 @@ export const Profile = () => {
 
   const handleEditAddress = () => {
     setAddresses((prev) =>
-      prev.map((item) =>
-        item.id === editAddress.id ? editAddress : item
-      )
+      prev.map((a) => (a.id === editAddress.id ? editAddress : a))
     );
     setOpenEdit(false);
   };
 
+  // ------------------------------
+  // Render
+  // ------------------------------
   return (
     <div className="min-h-screen bg-muted/10 py-16 px-4">
       <div className="max-w-5xl mx-auto">
-       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-primary">
-          Hello {useAuthStore.getState().user?.name || "User"}
-        </h1>
 
-      <Button
-        variant="destructive"
-        onClick={() => {
-          logout();
-          navigate("/signin");
-        }}
-      >
-        Logout
-      </Button>
+        {/* Top Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-primary">
+            Hello {user?.name || "User"}
+          </h1>
 
-      </div>
-
+          <Button
+            variant="destructive"
+            onClick={() => {
+              logout();
+              navigate("/signin");
+            }}
+          >
+            Logout
+          </Button>
+        </div>
 
         {/* ---------------------------------------- */}
-        {/* ADDRESS SECTION */}
+        {/* ADDRESS SECTION (OLD DESIGN) */}
         {/* ---------------------------------------- */}
         <section className="mb-14">
           <div className="flex justify-between items-center mb-4">
@@ -113,26 +106,25 @@ export const Profile = () => {
               <MapPin /> Saved Addresses
             </h2>
 
-          <Button
-            className="flex items-center gap-2 bg-primary text-white"
-            onClick={() => {
-              setEditAddress({
-                name: "",
-                phone: "",
-                pincode: "",
-                city: "",
-                state: "",
-                addressLine: "",
-              });
-              setOpenAdd(true);
-            }}
-          >
-            <Plus size={18} /> Add New Address
-          </Button>
-
+            <Button
+              className="flex items-center gap-2 bg-primary text-white"
+              onClick={() => {
+                setEditAddress({
+                  name: user?.name || "",
+                  phone: "",
+                  pincode: "",
+                  city: "",
+                  state: "",
+                  addressLine: "",
+                });
+                setOpenAdd(true);
+              }}
+            >
+              <Plus size={18} /> Add New Address
+            </Button>
           </div>
 
-          {/* Address Cards */}
+          {/* Address Cards (Old UI) */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {addresses.map((a) => (
               <div
@@ -140,26 +132,36 @@ export const Profile = () => {
                 className="p-5 bg-white rounded-2xl shadow border hover:shadow-md transition"
               >
                 <div className="flex justify-between">
-                  <h3 className="font-semibold">{a.name}</h3>
-                  {a.isDefault && (
+                  <h3 className="font-semibold">{user?.name}</h3>
+                  {a.isSelected && (
                     <span className="text-xs bg-primary text-white px-2 py-1 rounded">
                       Default
                     </span>
                   )}
                 </div>
 
-                <p className="text-sm text-muted-foreground mt-1">{a.phone}</p>
-
                 <p className="text-sm mt-2">
-                  {a.addressLine}, {a.city}, {a.state} - {a.pincode}
+                  {a.addressLine1}
+                  {a.addressLine2 ? `, ${a.addressLine2}` : ""}
+                  , {a.city}, {a.state} - {a.postalCode}
                 </p>
+
+                <p className="text-sm text-muted-foreground mt-1">{a.country}</p>
 
                 <div className="flex gap-3 mt-4">
                   <Button
                     variant="outline"
                     className="text-sm"
                     onClick={() => {
-                      setEditAddress(a);
+                      setEditAddress({
+                        id: a.id,
+                        name: user?.name,
+                        phone: "",
+                        addressLine: `${a.addressLine1} ${a.addressLine2 || ""}`,
+                        pincode: a.postalCode,
+                        city: a.city,
+                        state: a.state,
+                      });
                       setOpenEdit(true);
                     }}
                   >
@@ -182,7 +184,7 @@ export const Profile = () => {
         </section>
 
         {/* ---------------------------------------- */}
-        {/* ORDERS SECTION */}
+        {/* ORDERS SECTION (OLD DESIGN) */}
         {/* ---------------------------------------- */}
         <section>
           <h2 className="text-xl font-semibold flex items-center gap-2 mb-4">
@@ -200,8 +202,9 @@ export const Profile = () => {
                     <h3 className="font-semibold text-primary">
                       Order ID: {order.id}
                     </h3>
+
                     <p className="text-sm text-muted-foreground">
-                      {order.date}
+                      {new Date(order.createdAt).toDateString()}
                     </p>
                   </div>
 
@@ -210,15 +213,16 @@ export const Profile = () => {
                   </span>
                 </div>
 
+                {/* items */}
                 <div className="mt-4">
-                  {order.items.map((i, idx) => (
+                  {order.items?.map((i, idx) => (
                     <p key={idx} className="text-sm border-b pb-2">
-                      {i.name} × {i.qty}
+                      {i.name} × {i.quantity}
                     </p>
                   ))}
 
                   <p className="text-right font-semibold mt-3">
-                    Total: ₹{order.total}
+                    Total: ₹{order.totalPrice}
                   </p>
                 </div>
 
@@ -235,125 +239,64 @@ export const Profile = () => {
             ))}
           </div>
         </section>
+
       </div>
 
-    {/* ------------------------------ */}
-    {/* ADD ADDRESS MODAL */}
-    {/* ------------------------------ */}
-    <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add New Address</DialogTitle>
-        </DialogHeader>
+      {/* ------------------------------ */}
+      {/* ADD ADDRESS MODAL (unchanged UI) */}
+      {/* ------------------------------ */}
+      <Dialog open={openAdd} onOpenChange={setOpenAdd}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Address</DialogTitle>
+          </DialogHeader>
 
-        <div className="space-y-3 mt-2">
-          <div>
-            <Label>Name</Label>
-            <Input
-              placeholder="Full Name"
-              value={editAddress?.name || ""}
-              onChange={(e) =>
-                setEditAddress((prev) => ({
-                  ...(prev || {}),
-                  name: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div>
-            <Label>Phone</Label>
-            <Input
-              placeholder="Phone Number"
-              value={editAddress?.phone || ""}
-              onChange={(e) =>
-                setEditAddress((prev) => ({
-                  ...(prev || {}),
-                  phone: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div>
-            <Label>Pincode</Label>
-            <Input
-              placeholder="Pincode"
-              value={editAddress?.pincode || ""}
-              onChange={(e) =>
-                setEditAddress((prev) => ({
-                  ...(prev || {}),
-                  pincode: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div>
-            <Label>City</Label>
-            <Input
-              placeholder="City"
-              value={editAddress?.city || ""}
-              onChange={(e) =>
-                setEditAddress((prev) => ({
-                  ...(prev || {}),
-                  city: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div>
-            <Label>State</Label>
-            <Input
-              placeholder="State"
-              value={editAddress?.state || ""}
-              onChange={(e) =>
-                setEditAddress((prev) => ({
-                  ...(prev || {}),
-                  state: e.target.value,
-                }))
-              }
-            />
-          </div>
-
-          <div>
+          <div className="space-y-3 mt-2">
             <Label>Address Line</Label>
             <Input
-              placeholder="Street, Area, House No."
               value={editAddress?.addressLine || ""}
               onChange={(e) =>
-                setEditAddress((prev) => ({
-                  ...(prev || {}),
-                  addressLine: e.target.value,
-                }))
+                setEditAddress({ ...editAddress, addressLine: e.target.value })
+              }
+            />
+
+            <Label>Pincode</Label>
+            <Input
+              value={editAddress?.pincode || ""}
+              onChange={(e) =>
+                setEditAddress({ ...editAddress, pincode: e.target.value })
+              }
+            />
+
+            <Label>City</Label>
+            <Input
+              value={editAddress?.city || ""}
+              onChange={(e) =>
+                setEditAddress({ ...editAddress, city: e.target.value })
+              }
+            />
+
+            <Label>State</Label>
+            <Input
+              value={editAddress?.state || ""}
+              onChange={(e) =>
+                setEditAddress({ ...editAddress, state: e.target.value })
               }
             />
           </div>
-        </div>
 
-        <DialogFooter className="mt-4">
-          <Button
-            className="bg-primary text-white"
-            onClick={() => {
-              const newAddress = {
-                id: Date.now(),
-                ...editAddress,
-                isDefault: false,
-              };
-              setAddresses([...addresses, newAddress]);
-              setEditAddress(null);
-              setOpenAdd(false);
-            }}
-          >
-            Add Address
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <DialogFooter className="mt-4">
+            <Button
+              className="bg-primary text-white"
+              onClick={handleAddAddress}
+            >
+              Add Address
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-
-      {/* ------------------------------ */}
+           {/* ------------------------------ */}
       {/* EDIT ADDRESS MODAL */}
       {/* ------------------------------ */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
