@@ -19,8 +19,7 @@ import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
 
 const categories = [
-  { name: "All Products", image: "/images/categories/all.avif" },
-  { name: "Dates", image: "/images/categories/breakfast.avif" }
+  { name: "All Products", image: "/images/categories/all.avif" }
 ];
 
 const menuItems = [
@@ -38,17 +37,101 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
 
 const cartOpen = useUIStore((s) => s.openCart);
 const setOpenCart = useUIStore((s) => s.setOpenCart);
+const [showCoupons, setShowCoupons] = useState(false);
 
   const { recommended, fetchRecommended } = useProductStore();
   const { searchProducts } = useProductStore();
 
-  const cart = useCartStore((s) => s.cart);
+const cart = useCartStore((s) => s.cart);
+const fetchCart = useCartStore((s) => s.fetchCart);
 const removeFromCart = useCartStore((s) => s.removeFromCart);
 const updateQuantity = useCartStore((s) => s.updateQuantity);
 
-const cartCount = useCartStore((s) =>
-  s.cart.reduce((acc, item) => acc + item.quantity, 0)
-);
+const token = localStorage.getItem("token");
+
+// 🔥 Load cart ONCE at mount if logged in
+useEffect(() => {
+  if (token) {
+    fetchCart();
+  }
+}, [token]);
+
+// 🔥 Also re-fetch when cart is opened (optional)
+useEffect(() => {
+  if (cartOpen) {
+    fetchCart();
+  }
+}, [cartOpen]);
+
+// Correct cart count
+const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+const cartTotal = cart.reduce((s, it) => s + (it.discountedPrice || 0) * it.quantity, 0);
+
+// ---------- add near other hooks/state in Navbar ----------
+// constants & state
+const FREE_GIFT_THRESHOLD = 999;
+const cartId = useCartStore((s) => s.cartId);
+
+const [coupons, setCoupons] = useState([
+  { code: "GET100", title: "Flat ₹100.0 off", minOrder: 799, savingsText: "Save ₹100 on this order!", available: true },
+  { code: "SUMMER30", title: "30% off", minOrder: 8999, savingsText: null, available: false },
+]);
+
+// awarded status persists per cart (do not re-award)
+const [freeGiftAwarded, setFreeGiftAwarded] = useState(false);
+
+// animation flag — toggles true briefly whenever we want the poppers animation
+const [showPoppers, setShowPoppers] = useState(false);
+
+// small helper to add FREEGIFT coupon (idempotent)
+const awardFreeGiftCoupon = () => {
+  const freeGiftCoupon = {
+    code: "FREEGIFT",
+    title: "Get 1 item for free",
+    minOrder: FREE_GIFT_THRESHOLD,
+    savingsText: "Enjoy a free gift!",
+    available: true,
+    autoAwarded: true,
+  };
+
+  setCoupons((prev) => {
+    if (prev.find((c) => c.code === freeGiftCoupon.code)) return prev;
+    return [freeGiftCoupon, ...prev];
+  });
+};
+
+
+// ---------- effect to award coupon when threshold reached ----------
+useEffect(() => {
+  if (!cartId) return;
+  const key = `freeGift_awarded_cart_${cartId}`;
+  const already = localStorage.getItem(key) === "1";
+
+  // if cartTotal meets threshold and not awarded, award and persist
+  if (cartTotal >= FREE_GIFT_THRESHOLD && !already) {
+    awardFreeGiftCoupon();
+    localStorage.setItem(key, "1");
+    setFreeGiftAwarded(true);
+  } else if (already) {
+    setFreeGiftAwarded(true);
+  }
+}, [cartId, cartTotal]);
+
+useEffect(() => {
+  // play poppers every time cartTotal >= threshold (but only if cart has items)
+  if (cartTotal >= FREE_GIFT_THRESHOLD && cart.length > 0) {
+    // toggle to trigger animation; use short debounce so rapid changes still show
+    setShowPoppers(false);
+    // allow React to re-render then show
+    requestAnimationFrame(() => {
+      setShowPoppers(true);
+      // hide after animation duration
+      setTimeout(() => setShowPoppers(false), 1600);
+    });
+  }
+}, [cartTotal]);
+
 
 
 const handleOpenSearch = () => {
@@ -195,9 +278,9 @@ useEffect(() => {
             <div className="absolute left-1/2 transform -translate-x-1/2">
               <a href="/" className="block">
                 <img
-                  src="/images/logo/logo.png"
+                  src="/images/logo/logo2.png"
                   alt="Logo"
-                  className="h-12 w-auto object-contain drop-shadow-md"
+                  className="h-20 w-25 object-contain drop-shadow-md"
                 />
               </a>
             </div>
@@ -257,30 +340,72 @@ useEffect(() => {
                 {/* 🧾 Scrollable Content */}
                 <div className="flex-1 overflow-y-auto px-4">
                   {/* 🎁 Free Gift Progress */}
-                  <div className="bg-secondary/10 rounded-xl p-4 mt-4 mb-6">
-                    <p className="text-center text-sm font-semibold text-green-700">
-                      Get a free gift by adding items worth ₹999
-                    </p>
-                    <div className="relative mt-3">
-                      <div className="w-full bg-secondary/20 h-2 rounded-full overflow-hidden">
-                        <div
-                          className="bg-secondary h-2 rounded-full transition-all duration-500"
-                          style={{ width: "60%" }}
-                        ></div>
-                      </div>
-                      <div className="absolute right-0 top-[-6px] bg-white border border-secondary rounded-full w-6 h-6 flex items-center justify-center text-secondary text-xs font-bold shadow">
-                        🎁
-                      </div>
-                      <p className="text-xs text-right mt-2 text-green-700 font-medium">
-                        ₹999 Free Gift
-                      </p>
-                    </div>
-                  </div>
+<div className="bg-secondary/10 rounded-xl p-4 mt-4 mb-6 relative overflow-hidden">
+  <p className="text-center text-sm font-semibold text-green-700">
+    {cartTotal >= FREE_GIFT_THRESHOLD
+        ? <span>You have successfully reached the milestone</span>
+        : <span> Get a free gift by adding items worth ₹{FREE_GIFT_THRESHOLD}</span>}
+  </p>
+
+{/* Animated poppers overlay */}
+{showPoppers && (
+  <div className="absolute inset-0 z-30 pointer-events-none flex items-start justify-center">
+    <div className="w-full relative h-0">
+      {Array.from({ length: 12 }).map((_, i) => {
+        const leftPct = 8 + (i * 7); // spread across width
+        const delay = (i % 5) * 80;
+        return (
+          <div
+            key={i}
+            className="popper"
+            style={{
+              left: `${leftPct}%`,
+              animationDelay: `${delay}ms`,
+            }}
+          >
+            <div className="popper-inner">
+              {/* simple icon variants */}
+              {i % 3 === 0 ? "🎉" : i % 3 === 1 ? "🎁" : "✨"}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
+
+
+  <div className="relative mt-3">
+    <div className="w-full bg-secondary/20 h-2 rounded-full overflow-hidden">
+      <div
+        className="bg-secondary h-2 rounded-full transition-all duration-500"
+        style={{ width: `${Math.min(100, Math.round((cartTotal / FREE_GIFT_THRESHOLD) * 100))}%` }}
+      ></div>
+    </div>
+
+    {/* gift badge that shifts based on progress (keeps inside progress area) */}
+    <div
+      className="absolute top-[-10px] bg-white border border-secondary rounded-full w-8 h-8 flex items-center justify-center text-secondary text-xs font-bold shadow transition-transform"
+      style={{
+        right: `${Math.max(0, 100 - Math.min(100, Math.round((cartTotal / FREE_GIFT_THRESHOLD) * 100)))}%`,
+        transform: `translateX(${Math.min(0, Math.round((cartTotal / FREE_GIFT_THRESHOLD) * 100) - 100)}%)`
+      }}
+      aria-hidden
+    >
+      🎁
+    </div>
+
+    <p className="text-xs text-right mt-2 text-green-700 font-medium">
+      ₹{FREE_GIFT_THRESHOLD} Free Gift
+    </p>
+  </div>
+</div>
+
 
                   {/* 🛍️ Cart Items */}
                   <div className="space-y-4">
                   {cart.map((item) => (
-                    <div className="flex gap-3 border rounded-xl p-3" key={item.id}>
+                    <div className="flex gap-3 border rounded-xl p-3" key={item.cartItemId}>
                       <img src={item.image} className="w-20 h-20 rounded-lg" />
 
                       <div className="flex-1">
@@ -297,19 +422,15 @@ useEffect(() => {
                         <div className="flex justify-between items-center mt-2">
 
                           <div className="flex items-center gap-2 border rounded-md px-2">
-                            <button onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}>
-                              –
-                            </button>
+                          <button onClick={() => updateQuantity(item.cartItemId, item.quantity - 1)}>–</button>
                             <span>{item.quantity}</span>
-                            <button onClick={() => updateQuantity(item.id, item.quantity + 1)}>
-                              +
-                            </button>
+                          <button onClick={() => updateQuantity(item.cartItemId, item.quantity + 1)}>+</button>
                           </div>
 
                           <Button 
                             variant="ghost" 
                             className="text-xs text-destructive"
-                            onClick={() => removeFromCart(item.id)}
+                            onClick={() => removeFromCart(item.cartItemId)}
                           >
                             Remove
                           </Button>
@@ -321,20 +442,100 @@ useEffect(() => {
                   </div>
 
                   {/* 💸 Offers & Rewards */}
-                  <div className="mt-6 border border-border/40 rounded-xl p-4">
-                    <h4 className="font-semibold mb-2 text-sm">Offers & Rewards</h4>
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center text-sm">
-                      <span>
-                        ₹100 savings with <strong>'GET100'</strong> ✅
-                      </span>
-                      <button className="text-xs text-green-700 font-semibold hover:underline">
-                        Remove
-                      </button>
-                    </div>
-                    <p className="mt-2 text-xs text-muted-foreground underline cursor-pointer">
-                      Enter a coupon code
-                    </p>
-                  </div>
+<div className="mt-6 border border-border/40 rounded-xl p-4">
+  {/* Header row */}
+  <div className="flex items-center justify-between mb-3">
+    <h4 className="font-semibold text-sm">Coupons</h4>
+
+    {/* compact view: show cart value and button to open coupon panel */}
+    {!showCoupons ? (
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setShowCoupons(true)}
+          className="flex items-center gap-2 text-sm bg-primary/5 px-3 py-1 rounded-md hover:bg-primary/10"
+        >
+          View coupons <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    ) : (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowCoupons(false)}
+          className="p-1 rounded-md hover:bg-border/40"
+          aria-label="Back"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </div>
+    )}
+  </div>
+
+  {/* Coupon list panel */}
+  {showCoupons ? (
+    <div className="space-y-4">
+      {coupons.filter(c => c.available).map((c) => (
+        <div key={c.code} className="bg-white border rounded-lg p-4 flex justify-between items-start gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-7 h-7 rounded-full border flex items-center justify-center text-primary">
+                %{/* icon placeholder */}
+              </div>
+              <strong className="text-sm">{c.code}</strong>
+            </div>
+            <div className="text-sm font-semibold">{c.title}</div>
+            <div className="text-xs text-muted-foreground mt-1">on orders above ₹{c.minOrder}.0</div>
+            {c.savingsText && <div className="text-xs text-green-700 mt-2">{c.savingsText}</div>}
+          </div>
+
+          <div>
+            <button
+              className="bg-[#7fc3ba] text-white px-4 py-2 rounded-lg font-semibold"
+              onClick={() => {
+                // apply coupon logic here (call API or set state)
+                console.log("apply", c.code);
+                setShowCoupons(false);
+              }}
+            >
+              Apply
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Unavailable section */}
+      <div>
+        <h5 className="text-xs font-semibold text-muted-foreground mb-2">UNAVAILABLE COUPONS</h5>
+
+        {coupons.filter(c => !c.available).map((c) => (
+          <div key={c.code} className="bg-white border rounded-lg p-4 mb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-7 h-7 rounded-full border flex items-center justify-center text-muted-foreground">%</div>
+              <strong className="text-sm text-muted-foreground">{c.code}</strong>
+            </div>
+            <div className="text-sm font-semibold">{c.title}</div>
+            <div className="text-xs text-muted-foreground mt-1">on orders above ₹{c.minOrder}.0</div>
+            <div className="text-xs text-red-600 mt-2">Add ₹{Math.max(0, c.minOrder - cartTotal)} more to avail this offer</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : (
+    // compact view when panel closed: small CTA and coupon summary
+    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm flex items-center justify-between">
+      <div>
+        <div className="font-semibold">₹100 savings with <strong>GET100</strong> ✅</div>
+        <div className="text-xs text-muted-foreground">Tap "View coupons" to see more</div>
+      </div>
+      <button
+        onClick={() => setShowCoupons(true)}
+        className="text-xs text-green-700 font-semibold hover:underline"
+      >
+        View
+      </button>
+    </div>
+  )}
+</div>
+
 
                   {/* ⭐ Special Offers */}
                   <div className="mt-6 mb-4">
@@ -364,7 +565,7 @@ useEffect(() => {
                 <div className="sticky bottom-0 border-t border-border bg-background p-4">
                   <div className="flex justify-between text-sm font-semibold mb-3">
                     <span>Estimated Total</span>
-                    <span>₹748</span>
+                    <span>₹{cartTotal}</span>
                   </div>
                   <Button className="mt-4 w-full bg-primary text-white hover:bg-primary/90 rounded-full font-bold">
                     Checkout

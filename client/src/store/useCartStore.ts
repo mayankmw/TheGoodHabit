@@ -1,53 +1,47 @@
 import { create } from "zustand";
+import api from "@/lib/api";
 
-export interface CartItem {
-  id: string;
-  name: string;
-  image: string;
-  originalPrice: number;
-  discountedPrice: number;
-  quantity: number;
-}
-
-interface CartState {
-  cart: CartItem[];
-
-  addToCart: (product: Omit<CartItem, "quantity">) => void;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, qty: number) => void;
-  clearCart: () => void;
-}
-
-export const useCartStore = create<CartState>((set, get) => ({
+export const useCartStore = create((set, get) => ({
   cart: [],
+  cartId: null,
+  loading: false,
 
-  addToCart: (product) => {
-    const cart = get().cart;
-    const existing = cart.find((item) => item.id === product.id);
-
-    if (existing) {
-      const updated = cart.map((item) =>
-        item.id === product.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      );
-      set({ cart: updated });
-    } else {
-      set({ cart: [...cart, { ...product, quantity: 1 }] });
+  // FETCH CART
+  fetchCart: async () => {
+    try {
+      set({ loading: true });
+      const { data } = await api.get("/cart");
+      set({
+        cart: data.items,
+        cartId: data.cartId,
+        loading: false,
+      });
+    } catch {
+      set({ loading: false });
     }
   },
 
-  removeFromCart: (id) => {
-    set({ cart: get().cart.filter((item) => item.id !== id) });
+  // ADD TO CART
+  addToCart: async (productId) => {
+    await api.post("/cart/add", { productId });
+    await get().fetchCart(); // refresh cart
   },
 
-  updateQuantity: (id, qty) => {
-    set({
-      cart: get().cart.map((item) =>
-        item.id === id ? { ...item, quantity: qty } : item
-      ),
-    });
+  // UPDATE QUANTITY
+  updateQuantity: async (cartItemId, quantity) => {
+    await api.post("/cart/update", { cartItemId, quantity });
+    await get().fetchCart();
   },
 
-  clearCart: () => set({ cart: [] }),
+  // REMOVE ITEM
+  removeFromCart: async (cartItemId) => {
+    await api.post("/cart/remove", { cartItemId });
+    await get().fetchCart();
+  },
+
+  // CLEAR CART
+  clearCart: async () => {
+    await api.post("/cart/clear");
+    set({ cart: [] });
+  },
 }));

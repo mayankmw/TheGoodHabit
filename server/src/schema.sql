@@ -124,3 +124,60 @@ CREATE TABLE IF NOT EXISTS otps (
   expiresAt DATETIME NOT NULL,
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+-- --------------------------------------------------
+-- CART TABLE
+-- --------------------------------------------------
+CREATE TABLE IF NOT EXISTS cart (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  userId INT UNSIGNED NOT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+)
+
+
+
+-- --------------------------------------------------
+-- CART ITEMS TABLE
+-- --------------------------------------------------
+CREATE TABLE IF NOT EXISTS cart_items (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  cartId INT UNSIGNED NOT NULL,
+  productId VARCHAR(191) NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
+    
+  CONSTRAINT fk_cart_items_cart 
+    FOREIGN KEY (cartId) REFERENCES cart(id) ON DELETE CASCADE
+);
+
+
+
+
+-- --------------------------------------------------
+-- COLLATION COMPARISION FIX
+-- --------------------------------------------------
+ALTER DATABASE thegoodhabit
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+
+SELECT CONCAT(
+  'ALTER TABLE `', table_name, 
+  '` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;'
+)
+FROM information_schema.tables
+WHERE table_schema = 'thegoodhabit';
+
+
+ALTER TABLE users CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE products CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE orders CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE order_items CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE addresses CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE otps CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE cart CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE cart_items CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+
