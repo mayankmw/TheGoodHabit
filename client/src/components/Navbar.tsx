@@ -111,40 +111,6 @@ export const Navbar = () => {
     return () => clearTimeout(delay);
   }, [query, searchProducts]);
 
-  // ---------- inject popper CSS once ----------
-  useEffect(() => {
-    const id = "navbar-popper-styles";
-    if (document.getElementById(id)) return;
-    const style = document.createElement("style");
-    style.id = id;
-    style.innerHTML = `
-.popper {
-  position: absolute;
-  top: -18px;
-  width: 28px;
-  height: 28px;
-  transform-origin: center;
-  animation: popper-fall 900ms cubic-bezier(.2,.9,.3,1) forwards;
-  opacity: 0;
-  pointer-events: none;
-}
-.popper-inner {
-  display:flex;align-items:center;justify-content:center;
-  width:100%;height:100%;font-size:16px;
-}
-@keyframes popper-fall {
-  0% { transform: translateY(-6px) scale(0.6); opacity: 0; }
-  20% { transform: translateY(0) scale(1.05); opacity: 1; }
-  60% { transform: translateY(40px) rotate(5deg) scale(1); opacity: 1; }
-  100% { transform: translateY(70px) rotate(10deg) scale(0.9); opacity: 0; }
-}
-`;
-    document.head.appendChild(style);
-    return () => {
-      // keep styles for whole session; optional remove on unmount
-    };
-  }, []);
-
   // ---------- detect newly awarded coupons and animate once per coupon code ----------
   useEffect(() => {
     if (!cartId) return;

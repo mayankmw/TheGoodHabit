@@ -145,7 +145,7 @@ export const ReelsCarousel = () => {
   }, [emblaApi, onSelect]);
 
   return (
-    <section className="py-12 bg-background">
+    <section className="py-12 bg-background pt-0">
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
