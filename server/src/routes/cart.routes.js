@@ -5,7 +5,9 @@ import {
   addToCart,
   updateCartItem,
   removeCartItem,
-  clearCart
+  clearCart,
+  applyCoupon,
+  removeCartCoupon
 } from "../controllers/cart.controller.js";
 
 const router = express.Router();
@@ -15,5 +17,7 @@ router.post("/add", auth, addToCart);
 router.post("/update", auth, updateCartItem);
 router.post("/remove", auth, removeCartItem);
 router.post("/clear", auth, clearCart);
+router.post("/apply-coupon", auth, applyCoupon);
+router.post("/remove-coupon", auth, removeCartCoupon);
 
 export default router;

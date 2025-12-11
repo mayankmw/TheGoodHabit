@@ -181,3 +181,64 @@ ALTER TABLE cart CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ALTER TABLE cart_items CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 
+
+-- --------------------------------------------------
+-- COUPONS TABLE
+-- --------------------------------------------------
+-- Coupons master table (definitions)
+CREATE TABLE IF NOT EXISTS coupons (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  code VARCHAR(100) NOT NULL UNIQUE,
+  title VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  discount_type ENUM('flat','percent','free_gift') NOT NULL DEFAULT 'flat',
+  value DECIMAL(10,2) NULL,       -- for flat/percent (percent stored as e.g. 30.00)
+  max_discount DECIMAL(10,2) NULL,-- cap for percent discounts (optional)
+  min_order DECIMAL(10,2) DEFAULT 0, -- minimum cart value to be eligible
+  starts_at DATETIME NULL,
+  expires_at DATETIME NULL,
+  active TINYINT(1) DEFAULT 1,    -- toggle coupon on/off
+  auto_award TINYINT(1) DEFAULT 0,-- if 1, coupon can be auto-awarded (server-side)
+  single_use_per_user TINYINT(1) DEFAULT 0, -- restrict one-time per user
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+-- --------------------------------------------------
+-- CART COUPONS TABLE
+-- --------------------------------------------------
+-- (records coupons that have been applied/awarded to a cart or user)
+CREATE TABLE IF NOT EXISTS cart_coupons (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  cartId INT UNSIGNED NOT NULL,
+  userId INT UNSIGNED NULL,        -- optional reference to user
+  couponId INT UNSIGNED NOT NULL,
+  code VARCHAR(100) NOT NULL,      -- denormalized copy for easier queries
+  appliedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  is_applied TINYINT(1) DEFAULT 1, -- 1 = active/applied, 0 = revoked
+  extra JSON NULL,                 -- store reason/metadata (free gift sku, etc.)
+  UNIQUE KEY unique_cart_coupon (cartId, couponId),
+  CONSTRAINT fk_cartcoupons_coupon FOREIGN KEY (couponId) REFERENCES coupons(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+-- --------------------------------------------------
+-- COUPONS
+-- --------------------------------------------------
+-- GET100: flat ₹100 off on orders >= 799
+INSERT INTO coupons (code, title, description, discount_type, value, min_order, active)
+VALUES
+  ('GET100', 'Flat ₹100 off', 'Flat ₹100 off on eligible orders', 'flat', 100.00, 799.00, 1);
+
+-- FREEGIFT: auto-awarded when cart total >= 999 (handled server-side)
+INSERT INTO coupons (code, title, description, discount_type, min_order, active, auto_award)
+VALUES
+  ('FREEGIFT', 'Get 1 item for free', 'Auto-awarded free gift when cart value reaches ₹999', 'free_gift', 999.00, 1, 1);
+
+-- SUMMER30: 30% off on orders >= 8999 (example with percent type)
+INSERT INTO coupons (code, title, description, discount_type, value, max_discount, min_order, active)
+VALUES
+  ('SUMMER30', '30% off', '30% off on orders', 'percent', 30.00, 2000.00, 8999.00, 1);
