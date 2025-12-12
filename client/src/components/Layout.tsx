@@ -28,6 +28,20 @@ export const Layout = () => {
           <span>🧡 NOURISH YOUR BODY, CALM YOUR MIND</span>
         </div>
       </div>
+
+      <a
+        href="https://wa.me/917827510913"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50"
+      >
+        <img
+          src="/images/icons/whatsapp.svg"
+          alt="WhatsApp"
+          className="w-12 h-12 object-contain cursor-pointer"
+        />
+      </a>
+
     </div>
   );
 };
