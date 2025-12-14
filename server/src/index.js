@@ -7,6 +7,7 @@ import { db } from "../src/config/db.js";
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
+import orderRoutes from "./routes/order.routes.js";
 
 // Seeds
 import { seedDefaultUser } from "./seed/seedUser.js";
@@ -54,6 +55,7 @@ app.get("/", async (req, res) => {
 app.use("/user", userRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
+app.use("/order", orderRoutes);
 
 const PORT = process.env.PORT || 3000;
 

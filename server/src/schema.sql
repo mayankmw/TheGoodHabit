@@ -242,3 +242,38 @@ VALUES
 INSERT INTO coupons (code, title, description, discount_type, value, max_discount, min_order, active)
 VALUES
   ('SUMMER30', '30% off', '30% off on orders', 'percent', 30.00, 2000.00, 8999.00, 1);
+
+
+ALTER TABLE orders
+  ADD COLUMN razorpayOrderId VARCHAR(255) NULL AFTER paymentMethod,
+  ADD COLUMN razorpayPaymentId VARCHAR(255) NULL AFTER razorpayOrderId,
+  ADD COLUMN razorpaySignature VARCHAR(255) NULL AFTER razorpayPaymentId,
+  MODIFY COLUMN paymentStatus ENUM('pending','paid','failed') 
+      NOT NULL DEFAULT 'pending';
+
+
+CREATE TABLE IF NOT EXISTS payments (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+
+  orderId INT UNSIGNED NOT NULL,          -- our system order id
+  razorpayOrderId VARCHAR(255) NOT NULL,  -- rp order id
+  razorpayPaymentId VARCHAR(255) NULL,    -- rp payment id
+  razorpaySignature VARCHAR(255) NULL,    -- for verification
+
+  amount INT NOT NULL,                    -- amount in paise
+  currency VARCHAR(10) DEFAULT 'INR',
+
+  status ENUM('created','attempted','paid','failed') 
+         NOT NULL DEFAULT 'created',
+
+  method VARCHAR(100) NULL,               -- UPI/card/netbanking
+  email VARCHAR(255) NULL,
+  contact VARCHAR(20) NULL,
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  CONSTRAINT fk_payments_order
+    FOREIGN KEY (orderId) REFERENCES orders(id)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

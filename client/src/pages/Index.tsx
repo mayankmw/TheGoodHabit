@@ -9,10 +9,14 @@ const Index = () => {
       <BannerSlider />
       <ProductsCarousel />
       <HeroImage
-        src="/images/hero/hero-image.png"
+        src="/images/hero/hero-image-1.jpeg"
         alt="Hero Image"
       />
       <ReelsCarousel />
+      <HeroImage
+        src="/images/hero/hero-image-2.png"
+        alt="Hero Image"
+      />
     </main>
   );
 };

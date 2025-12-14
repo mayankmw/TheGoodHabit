@@ -18,6 +18,7 @@ import { useNavigate } from "react-router-dom";
 import { useProductStore } from "@/store/useProductStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
+import { usePaymentStore } from "@/store/paymentStore";
 
 const categories = [{ name: "All Products", image: "/images/categories/all.avif" }];
 
@@ -42,6 +43,8 @@ export const Navbar = () => {
   const setOpenSearch = useUIStore((s) => s.setOpenSearch);
   const cartOpen = useUIStore((s) => s.openCart);
   const setOpenCart = useUIStore((s) => s.setOpenCart);
+  const openPayment = useUIStore((s) => s.openPayment);
+  const setOpenPayment = useUIStore((s) => s.setOpenPayment); 
 
   // product store
   const { recommended, fetchRecommended, searchProducts } = useProductStore();
@@ -59,6 +62,52 @@ export const Navbar = () => {
   const removeCartCoupon = useCartStore((s) => s.removeCartCoupon);
   const updateQuantityStore = useCartStore((s) => s.updateQuantity);
   const removeFromCartStore = useCartStore((s) => s.removeFromCart);
+
+  const createOrder = usePaymentStore((s) => s.createOrder);
+  const verifyPayment = usePaymentStore((s) => s.verifyPayment);
+  const resetPayment = usePaymentStore((s) => s.reset);
+
+  const handleCheckout = async () => {
+    try {
+      // ✅ 1. Close cart FIRST
+      setOpenCart(false);
+
+      // small delay to allow overlay to unmount
+      // await new Promise((r) => setTimeout(r, 150));
+
+      // ✅ 2. Create order
+      const order = await createOrder();
+      if (!order) return;
+
+      const options = {
+        key: order.razorpayKey,
+        amount: order.amount,
+        currency: "INR",
+        order_id: order.orderId,
+
+        handler: async function (response) {
+          const verifyRes = await verifyPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            appOrderId: order.appOrderId,
+          });
+
+          if (verifyRes?.success) {
+            resetPayment();
+            console.log("Payment Verified 🎉");
+          }
+        },
+
+        theme: { color: "#0ea5e9" },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
+    } catch (err) {
+      console.error("Checkout error:", err);
+    }
+  };
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
   const navigate = useNavigate();
@@ -544,63 +593,63 @@ return (
                   ) : (
                     // compact view when panel closed: show applied coupon summary first;
 
-<div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm flex items-center justify-between">
-  <div>
-    {/*
-      1) Prefer coupons actually applied to cart (is_applied = true).
-      2) If none applied, show the first eligible, non-auto-award coupon as a suggestion.
-      3) Otherwise show fallback text.
-    */}
-    {Array.isArray(cartCoupons) && cartCoupons.filter(cc => cc.is_applied).length > 0 ? (
-      // show the first applied coupon summary (if multiple applied you could change text accordingly)
-      (() => {
-        const applied = cartCoupons.filter(cc => cc.is_applied);
-        const first = applied[0];
-        return (
-    <div className="font-semibold flex items-center gap-1">
-      <Check className="w-4 h-4 text-green-600" />
-      <strong>{first.code}</strong>
-      <span className="font-normal">— {first.title}</span>
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm flex items-center justify-between">
+                  <div>
+                    {/*
+                      1) Prefer coupons actually applied to cart (is_applied = true).
+                      2) If none applied, show the first eligible, non-auto-award coupon as a suggestion.
+                      3) Otherwise show fallback text.
+                    */}
+                    {Array.isArray(cartCoupons) && cartCoupons.filter(cc => cc.is_applied).length > 0 ? (
+                      // show the first applied coupon summary (if multiple applied you could change text accordingly)
+                      (() => {
+                        const applied = cartCoupons.filter(cc => cc.is_applied);
+                        const first = applied[0];
+                        return (
+                    <div className="font-semibold flex items-center gap-1">
+                      <Check className="w-4 h-4 text-green-600" />
+                      <strong>{first.code}</strong>
+                      <span className="font-normal">— {first.title}</span>
 
-      {applied.length > 1 && (
-        <span className="text-xs text-muted-foreground ml-1">
-          (+{applied.length - 1} more)
-        </span>
-      )}
-    </div>
+                      {applied.length > 1 && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          (+{applied.length - 1} more)
+                        </span>
+                      )}
+                    </div>
 
-        );
-      })()
-    ) : (
-      // no applied coupon: show best eligible non-auto-award coupon (ignore auto_award in compact hint)
-      (() => {
-        const nonAutoEligible = (availableCoupons || [])
-          .filter(c => !c.auto_award && c.available)
-          // optional: prefer lowest min_order or highest savings — adjust sort as you like
-          .sort((a, b) => (a.min_order - b.min_order));
-        if (nonAutoEligible.length > 0) {
-          const hint = nonAutoEligible[0];
-          const savingsText = hint.value
-            ? (hint.discount_type === "flat" ? `₹${hint.value} off` : `${hint.value}% off`)
-            : "";
-          return (
-            <div className="font-semibold">
-              {savingsText ? `${savingsText} with ` : ""}<strong>{hint.code}</strong> — <span className="font-normal">{hint.title}</span>
-            </div>
-          );
-        }
-        // fallback message
-        return <div className="font-semibold">No coupons available yet</div>;
-      })()
-    )}
+                        );
+                      })()
+                    ) : (
+                      // no applied coupon: show best eligible non-auto-award coupon (ignore auto_award in compact hint)
+                      (() => {
+                        const nonAutoEligible = (availableCoupons || [])
+                          .filter(c => !c.auto_award && c.available)
+                          // optional: prefer lowest min_order or highest savings — adjust sort as you like
+                          .sort((a, b) => (a.min_order - b.min_order));
+                        if (nonAutoEligible.length > 0) {
+                          const hint = nonAutoEligible[0];
+                          const savingsText = hint.value
+                            ? (hint.discount_type === "flat" ? `₹${hint.value} off` : `${hint.value}% off`)
+                            : "";
+                          return (
+                            <div className="font-semibold">
+                              {savingsText ? `${savingsText} with ` : ""}<strong>{hint.code}</strong> — <span className="font-normal">{hint.title}</span>
+                            </div>
+                          );
+                        }
+                        // fallback message
+                        return <div className="font-semibold">No coupons available yet</div>;
+                      })()
+                    )}
 
-    <div className="text-xs text-muted-foreground">Tap "View coupons" to see more</div>
-  </div>
+                    <div className="text-xs text-muted-foreground">Tap "View coupons" to see more</div>
+                  </div>
 
-  <button onClick={() => setShowCoupons(true)} className="text-xs text-green-700 font-semibold hover:underline">
-    View
-  </button>
-</div>
+                  <button onClick={() => setShowCoupons(true)} className="text-xs text-green-700 font-semibold hover:underline">
+                    View
+                  </button>
+                </div>
 
                   )}
 
@@ -650,9 +699,12 @@ return (
                   </div>
 
                   {/* CHECKOUT BUTTON */}
-                  <Button className="mt-4 w-full bg-primary text-white hover:bg-primary/90 rounded-full font-bold py-3">
-                    Checkout
-                  </Button>
+                <Button
+                  className="mt-4 w-full bg-primary text-white hover:bg-primary/90 rounded-full font-bold py-3"
+                  onClick={handleCheckout}
+                >
+                  Checkout
+                </Button>
 
                   {/* Razorpay footer */}
                   <p className="text-[10px] text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
