@@ -1,8 +1,10 @@
 import express from "express";
-import { sendOtp, verifyOtp, me } from "../controllers/user.controller.js";
+import { googleLogin, sendOtp, verifyOtp, me } from "../controllers/user.controller.js";
 import { auth } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
+
+router.post("/google-login", googleLogin);
 
 router.post("/send-otp", sendOtp);
 

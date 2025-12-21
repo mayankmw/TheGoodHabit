@@ -2,6 +2,80 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../config/db.js";
 import sendEmail from "../utils/sendEmail.js";
+import { OAuth2Client } from "google-auth-library";
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const googleLogin = async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing Google credential",
+      });
+    }
+
+    // Verify Google token
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name } = payload;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Google account has no email",
+      });
+    }
+
+    // Check user
+    const [rows] = await db.query(
+      "SELECT * FROM users WHERE email = ?",
+      [email]
+    );
+
+    let user = rows[0];
+
+    // Auto-create user
+    if (!user) {
+      const [result] = await db.query(
+        "INSERT INTO users (email, name, password, phone) VALUES (?, ?, ?, ?)",
+        [email, name || null, "", null]
+      );
+
+      user = {
+        id: result.insertId,
+        email,
+        name,
+      };
+    }
+
+    // Issue your JWT
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.json({
+      success: true,
+      token,
+      user,
+      message: "Google login successful",
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Google login failed",
+    });
+  }
+};
 
 export const sendOtp = async (req, res) => {
   const { email } = req.body;
@@ -48,8 +122,8 @@ export const verifyOtp = async (req, res) => {
   // Auto-create user
   if (!user) {
     const [result] = await db.query(
-      "INSERT INTO users (email, password) VALUES (?, ?)",
-      [email, ""]
+      "INSERT INTO users (email, password, phone) VALUES (?, ?, ?)",
+      [email, "", null]
     );
 
     user = {
@@ -59,8 +133,12 @@ export const verifyOtp = async (req, res) => {
       name: null,
     };
   }
-
-  const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+  
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
   return res.json({
     success: true,
@@ -74,72 +152,22 @@ export const me = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // 1. USER
     const [users] = await db.query(
-      "SELECT id, email, name FROM users WHERE id = ?",
+      "SELECT id, email, phone, name FROM users WHERE id = ?",
       [userId]
     );
+
     const user = users[0];
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
-    }
-
-    // 2. ADDRESSES
-    const [addresses] = await db.query(
-      `SELECT 
-         id, 
-         addressLine1, 
-         addressLine2, 
-         city, 
-         state, 
-         postalCode, 
-         country 
-       FROM addresses 
-       WHERE userId = ?`,
-      [userId]
-    );
-
-    // 3. ORDERS
-    const [orders] = await db.query(
-      `SELECT 
-         id, 
-         totalPrice,
-         status,
-         paymentStatus,
-         paymentMethod,
-         razorpayOrderId,
-         razorpayPaymentId,
-         createdAt
-       FROM orders 
-       WHERE userId = ?
-       ORDER BY createdAt DESC`,
-      [userId]
-    );
-
-    // 4. Attach order items to each order
-    for (let order of orders) {
-      const [items] = await db.query(
-        `SELECT 
-           oi.quantity, 
-           oi.price, 
-           p.name,
-           p.image,
-           p.id AS productId
-         FROM order_items oi
-         JOIN products p ON oi.productId = p.id
-         WHERE oi.orderId = ?`,
-        [order.id]
-      );
-
-      order.items = items;
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     return res.json({
       success: true,
       user,
-      addresses,
-      orders
     });
 
   } catch (err) {
@@ -147,7 +175,6 @@ export const me = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server error",
-      error: err.message
     });
   }
 };

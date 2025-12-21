@@ -8,6 +8,8 @@ import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import orderRoutes from "./routes/order.routes.js";
+import contactRoutes from "./routes/contact.routes.js";
+import addressRoutes from "./routes/address.routes.js";
 
 // Seeds
 import { seedDefaultUser } from "./seed/seedUser.js";
@@ -56,6 +58,8 @@ app.use("/user", userRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
+app.use("/contact", contactRoutes);
+app.use("/address", addressRoutes);
 
 const PORT = process.env.PORT || 3000;
 

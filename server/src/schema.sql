@@ -277,3 +277,31 @@ CREATE TABLE IF NOT EXISTS payments (
     FOREIGN KEY (orderId) REFERENCES orders(id)
     ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+ALTER TABLE orders
+DROP COLUMN paymentStatus,
+DROP COLUMN paymentMethod,
+DROP COLUMN razorpayOrderId,
+DROP COLUMN razorpayPaymentId,
+DROP COLUMN razorpaySignature;
+
+ALTER TABLE orders
+MODIFY status ENUM('pending','processing','shipped','delivered','cancelled')
+DEFAULT 'pending';
+
+
+ALTER TABLE payments 
+MODIFY status ENUM('created','attempted','paid','failed','refunded')
+NOT NULL DEFAULT 'created';
+
+ALTER TABLE users
+ADD COLUMN phone VARCHAR(20) NULL AFTER email,
+ADD UNIQUE KEY unique_user_phone (phone);
+
+
+ALTER TABLE orders
+ADD COLUMN appliedCoupons JSON NULL AFTER totalPrice;
+
+ALTER TABLE orders
+ADD COLUMN discountedPrice FLOAT NULL AFTER totalPrice;

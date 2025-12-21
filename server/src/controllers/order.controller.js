@@ -20,44 +20,105 @@ async function getCartTotal(cartId) {
   return items.reduce((sum, it) => sum + it.price * it.quantity, 0);
 }
 
+async function getCartTotalsWithCoupons(cartId) {
+  const [items] = await db.query(
+    `SELECT ci.quantity, p.discountedPrice
+     FROM cart_items ci
+     JOIN products p ON p.id = ci.productId
+     WHERE ci.cartId = ?`,
+    [cartId]
+  );
+
+  const subtotal = items.reduce(
+    (sum, it) => sum + (it.discountedPrice || 0) * it.quantity,
+    0
+  );
+
+  // coupons applied to this cart
+  const [coupons] = await db.query(
+    `SELECT cc.*, c.discount_type, c.value, c.max_discount
+     FROM cart_coupons cc
+     JOIN coupons c ON c.id = cc.couponId
+     WHERE cc.cartId = ? AND cc.is_applied = 1`,
+    [cartId]
+  );
+
+  let discount = 0;
+
+  for (const c of coupons) {
+    if (c.discount_type === "flat") {
+      discount += Number(c.value || 0);
+    } 
+    
+    else if (c.discount_type === "percent") {
+      let d = (subtotal * Number(c.value || 0)) / 100;
+      if (c.max_discount) d = Math.min(d, Number(c.max_discount));
+      discount += d;
+    }
+    
+    else if (c.discount_type === "free_gift") {
+      // no numeric deduction, handled via gift logic
+    }
+  }
+
+  discount = Math.min(discount, subtotal);
+
+  return {
+    subtotal,
+    discount,
+    payable: Math.max(0, subtotal - discount),
+    appliedCoupons: coupons
+  };
+}
+
+
 export const createRazorpayOrder = async (req, res) => {
   try {
     const userId = req.user.id;
 
     // Get user's cart
-    const [cartRows] = await db.query("SELECT id FROM cart WHERE userId = ?", [userId]);
-    if (cartRows.length === 0)
-      return res.status(400).json({ success: false, message: "Cart empty" });
+    const [cartRows] = await db.query(
+      "SELECT id FROM cart WHERE userId = ?",
+      [userId]
+    );
+
+    if (!cartRows.length)
+      return res.status(400).json({
+        success: false,
+        message: "Cart empty"
+      });
 
     const cartId = cartRows[0].id;
 
     // Compute total
-    const totalPrice = await getCartTotal(cartId);
-    const amountPaise = totalPrice * 100;
+    const { subtotal, discount, payable, appliedCoupons } =
+      await getCartTotalsWithCoupons(cartId);
 
-    if (totalPrice <= 0)
-      return res.status(400).json({ success: false, message: "Cart total is 0" });
+    if (payable <= 0)
+      return res.status(400).json({ success:false, message:"Cart total invalid" });
 
-    // Create Razorpay order
+    const amountPaise = Math.round(payable * 100);
+
+    // Razorpay Order
     const razorpayOrder = await razorpay.orders.create({
       amount: amountPaise,
       currency: "INR",
-      receipt: `order_rcpt_${Date.now()}`,
+      receipt: `order_${Date.now()}`
     });
 
-    // 1️⃣ Create local order record (your orders table)
+    // 1️⃣ Create ORDER
     const [orderResult] = await db.query(
-      `INSERT INTO orders (userId, totalPrice, status, paymentStatus, razorpayOrderId)
-       VALUES (?, ?, 'pending', 'pending', ?)`,
-      [userId, totalPrice, razorpayOrder.id]
+      `INSERT INTO orders (userId, totalPrice, discountedPrice, status, appliedCoupons)
+      VALUES (?, ?, ?, 'pending', ?)`,
+      [userId, subtotal, payable, JSON.stringify(appliedCoupons)]
     );
 
     const appOrderId = orderResult.insertId;
 
-    // 2️⃣ Insert payment record (payments table)
+    // 2️⃣ Create PAYMENT Record
     await db.query(
-      `INSERT INTO payments 
-        (orderId, razorpayOrderId, amount, status, currency) 
+      `INSERT INTO payments
+        (orderId, razorpayOrderId, amount, status, currency)
        VALUES (?, ?, ?, 'created', 'INR')`,
       [appOrderId, razorpayOrder.id, amountPaise]
     );
@@ -65,28 +126,31 @@ export const createRazorpayOrder = async (req, res) => {
     return res.json({
       success: true,
       razorpayKey: process.env.RAZORPAY_KEY_ID,
-      orderId: razorpayOrder.id,
-      appOrderId,
+      orderId: razorpayOrder.id,   // Razorpay Order
+      appOrderId,                  // our DB Order
       amount: amountPaise,
       currency: "INR"
     });
+
   } catch (err) {
-    console.error("Error creating Razorpay order:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("Create Razorpay Order Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
   }
 };
 
-
 export const verifyRazorpayPayment = async (req, res) => {
   try {
-    const { 
-      razorpay_order_id, 
-      razorpay_payment_id, 
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
       razorpay_signature,
-      appOrderId 
+      appOrderId
     } = req.body;
 
-    // 1️⃣ Verify signature
+    // Verify Signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 
     const expectedSignature = crypto
@@ -95,38 +159,38 @@ export const verifyRazorpayPayment = async (req, res) => {
       .digest("hex");
 
     if (expectedSignature !== razorpay_signature) {
-      // Update payment record as failed
       await db.query(
-        `UPDATE payments SET status = 'failed'
+        `UPDATE payments
+         SET status = 'failed'
          WHERE razorpayOrderId = ?`,
         [razorpay_order_id]
       );
 
-      return res.status(400).json({ success: false, message: "Invalid Signature" });
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Signature"
+      });
     }
 
-    // 2️⃣ Update orders table
+    // 1️⃣ Update Payments
     await db.query(
-      `UPDATE orders
-       SET paymentStatus = 'paid',
-           status = 'confirmed',
-           razorpayPaymentId = ?,
-           razorpaySignature = ?
-       WHERE id = ?`,
-      [razorpay_payment_id, razorpay_signature, appOrderId]
-    );
-
-    // 3️⃣ Update payments table
-    await db.query(
-      `UPDATE payments
-       SET razorpayPaymentId = ?, 
-           razorpaySignature = ?, 
+      `UPDATE payments 
+       SET razorpayPaymentId = ?,
+           razorpaySignature = ?,
            status = 'paid'
        WHERE razorpayOrderId = ?`,
       [razorpay_payment_id, razorpay_signature, razorpay_order_id]
     );
 
-    // 4️⃣ Move cart items → order_items
+    // 2️⃣ Update Order => processing now
+    await db.query(
+      `UPDATE orders
+       SET status = 'processing'
+       WHERE id = ?`,
+      [appOrderId]
+    );
+
+    // 3️⃣ Move cart items -> order_items
     const [cartItems] = await db.query(
       `SELECT ci.quantity, p.id AS productId, p.discountedPrice AS price
        FROM cart_items ci
@@ -144,7 +208,7 @@ export const verifyRazorpayPayment = async (req, res) => {
       );
     }
 
-    // 5️⃣ Clear cart
+    // 4️⃣ Clear Cart
     const [[cartRow]] = await db.query(
       "SELECT id FROM cart WHERE userId = ? LIMIT 1",
       [req.user.id]
@@ -154,9 +218,97 @@ export const verifyRazorpayPayment = async (req, res) => {
       await db.query("DELETE FROM cart_items WHERE cartId = ?", [cartRow.id]);
     }
 
-    return res.json({ success: true, message: "Payment Verified" });
+    return res.json({
+      success: true,
+      message: "Payment Verified"
+    });
+
   } catch (err) {
     console.error("Verify payment error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    res.status(500).json({
+      success: false,
+      message: "Server Error"
+    });
   }
 };
+
+
+export const getOrders = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { page = 1, limit = 10, status } = req.body; // since you use POST
+    const offset = (page - 1) * limit;
+
+    // ---------- COUNT QUERY ----------
+    let countQuery = `SELECT COUNT(*) AS total FROM orders WHERE userId = ?`;
+    let params = [userId];
+
+    if (status && status !== "all") {
+      countQuery += ` AND status = ?`;
+      params.push(status);
+    }
+
+    const [[countResult]] = await db.query(countQuery, params);
+    const total = countResult.total;
+
+    // ---------- ORDERS QUERY ----------
+    let ordersQuery = `
+      SELECT id, totalPrice, discountedPrice, status, createdAt
+      FROM orders
+      WHERE userId = ?
+    `;
+
+    let orderParams = [userId];
+
+    if (status && status !== "all") {
+      ordersQuery += ` AND status = ?`;
+      orderParams.push(status);
+    }
+
+    ordersQuery += `
+      ORDER BY createdAt DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    orderParams.push(Number(limit), Number(offset));
+
+    const [orders] = await db.query(ordersQuery, orderParams);
+
+    // ---------- FETCH ITEMS ----------
+    for (let order of orders) {
+      const [items] = await db.query(
+        `SELECT 
+           oi.quantity,
+           oi.price,
+           p.id AS productId,
+           p.name,
+           p.image
+         FROM order_items oi
+         JOIN products p ON oi.productId = p.id
+         WHERE oi.orderId = ?`,
+        [order.id]
+      );
+
+      order.items = items;
+    }
+
+    return res.json({
+      success: true,
+      page: Number(page),
+      limit: Number(limit),
+      total,
+      hasMore: offset + orders.length < total,
+      orders,
+    });
+
+  } catch (err) {
+    console.error("Fetch Orders Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+

@@ -2,11 +2,10 @@ import { create } from "zustand";
 import api from "@/lib/api";
 
 interface User {
-  orders: any[];
-  addresses: any[];
   id?: number;
   email: string;
   name?: string;
+  phone?: string | null;
 }
 
 interface AuthState {
@@ -14,9 +13,10 @@ interface AuthState {
   user: User | null;
   loading: boolean;
 
+  googleLogin: (credential: string) => Promise<any>;
   sendOtp: (email: string) => Promise<any>;
   verifyOtp: (email: string, code: string) => Promise<any>;
-  logout: () => void;
+  logout: (callback?: () => void) => void;
   fetchMe: () => Promise<User | null>;
 }
 
@@ -25,7 +25,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
 
-  // SEND OTP
+  googleLogin: async (credential) => {
+    try {
+      set({ loading: true });
+
+      const { data } = await api.post("/user/google-login", { credential });
+
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        set({ token: data.token, user: data.user });
+      }
+
+      set({ loading: false });
+      return data;
+    } catch (error: any) {
+      set({ loading: false });
+      return error.response?.data;
+    }
+  },
+
   sendOtp: async (email) => {
     try {
       set({ loading: true });
@@ -34,35 +52,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return data;
     } catch (error: any) {
       set({ loading: false });
-      return error.response.data;
+      return error.response?.data;
     }
   },
 
-  // VERIFY OTP
-  verifyOtp: async (email, code) => {
-    try {
-      const { data } = await api.post("/user/verify-otp", { email, code });
+verifyOtp: async (email, code) => {
+  try {
+    set({ loading: true });
 
-      if (data.success) {
-        localStorage.setItem("token", data.token);
-        set({ token: data.token, user: data.user });
-      }
+    const { data } = await api.post("/user/verify-otp", { email, code });
 
-      return data;
-    } catch (error: any) {
-      return error.response.data;
+    if (data.success) {
+      localStorage.setItem("token", data.token);
+      set({ token: data.token, user: data.user });
     }
+
+    set({ loading: false });
+    return data;
+  } catch (error: any) {
+    set({ loading: false });
+    return error.response?.data;
+  }
+},
+
+  logout: (callback) => {
+    localStorage.removeItem("token");
+    set({ token: null, user: null });
+    if (callback) callback();
   },
 
-  // LOGOUT
-    logout: (callback?: () => void) => {
-      localStorage.removeItem("token");
-      set({ token: null, user: null });
-
-      if (callback) callback();
-    },
-
-  // FETCH CURRENT USER
   fetchMe: async () => {
     const token = get().token;
     if (!token) return null;
@@ -72,12 +90,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       user: {
         ...data.user,
-        addresses: data.addresses || [],
-        orders: data.orders || [],
       },
     });
 
-    return data;
+    return data.user;
   },
-
 }));

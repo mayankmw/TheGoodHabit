@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "sonner";
+import { GoogleLogin } from "@react-oauth/google";
 
 export const SignIn = () => {
   const navigate = useNavigate();
@@ -41,13 +42,25 @@ export const SignIn = () => {
     }
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) navigate("/profile");
+  }, []);
+
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-muted/20 px-4">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-amber-50 to-white px-4">
       <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl shadow-md p-8 animate-fadeIn">
 
-        <div className="flex justify-center mb-6">
-          <img src="/images/logo/logo.png" alt="Logo" className="h-10" />
+      <div className="flex justify-center mb-8">
+        <div className="bg-primary/90 text-primary-foreground px-6 py-4 rounded-2xl shadow-lg flex items-center gap-3">
+          <img
+            src="/images/logo/logo.png"
+            alt="The Good Habit"
+            className="h-10 w-auto"
+          />
         </div>
+      </div>
+
 
         <h2 className="text-2xl font-bold text-center mb-2">Sign in</h2>
         <p className="text-center text-muted-foreground mb-6">
@@ -55,13 +68,26 @@ export const SignIn = () => {
         </p>
 
         {/* GOOGLE BUTTON SAME */}
-        <Button
-          variant="outline"
-          className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 shadow-sm hover:bg-gray-50 transition"
-        >
-          <FcGoogle size={22} />
-          <span className="font-medium">Sign in with Google</span>
-        </Button>
+      <div className="flex justify-center">
+        <GoogleLogin
+          onSuccess={async (credentialResponse) => {
+            const res = await useAuthStore
+              .getState()
+              .googleLogin(credentialResponse.credential);
+
+            if (res.success) {
+              toast.success("Logged in with Google");
+              navigate("/profile");
+            } else {
+              toast.error(res.message);
+            }
+          }}
+          onError={() => {
+            toast.error("Google login failed");
+          }}
+        />
+      </div>
+
 
         <div className="flex items-center my-6">
           <div className="flex-grow border-t border-border"></div>
@@ -83,7 +109,7 @@ export const SignIn = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full font-semibold py-3">
+            <Button type="submit" disabled={loading} className="w-full font-semibold py-3">
               {loading ? "Sending OTP..." : "Send OTP"}
             </Button>
           </form>
@@ -104,28 +130,24 @@ export const SignIn = () => {
               />
             </div>
 
-            <Button type="submit" className="w-full font-semibold py-3">
-              Verify OTP
+            <Button 
+              type="submit" 
+              className="w-full font-semibold py-3"
+              disabled={loading}
+            >
+              {loading ? "Verifying..." : "Verify OTP"}
             </Button>
 
             <button
               type="button"
+              disabled={loading}
               className="text-primary underline text-sm"
               onClick={handleSendOtp as any}
             >
-              Resend OTP
+              {loading ? "Resending..." : "Resend OTP"}
             </button>
           </form>
         )}
-      </div>
-
-      <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
-        <Link to="#" className="hover:text-primary transition">
-          Privacy policy
-        </Link>
-        <Link to="#" className="hover:text-primary transition">
-          Terms of service
-        </Link>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 const OurStory = () => {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white text-foreground">
       {/* Main Section */}
       <main className="container mx-auto">
         {/* Hero Section */}
