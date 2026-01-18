@@ -18,9 +18,6 @@ import { useOrderStore } from "@/store/useOrderStore";
 import { useNavigate } from "react-router-dom";
 
 export const Profile = () => {
-  // ------------------------------
-  // Zustand Stores
-  // ------------------------------
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const logout = useAuthStore((s) => s.logout);
@@ -33,36 +30,20 @@ export const Profile = () => {
     deleteAddress,
   } = useAddressStore();
 
-  const { orders, fetchOrders } = useOrderStore();
-
-  // ------------------------------
-  // Local UI state
-  // ------------------------------
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
-  const [openOrder, setOpenOrder] = useState(false);
-
   const [editAddress, setEditAddress] = useState<any>(null);
-  const [selectedOrder, setSelectedOrder] = useState<any>(null);
 
   const navigate = useNavigate();
 
-  // ------------------------------
-  // Initial data load
-  // ------------------------------
   useEffect(() => {
     const load = async () => {
-      await fetchMe();        // just user
-      await fetchAddresses(); // address api
-      await fetchOrders();    // orders api
+      await fetchMe();
+      await fetchAddresses();
     };
 
     load();
   }, []);
-
-  // ------------------------------
-  // ADDRESS HANDLERS
-  // ------------------------------
 
 const handleAddAddress = async () => {
   const res = await createAddress({
@@ -222,61 +203,6 @@ const handleDelete = async (id: number) => {
 >
   View My Orders
 </Button>
-        {/* ---------------------------------------- */}
-        {/* ORDERS SECTION */}
-        {/* ---------------------------------------- */}
-        <section>
-          <h2 className="text-xl font-semibold flex items-center gap-2 mb-4">
-            <Package /> My Orders
-          </h2>
-
-          <div className="space-y-5">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="p-6 bg-white rounded-2xl shadow border hover:shadow-md transition"
-              >
-                <div className="flex justify-between">
-                  <div>
-                    <h3 className="font-semibold text-primary">
-                      Order ID: {order.id}
-                    </h3>
-
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toDateString()}
-                    </p>
-                  </div>
-
-                  <span className="text-sm bg-green-100 text-green-700 px-3 py-1 rounded-full">
-                    {order.status}
-                  </span>
-                </div>
-
-                <div className="mt-4">
-                  {order.items?.map((i, idx) => (
-                    <p key={idx} className="text-sm border-b pb-2">
-                      {i.name} × {i.quantity}
-                    </p>
-                  ))}
-
-                  <p className="text-right font-semibold mt-3">
-                    Total: ₹{order.totalPrice}
-                  </p>
-                </div>
-
-                <Button
-                  className="mt-4 w-full bg-primary text-white"
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setOpenOrder(true);
-                  }}
-                >
-                  View Details
-                </Button>
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
 
       {/* Add Address Modal */}
@@ -430,39 +356,6 @@ const handleDelete = async (id: number) => {
               Save Changes
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Order Details Modal */}
-      <Dialog open={openOrder} onOpenChange={setOpenOrder}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Order Details</DialogTitle>
-          </DialogHeader>
-
-          {selectedOrder && (
-            <div>
-              <p className="font-semibold text-primary">
-                Order ID: {selectedOrder.id}
-              </p>
-
-              <p className="text-sm mt-1">
-                {new Date(selectedOrder.createdAt).toDateString()}
-              </p>
-
-              <div className="mt-4 space-y-2">
-                {selectedOrder.items.map((i, idx) => (
-                  <p key={idx} className="text-sm">
-                    {i.name} × {i.quantity}
-                  </p>
-                ))}
-              </div>
-
-              <p className="text-right font-semibold mt-4 text-lg">
-                Total: ₹{selectedOrder.totalPrice}
-              </p>
-            </div>
-          )}
         </DialogContent>
       </Dialog>
     </div>

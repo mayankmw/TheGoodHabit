@@ -305,3 +305,37 @@ ADD COLUMN appliedCoupons JSON NULL AFTER totalPrice;
 
 ALTER TABLE orders
 ADD COLUMN discountedPrice FLOAT NULL AFTER totalPrice;
+
+ALTER TABLE orders
+ADD COLUMN shippingPartner VARCHAR(100) NULL AFTER status,
+ADD COLUMN trackingNumber VARCHAR(191) NULL AFTER shippingPartner,
+ADD COLUMN trackingUrl VARCHAR(512) NULL AFTER trackingNumber,
+ADD COLUMN shippedAt DATETIME NULL AFTER trackingUrl,
+ADD COLUMN deliveredAt DATETIME NULL AFTER shippedAt;
+
+ALTER TABLE users
+ADD COLUMN role ENUM('customer','admin') 
+NOT NULL DEFAULT 'customer'
+AFTER id;
+
+ALTER TABLE products
+CHANGE COLUMN type category VARCHAR(100)
+CHARACTER SET utf8mb4
+NULL DEFAULT NULL;
+
+ALTER TABLE orders
+ADD COLUMN orderCode VARCHAR(20) UNIQUE AFTER id;
+
+CREATE TABLE assets (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  type ENUM('logo', 'banner', 'hero') NOT NULL,
+  image VARCHAR(255) NOT NULL,
+  position INT DEFAULT 0,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE coupons
+ADD COLUMN gift_product_id INT UNSIGNED NULL AFTER discount_type;
+
+ALTER TABLE coupons
+MODIFY gift_product_id VARCHAR(36) NULL;

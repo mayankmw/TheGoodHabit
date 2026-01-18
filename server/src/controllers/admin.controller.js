@@ -1,0 +1,748 @@
+import { db } from "../config/db.js";
+
+const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
+const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
+const ASSET_IMAGE_URL = process.env.ASSET_IMAGE_URL || "";
+
+export const getStats = async (req, res) => {
+  try {
+    const [[ordersCount]] = await db.query(`
+      SELECT 
+        COUNT(*) AS total,
+        SUM(status='pending') AS pending,
+        SUM(status='processing') AS processing,
+        SUM(status='shipped') AS shipped,
+        SUM(status='delivered') AS delivered,
+        SUM(status='cancelled') AS cancelled,
+        SUM(DATE(createdAt)=CURDATE()) AS todayOrders
+      FROM orders
+    `);
+
+    const [[revenue]] = await db.query(`
+      SELECT 
+        COALESCE(SUM(amount)/100,0) AS totalRevenue,
+        COUNT(*) AS paidOrders
+      FROM payments
+      WHERE status='paid'
+    `);
+
+    const [[todayRevenue]] = await db.query(`
+      SELECT COALESCE(SUM(amount)/100,0) AS todayRevenue
+      FROM payments
+      WHERE status='paid'
+      AND DATE(createdAt) = CURDATE()
+    `);
+
+    const [[users]] = await db.query(`
+      SELECT 
+        COUNT(*) AS totalUsers,
+        SUM(DATE(createdAt)=CURDATE()) AS newToday
+      FROM users
+    `);
+
+    const [[products]] = await db.query(`
+      SELECT COUNT(*) AS totalProducts FROM products
+    `);
+
+    return res.json({
+      success: true,
+      stats: {
+        orders: ordersCount,
+        revenue: {
+          totalRevenue: Number(revenue.totalRevenue || 0),
+          averageOrderValue:
+            revenue.paidOrders > 0
+              ? Number((revenue.totalRevenue / revenue.paidOrders).toFixed(2))
+              : 0,
+          todayRevenue: Number(todayRevenue.todayRevenue || 0),
+        },
+        users,
+        products
+      }
+    });
+
+  } catch (err) {
+    console.error("Admin Stats Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getRevenueTrend = async (req, res) => {
+  try {
+    const [revenueLast7Days] = await db.query(`
+      WITH RECURSIVE dates AS (
+        SELECT CURDATE() - INTERVAL 6 DAY AS day
+        UNION ALL
+        SELECT day + INTERVAL 1 DAY FROM dates WHERE day < CURDATE()
+      )
+      SELECT 
+        dates.day AS date,
+        COALESCE(SUM(p.amount)/100, 0) AS amount
+      FROM dates
+      LEFT JOIN payments p
+      ON DATE(p.createdAt) = dates.day AND p.status='paid'
+      GROUP BY dates.day
+      ORDER BY dates.day ASC
+    `);
+
+    res.json({
+      success: true,
+      revenueLast7Days
+    });
+
+  } catch (err) {
+    console.error("Revenue Trend Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getOrdersTrend = async (req, res) => {
+  try {
+    const [ordersLast7Days] = await db.query(`
+      WITH RECURSIVE dates AS (
+        SELECT CURDATE() - INTERVAL 6 DAY AS day
+        UNION ALL
+        SELECT day + INTERVAL 1 DAY FROM dates WHERE day < CURDATE()
+      )
+      SELECT 
+        dates.day AS date,
+        COALESCE(COUNT(o.id), 0) AS orders
+      FROM dates
+      LEFT JOIN orders o
+      ON DATE(o.createdAt) = dates.day
+      GROUP BY dates.day
+      ORDER BY dates.day ASC
+    `);
+
+    res.json({
+      success: true,
+      ordersLast7Days
+    });
+
+  } catch (err) {
+    console.error("Orders Trend Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getProducts = async (req, res) => {
+  try {
+    const { category, search } = req.query;
+
+    let sql = `SELECT * FROM products WHERE 1=1`;
+    const params = [];
+
+    if (category) {
+      sql += ` AND category = ?`;
+      params.push(category);
+    }
+
+    if (search) {
+      sql += ` AND name LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    sql += ` ORDER BY createdAt DESC`;
+
+    const [products] = await db.query(sql, params);
+
+    const formatted = products.map(p => ({
+      ...p,
+      ingredients: p.ingredients ? JSON.parse(p.ingredients) : [],
+      image: p.image
+        ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
+        : null
+    }));
+
+    res.json({ success: true, products: formatted });
+
+  } catch (err) {
+    console.error("Get Products Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getProductById = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    const [[product]] = await db.query(
+      `SELECT * FROM products WHERE id = ?`,
+      [id]
+    );
+
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    product.ingredients = product.ingredients ? JSON.parse(product.ingredients) : [];
+    product.image = product.image
+      ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${product.image}`
+      : null;
+
+    res.json({ success: true, product });
+
+  } catch (err) {
+    console.error("Get Product Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const createProduct = async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      originalPrice,
+      discountedPrice,
+      description,
+      ingredients = []
+    } = req.body;
+
+    if (!name || originalPrice === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Name and originalPrice are required"
+      });
+    }
+
+    const productId = crypto.randomUUID();
+    const imageFile = req.file ? req.file.filename : null;
+
+    await db.query(
+      `
+      INSERT INTO products (
+        id, name, image, category,
+        originalPrice, discountedPrice,
+        description, ingredients
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        productId,
+        name,
+        imageFile,
+        category || null,
+        originalPrice,
+        discountedPrice || originalPrice,
+        description || null,
+        JSON.stringify(ingredients)
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Product created successfully",
+      productId
+    });
+
+  } catch (err) {
+    console.error("Create Product Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const updateProduct = async (req, res) => {
+  try {
+    const {
+      id,
+      name,
+      category,
+      originalPrice,
+      discountedPrice,
+      description,
+      ingredients
+    } = req.body;
+
+    const imageFile = req.file ? req.file.filename : null;
+
+    const [[existing]] = await db.query(
+      `SELECT image FROM products WHERE id = ?`,
+      [id]
+    );
+
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    await db.query(
+      `
+      UPDATE products SET
+        name = COALESCE(?, name),
+        category = COALESCE(?, category),
+        originalPrice = COALESCE(?, originalPrice),
+        discountedPrice = COALESCE(?, discountedPrice),
+        description = COALESCE(?, description),
+        ingredients = COALESCE(?, ingredients),
+        image = COALESCE(?, image)
+      WHERE id = ?
+      `,
+      [
+        name,
+        category,
+        originalPrice,
+        discountedPrice,
+        description,
+        ingredients ? JSON.stringify(ingredients) : null,
+        imageFile,
+        id
+      ]
+    );
+
+    res.json({ success: true, message: "Product updated successfully" });
+
+  } catch (err) {
+    console.error("Update Product Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const fetchOrders = async (req, res) => {
+  try {
+    const [orders] = await db.query(`
+      SELECT 
+        o.id,
+        o.orderCode,
+        o.totalPrice,
+        o.discountedPrice,
+        o.status,
+        o.createdAt,
+        u.name AS customerName,
+        u.email
+      FROM orders o
+      JOIN users u ON u.id = o.userId
+      ORDER BY o.createdAt DESC
+    `);
+
+    return res.json({ success: true, orders });
+  } catch (err) {
+    console.error("Fetch Orders Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const fetchOrderById = async (req, res) => {
+  const { id } = req.body;
+
+  try {
+    const [[order]] = await db.query(
+      `
+      SELECT 
+        o.*,
+        u.name,
+        u.email,
+        u.phone
+      FROM orders o
+      JOIN users u ON u.id = o.userId
+      WHERE o.id = ?
+      `,
+      [id]
+    );
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    const [items] = await db.query(
+      `
+      SELECT 
+        oi.quantity,
+        oi.price,
+        p.name,
+        p.image
+      FROM order_items oi
+      JOIN products p ON p.id = oi.productId
+      WHERE oi.orderId = ?
+      `,
+      [id]
+    );
+
+    return res.json({
+      success: true,
+      order: {
+        ...order,
+        appliedCoupons: order.appliedCoupons
+          ? JSON.parse(order.appliedCoupons)
+          : [],
+        items
+      }
+    });
+  } catch (err) {
+    console.error("Fetch Order Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const updateOrder = async (req, res) => {
+  const {
+    id,
+    status,
+    shippingPartner,
+    trackingNumber,
+    trackingUrl,
+    shippedAt,
+    deliveredAt
+  } = req.body;
+
+  try {
+    await db.query(
+      `
+      UPDATE orders SET
+        status = COALESCE(?, status),
+        shippingPartner = COALESCE(?, shippingPartner),
+        trackingNumber = COALESCE(?, trackingNumber),
+        trackingUrl = COALESCE(?, trackingUrl),
+        shippedAt = COALESCE(?, shippedAt),
+        deliveredAt = COALESCE(?, deliveredAt)
+      WHERE id = ?
+      `,
+      [
+        status,
+        shippingPartner,
+        trackingNumber,
+        trackingUrl,
+        shippedAt,
+        deliveredAt,
+        id
+      ]
+    );
+
+    return res.json({ success: true, message: "Order updated successfully" });
+  } catch (err) {
+    console.error("Update Order Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getAllAssets = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `
+      SELECT * FROM assets
+      ORDER BY type ASC, position ASC
+      `
+    );
+
+    const formatted = rows.map(a => ({
+      ...a,
+      image: a.image
+        ? `${UPLOADS_APP_URL}${ASSET_IMAGE_URL}${a.image}`
+        : null
+    }));
+
+    res.json({ success: true, assets: formatted });
+  } catch (err) {
+    console.error("Get Assets Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const updateAsset = async (req, res) => {
+  try {
+    const { id, position } = req.body;
+    const imageFile = req.file?.filename || null;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Asset ID is required"
+      });
+    }
+
+    const [[existing]] = await db.query(
+      `SELECT id FROM assets WHERE id = ?`,
+      [id]
+    );
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Asset not found"
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE assets SET
+        image = COALESCE(?, image),
+        position = COALESCE(?, position)
+      WHERE id = ?
+      `,
+      [imageFile, position, id]
+    );
+
+    res.json({
+      success: true,
+      message: "Asset updated successfully"
+    });
+  } catch (err) {
+    console.error("Update Asset Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getAllCoupons = async (req, res) => {
+  try {
+    const { search, active } = req.body;
+
+    let sql = `SELECT * FROM coupons WHERE 1=1`;
+    const params = [];
+
+    if (search) {
+      sql += ` AND (code LIKE ? OR title LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`);
+    }
+
+    if (active !== undefined) {
+      sql += ` AND active = ?`;
+      params.push(active);
+    }
+
+    sql += ` ORDER BY createdAt DESC`;
+
+    const [coupons] = await db.query(sql, params);
+
+    res.json({ success: true, coupons });
+  } catch (err) {
+    console.error("Get Coupons Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getCouponById = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    const [[coupon]] = await db.query(
+      `SELECT * FROM coupons WHERE id = ?`,
+      [id]
+    );
+
+    if (!coupon) {
+      return res.status(404).json({
+        success: false,
+        message: "Coupon not found",
+      });
+    }
+
+    res.json({ success: true, coupon });
+  } catch (err) {
+    console.error("Get Coupon Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const createCoupon = async (req, res) => {
+  try {
+    let {
+      code,
+      title,
+      description,
+      discount_type = "flat",
+      value,
+      max_discount,
+      min_order = 0,
+      starts_at,
+      expires_at,
+      auto_award = 0,
+      single_use_per_user = 0,
+      gift_product_id,
+    } = req.body;
+
+    if (!code || !title) {
+      return res.status(400).json({
+        success: false,
+        message: "Code and title are required",
+      });
+    }
+
+    // prevent duplicate codes
+    const [[exists]] = await db.query(
+      `SELECT id FROM coupons WHERE code = ?`,
+      [code]
+    );
+
+    if (exists) {
+      return res.status(400).json({
+        success: false,
+        message: "Coupon code already exists",
+      });
+    }
+
+    if (discount_type === "free_gift") {
+      if (!gift_product_id) {
+        return res.status(400).json({
+          success: false,
+          message: "Gift product is required for free gift coupons",
+        });
+      }
+
+      value = null;
+      max_discount = null;
+    } else {
+      gift_product_id = null;
+
+      if (!value) {
+        return res.status(400).json({
+          success: false,
+          message: "Discount value is required",
+        });
+      }
+
+      if (discount_type === "flat") {
+        max_discount = null;
+      }
+    }
+
+    await db.query(
+      `
+      INSERT INTO coupons (
+        code, title, description, discount_type,
+        gift_product_id,
+        value, max_discount, min_order,
+        starts_at, expires_at,
+        auto_award, single_use_per_user
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        code,
+        title,
+        description || null,
+        discount_type,
+        gift_product_id,
+        value,
+        max_discount,
+        min_order,
+        starts_at || null,
+        expires_at || null,
+        auto_award,
+        single_use_per_user,
+      ]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Coupon created successfully",
+    });
+  } catch (err) {
+    console.error("Create Coupon Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const updateCoupon = async (req, res) => {
+  try {
+    let {
+      id,
+      title,
+      description,
+      discount_type,
+      value,
+      max_discount,
+      min_order,
+      starts_at,
+      expires_at,
+      auto_award,
+      single_use_per_user,
+      gift_product_id,
+    } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Coupon ID is required",
+      });
+    }
+
+    if (discount_type === "free_gift") {
+      if (!gift_product_id) {
+        return res.status(400).json({
+          success: false,
+          message: "Gift product is required for free gift coupons",
+        });
+      }
+
+      value = null;
+      max_discount = null;
+    } else if (discount_type) {
+      gift_product_id = null;
+
+      if (!value) {
+        return res.status(400).json({
+          success: false,
+          message: "Discount value is required",
+        });
+      }
+
+      if (discount_type === "flat") {
+        max_discount = null;
+      }
+    }
+
+    await db.query(
+      `
+      UPDATE coupons SET
+        title = COALESCE(?, title),
+        description = COALESCE(?, description),
+        discount_type = COALESCE(?, discount_type),
+        gift_product_id = COALESCE(?, gift_product_id),
+        value = COALESCE(?, value),
+        max_discount = COALESCE(?, max_discount),
+        min_order = COALESCE(?, min_order),
+        starts_at = COALESCE(?, starts_at),
+        expires_at = COALESCE(?, expires_at),
+        auto_award = COALESCE(?, auto_award),
+        single_use_per_user = COALESCE(?, single_use_per_user)
+      WHERE id = ?
+      `,
+      [
+        title,
+        description,
+        discount_type,
+        gift_product_id,
+        value,
+        max_discount,
+        min_order,
+        starts_at,
+        expires_at,
+        auto_award,
+        single_use_per_user,
+        id,
+      ]
+    );
+
+    res.json({
+      success: true,
+      message: "Coupon updated successfully",
+    });
+  } catch (err) {
+    console.error("Update Coupon Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const toggleCouponStatus = async (req, res) => {
+  try {
+    const { id, active } = req.body;
+
+    if (id === undefined || active === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Coupon ID and active status required",
+      });
+    }
+
+    await db.query(
+      `UPDATE coupons SET active = ? WHERE id = ?`,
+      [active, id]
+    );
+
+    res.json({
+      success: true,
+      message: active ? "Coupon activated" : "Coupon deactivated",
+    });
+  } catch (err) {
+    console.error("Toggle Coupon Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+

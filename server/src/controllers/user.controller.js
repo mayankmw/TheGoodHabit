@@ -57,7 +57,7 @@ export const googleLogin = async (req, res) => {
 
     // Issue your JWT
     const token = jwt.sign(
-      { id: user.id },
+      { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
@@ -134,11 +134,11 @@ export const verifyOtp = async (req, res) => {
     };
   }
   
-    const token = jwt.sign(
-      { id: user.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+  const token = jwt.sign(
+    { id: user.id, role: user.role },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
   return res.json({
     success: true,
@@ -153,7 +153,7 @@ export const me = async (req, res) => {
     const userId = req.user.id;
 
     const [users] = await db.query(
-      "SELECT id, email, phone, name FROM users WHERE id = ?",
+      "SELECT id, email, phone, name, role FROM users WHERE id = ?",
       [userId]
     );
 
@@ -165,9 +165,20 @@ export const me = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
+    const payload = {
+      id: user.id,
+      email: user.email,
+      phone: user.phone,
+      name: user.name,
+    };
+
+    if (user.role === "admin") {
+      payload.isAdmin = true;
+    }
+
     return res.json({
       success: true,
-      user,
+      user: payload
     });
 
   } catch (err) {
@@ -178,4 +189,5 @@ export const me = async (req, res) => {
     });
   }
 };
+
 

@@ -2,21 +2,35 @@ import { BannerSlider } from "@/components/BannerSlider";
 import { ProductsCarousel } from "@/components/ProductsCarousel";
 import { ReelsCarousel } from "@/components/ReelsCarousel";
 import HeroImage from "@/components/HeroImage";
+import { useCommonStore } from "@/store/useCommonStore";
 
 const Index = () => {
+  const { assets } = useCommonStore();
+
+  const hero1 = assets?.hero?.find(h => h.position === 1);
+  const hero2 = assets?.hero?.find(h => h.position === 2);
+
   return (
     <main>
-      <BannerSlider />
+      <BannerSlider banners={assets?.banner || []} />
+
       <ProductsCarousel />
-      <HeroImage
-        src="/images/hero/hero-image-1.jpeg"
-        alt="Hero Image"
-      />
+
+      {hero1?.image && (
+        <HeroImage
+          src={hero1.image}
+          alt="Hero Image 1"
+        />
+      )}
+
       <ReelsCarousel />
-      <HeroImage
-        src="/images/hero/hero-image-2.png"
-        alt="Hero Image"
-      />
+
+      {hero2?.image && (
+        <HeroImage
+          src={hero2.image}
+          alt="Hero Image 2"
+        />
+      )}
     </main>
   );
 };

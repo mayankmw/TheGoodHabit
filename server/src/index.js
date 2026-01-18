@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { connectDB } from "./config/db.js";
 import { db } from "../src/config/db.js";
+import path from "path";
 
 import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
@@ -10,12 +11,12 @@ import cartRoutes from "./routes/cart.routes.js";
 import orderRoutes from "./routes/order.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import addressRoutes from "./routes/address.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import assetRoutes from "./routes/assets.routes.js";
 
 // Seeds
 import { seedDefaultUser } from "./seed/seedUser.js";
-import { seedProducts } from "./seed/seedProducts.js";
-import { seedAddresses } from "./seed/seedAddresses.js";
-import { seedOrders } from "./seed/seedOrders.js";
+import { seedDefaultAssets } from "./seed/seedDefaultAssets.js";
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ const app = express();
 app.use(cors());
 
 app.use(express.json());
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 app.get("/", async (req, res) => {
   try {
@@ -60,15 +62,15 @@ app.use("/cart", cartRoutes);
 app.use("/order", orderRoutes);
 app.use("/contact", contactRoutes);
 app.use("/address", addressRoutes);
+app.use("/admin", adminRoutes);
+app.use("/assets", assetRoutes);
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, async () => {
   await connectDB();
   await seedDefaultUser();
-  await seedProducts();
-  await seedAddresses();     // create addresses for user 1
-  await seedOrders(); 
+  await seedDefaultAssets();
 
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

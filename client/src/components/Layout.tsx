@@ -3,8 +3,15 @@ import { Navbar } from "@/components/Navbar";
 import { TopOffers } from "@/components/TopOffers";
 import { Footer } from "@/components/Footer";
 import { Outlet } from "react-router-dom";
+import { useCommonStore } from "@/store/useCommonStore";
+import { useEffect } from "react";
 
 export const Layout = () => {
+  const fetchAssets = useCommonStore((s) => s.fetchAssets);
+
+  useEffect(() => {
+    fetchAssets();
+  }, [fetchAssets]);
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <TopOffers />
@@ -31,7 +38,6 @@ export const Layout = () => {
 
       <a
         href="https://wa.me/7827510913"
-        // href="https://wa.me/8109855170"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50"

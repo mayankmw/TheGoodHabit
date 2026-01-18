@@ -1,5 +1,8 @@
 import { db } from "../config/db.js";
 
+const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
+const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
+
 /**
  * Helper: calculate cart total from items (discountedPrice * qty).
  * Accepts items array or computes from DB if not provided.
@@ -43,8 +46,15 @@ export const getCart = async (req, res) => {
       [cartId]
     );
 
+    const formattedItems = items.map((item) => ({
+  ...item,
+  image: item.image
+    ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${item.image}`
+    : null,
+}));
+
     // base total (before coupons)
-    const cartTotalBeforeDiscount = calcCartTotal(items);
+    const cartTotalBeforeDiscount = calcCartTotal(formattedItems);
 
     // fetch cart_coupons (user-applied coupons for this cart)
     // include max_discount for percent caps
@@ -111,7 +121,7 @@ export const getCart = async (req, res) => {
     return res.json({
       success: true,
       cartId,
-      items,
+      items: formattedItems,
       cartTotal,
       cartTotalBeforeDiscount,
       cartDiscountTotal,

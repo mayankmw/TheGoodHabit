@@ -92,7 +92,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
 
           {/* Shipping Offer */}
           <div className="bg-primary text-primary-foreground text-center py-2 rounded-full text-xs font-bold">
-            FREE SHIPPING + 3% PREPAID BONUS
+            FREE SHIPPING
           </div>
 
           {/* Add to Cart */}

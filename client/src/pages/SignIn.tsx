@@ -51,17 +51,6 @@ export const SignIn = () => {
     <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-amber-50 to-white px-4">
       <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl shadow-md p-8 animate-fadeIn">
 
-      <div className="flex justify-center mb-8">
-        <div className="bg-primary/90 text-primary-foreground px-6 py-4 rounded-2xl shadow-lg flex items-center gap-3">
-          <img
-            src="/images/logo/logo.png"
-            alt="The Good Habit"
-            className="h-10 w-auto"
-          />
-        </div>
-      </div>
-
-
         <h2 className="text-2xl font-bold text-center mb-2">Sign in</h2>
         <p className="text-center text-muted-foreground mb-6">
           Choose how you'd like to sign in

@@ -7,19 +7,6 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-// Helper: calculate cart total
-async function getCartTotal(cartId) {
-  const [items] = await db.query(
-    `SELECT ci.quantity, p.discountedPrice AS price
-     FROM cart_items ci
-     JOIN products p ON p.id = ci.productId
-     WHERE ci.cartId = ?`,
-    [cartId]
-  );
-
-  return items.reduce((sum, it) => sum + it.price * it.quantity, 0);
-}
-
 async function getCartTotalsWithCoupons(cartId) {
   const [items] = await db.query(
     `SELECT ci.quantity, p.discountedPrice
@@ -71,7 +58,6 @@ async function getCartTotalsWithCoupons(cartId) {
   };
 }
 
-
 export const createRazorpayOrder = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -114,6 +100,12 @@ export const createRazorpayOrder = async (req, res) => {
     );
 
     const appOrderId = orderResult.insertId;
+    const orderCode = `TGH${String(appOrderId).padStart(6, "0")}`;
+
+    await db.query(
+      `UPDATE orders SET orderCode = ? WHERE id = ?`,
+      [orderCode, appOrderId]
+    );
 
     // 2️⃣ Create PAYMENT Record
     await db.query(
@@ -126,8 +118,9 @@ export const createRazorpayOrder = async (req, res) => {
     return res.json({
       success: true,
       razorpayKey: process.env.RAZORPAY_KEY_ID,
-      orderId: razorpayOrder.id,   // Razorpay Order
-      appOrderId,                  // our DB Order
+      orderId: razorpayOrder.id,
+      appOrderId,
+      orderCode,
       amount: amountPaise,
       currency: "INR"
     });
@@ -231,7 +224,6 @@ export const verifyRazorpayPayment = async (req, res) => {
     });
   }
 };
-
 
 export const getOrders = async (req, res) => {
   try {

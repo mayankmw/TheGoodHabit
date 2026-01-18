@@ -1,5 +1,8 @@
 import { db } from "../config/db.js";
 
+const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
+const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
+
 export const fetchProducts = async (req, res) => {
   try {
     const { search, recommended } = req.body;
@@ -10,9 +13,16 @@ export const fetchProducts = async (req, res) => {
         "SELECT * FROM products ORDER BY rating DESC LIMIT 4"
       );
 
+      const formatted = rows.map(p => ({
+        ...p,
+        image: p.image
+          ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
+          : null
+      }));
+
       return res.json({
         success: true,
-        products: rows,
+        products: formatted,
       });
     }
 
@@ -25,15 +35,21 @@ export const fetchProducts = async (req, res) => {
       params.push(`%${search}%`);
     }
 
-    // Order by latest created (DESC)
     sql += " ORDER BY createdAt DESC";
 
     const [products] = await db.query(sql, params);
 
+    const formatted = products.map(p => ({
+      ...p,
+      image: p.image
+        ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
+        : null
+    }));
+
     return res.json({
       success: true,
-      count: products.length,
-      products,
+      count: formatted.length,
+      products: formatted,
     });
   } catch (err) {
     return res.status(500).json({
@@ -69,6 +85,10 @@ export const fetchSingleProduct = async (req, res) => {
       });
     }
 
+    product.image = product.image
+      ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${product.image}`
+      : null;
+
     return res.json({
       success: true,
       product,
@@ -81,4 +101,5 @@ export const fetchSingleProduct = async (req, res) => {
     });
   }
 };
+
 

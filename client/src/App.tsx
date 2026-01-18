@@ -17,6 +17,12 @@ import Profile from "./pages/Profile";
 import Orders from "./pages/Orders";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminLayout from "@/components/AdminLayout";
+import AdminProducts from "./pages/AdminProducts";
+import AdminOrders from "./pages/AdminOrders";
+import AdminAssets from "./pages/AdminAssets";
+import AdminCoupons from "./pages/AdminCoupons";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +53,14 @@ const App = () => (
                   : <SignIn />
               }
             />
+          </Route>
+
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="assets" element={<AdminAssets />} />
+            <Route path="coupons" element={<AdminCoupons />} />
           </Route>
 
           {/* Standalone routes (no layout) */}
