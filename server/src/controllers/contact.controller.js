@@ -1,4 +1,5 @@
 import sendEmail from "../utils/sendEmail.js";
+import { db } from "../config/db.js";
 
 export const sendContactMessage = async (req, res) => {
   try {
@@ -11,7 +12,17 @@ export const sendContactMessage = async (req, res) => {
       });
     }
 
-    const adminEmail = process.env.CONTACT_RECEIVER_EMAIL || process.env.EMAIL_USER;
+    /* ================= SAVE TO DB ================= */
+    await db.query(
+      `
+      INSERT INTO contact_messages (name, email, message)
+      VALUES (?, ?, ?)
+      `,
+      [name, email, message]
+    );
+
+    /* ================= SEND EMAIL ================= */
+    const adminEmail = process.env.EMAIL_USER;
 
     const subject = `📩 New Contact Message from ${name}`;
 

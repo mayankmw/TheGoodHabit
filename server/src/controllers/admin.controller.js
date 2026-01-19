@@ -1,4 +1,5 @@
 import { db } from "../config/db.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -1025,3 +1026,240 @@ export const toggleSocial = async (req, res) => {
     });
   }
 };
+
+export const getAllContacts = async (req, res) => {
+  try {
+    const { search, status } = req.body;
+
+    let sql = `SELECT * FROM contact_messages WHERE 1=1`;
+    const params = [];
+
+    if (search) {
+      sql += ` AND (name LIKE ? OR email LIKE ? OR message LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    if (status) {
+      sql += ` AND status = ?`;
+      params.push(status);
+    }
+
+    sql += ` ORDER BY createdAt DESC`;
+
+    const [rows] = await db.query(sql, params);
+
+    res.json({
+      success: true,
+      contacts: rows,
+    });
+  } catch (err) {
+    console.error("Get Contacts Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const markContactRead = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Contact ID is required",
+      });
+    }
+
+    await db.query(
+      `UPDATE contact_messages SET status = 'read' WHERE id = ?`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: "Message marked as read",
+    });
+  } catch (err) {
+    console.error("Mark Contact Read Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const replyToContact = async (req, res) => {
+  try {
+    const { id, reply } = req.body;
+
+    if (!id || !reply) {
+      return res.status(400).json({
+        success: false,
+        message: "Contact ID and reply message are required",
+      });
+    }
+
+    const [[contact]] = await db.query(
+      `SELECT name, email FROM contact_messages WHERE id = ?`,
+      [id]
+    );
+
+    if (!contact) {
+      return res.status(404).json({
+        success: false,
+        message: "Contact message not found",
+      });
+    }
+
+    /* ================= SEND EMAIL ================= */
+    const subject = "Re: Your message to The Good Habit";
+
+    const html = `
+      <div style="font-family: Arial, sans-serif;">
+        <p>Hi ${contact.name},</p>
+
+        <p>${reply.replace(/\n/g, "<br />")}</p>
+
+        <br />
+        <p>Best regards,</p>
+        <p><strong>The Good Habit Team</strong></p>
+      </div>
+    `;
+
+    await sendEmail(contact.email, subject, reply, html);
+
+    /* ================= UPDATE STATUS ================= */
+    await db.query(
+      `UPDATE contact_messages SET status = 'replied' WHERE id = ?`,
+      [id]
+    );
+
+    res.json({
+      success: true,
+      message: "Reply sent successfully",
+    });
+  } catch (err) {
+    console.error("Reply Contact Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send reply",
+    });
+  }
+};
+
+export const getNewsletterSubscribers = async (req, res) => {
+  try {
+    const { search } = req.body;
+
+    let sql = `
+      SELECT id, email, active, subscribedAt
+      FROM newsletter_subscribers
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (search) {
+      sql += ` AND email LIKE ?`;
+      params.push(`%${search}%`);
+    }
+
+    sql += ` ORDER BY subscribedAt DESC`;
+
+    const [rows] = await db.query(sql, params);
+
+    res.json({
+      success: true,
+      subscribers: rows,
+    });
+  } catch (err) {
+    console.error("Get newsletter subscribers error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const getNewsletters = async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT id, subject, content, sentCount, createdAt
+      FROM newsletters
+      ORDER BY createdAt DESC
+    `);
+
+    res.json({
+      success: true,
+      newsletters: rows,
+    });
+  } catch (err) {
+    console.error("Get newsletters error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const sendNewsletter = async (req, res) => {
+  try {
+    const { subject, content } = req.body;
+
+    if (!subject || !content) {
+      return res.status(400).json({
+        success: false,
+        message: "Subject and content are required",
+      });
+    }
+
+    /* ================= FETCH ACTIVE SUBSCRIBERS ================= */
+    const [subscribers] = await db.query(
+      `SELECT email FROM newsletter_subscribers WHERE status = 'active'`
+    );
+
+    if (!subscribers.length) {
+      return res.json({
+        success: false,
+        message: "No active subscribers found",
+      });
+    }
+
+    /* ================= SEND EMAILS ================= */
+    for (const sub of subscribers) {
+      const html = `
+        <div style="font-family: Arial, sans-serif;">
+          ${content.replace(/\n/g, "<br />")}
+          <br /><br />
+          <p style="font-size:12px;color:#999">
+            You received this email because you subscribed to The Good Habit.
+          </p>
+        </div>
+      `;
+
+      await sendEmail(sub.email, subject, content, html);
+    }
+
+    /* ================= SAVE NEWSLETTER ================= */
+    await db.query(
+      `
+      INSERT INTO newsletters (subject, content, sentCount)
+      VALUES (?, ?, ?)
+      `,
+      [subject, content, subscribers.length]
+    );
+
+    res.json({
+      success: true,
+      message: `Newsletter sent to ${subscribers.length} subscribers`,
+    });
+  } catch (err) {
+    console.error("Send newsletter error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send newsletter",
+    });
+  }
+};
+

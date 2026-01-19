@@ -12,6 +12,7 @@ import orderRoutes from "./routes/order.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import addressRoutes from "./routes/address.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import newsletterRoutes from "./routes/newsletter.routes.js";
 import publicRoutes from "./routes/public.routes.js";
 
 // Seeds
@@ -63,6 +64,7 @@ app.use("/order", orderRoutes);
 app.use("/contact", contactRoutes);
 app.use("/address", addressRoutes);
 app.use("/admin", adminRoutes);
+app.use("/newsletter", newsletterRoutes);
 app.use("/", publicRoutes);
 
 const PORT = process.env.PORT || 3000;

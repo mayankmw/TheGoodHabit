@@ -49,6 +49,10 @@ interface CommonState {
   loadingSocials: boolean;
   socials: SocialsState;
   fetchSocials: () => Promise<void>;
+
+  /* ---------- newsletter ---------- */
+  loadingNewsletter: boolean;
+  subscribeNewsletter: (email: string) => Promise<any>;
 }
 
 /* ================= STORE ================= */
@@ -62,10 +66,7 @@ export const useCommonStore = create<CommonState>((set) => ({
     try {
       set({ loadingAssets: true });
       const { data } = await api.get("/assets");
-
-      if (data?.success) {
-        set({ assets: data.assets });
-      }
+      if (data?.success) set({ assets: data.assets });
     } catch (e) {
       console.error("Public assets fetch error", e);
     } finally {
@@ -75,16 +76,12 @@ export const useCommonStore = create<CommonState>((set) => ({
 
   /* ================= SLIDERS ================= */
   loadingSliders: false,
-  sliders: {
-    top: [],
-    bottom: [],
-  },
+  sliders: { top: [], bottom: [] },
 
   fetchSliders: async () => {
     try {
       set({ loadingSliders: true });
       const { data } = await api.get("/sliders");
-
       if (data?.success) {
         set({
           sliders: {
@@ -108,10 +105,7 @@ export const useCommonStore = create<CommonState>((set) => ({
     try {
       set({ loadingStory: true });
       const { data } = await api.get("/story");
-
-      if (data?.success) {
-        set({ story: data.story });
-      }
+      if (data?.success) set({ story: data.story });
     } catch (e) {
       console.error("Public story fetch error", e);
     } finally {
@@ -127,14 +121,32 @@ export const useCommonStore = create<CommonState>((set) => ({
     try {
       set({ loadingSocials: true });
       const { data } = await api.get("/socials");
-
-      if (data?.success) {
-        set({ socials: data.socials || {} });
-      }
+      if (data?.success) set({ socials: data.socials || {} });
     } catch (e) {
       console.error("Public socials fetch error", e);
     } finally {
       set({ loadingSocials: false });
+    }
+  },
+
+  /* ================= NEWSLETTER ================= */
+  loadingNewsletter: false,
+
+  subscribeNewsletter: async (email: string) => {
+    try {
+      set({ loadingNewsletter: true });
+
+      const { data } = await api.post("/newsletter/subscribe", { email });
+
+      return data;
+    } catch (e) {
+      console.error("Newsletter subscribe error", e);
+      return {
+        success: false,
+        message: "Failed to subscribe",
+      };
+    } finally {
+      set({ loadingNewsletter: false });
     }
   },
 }));

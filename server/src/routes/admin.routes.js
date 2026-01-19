@@ -31,6 +31,12 @@ import {
   getAllSocials,
   updateSocial,
   toggleSocial,
+  getAllContacts,
+  markContactRead,
+  replyToContact,
+  getNewsletterSubscribers,
+  getNewsletters,
+  sendNewsletter,
 } from "../controllers/admin.controller.js";
 
 const router = express.Router();
@@ -84,5 +90,15 @@ router.post(
 router.post("/socials", auth, isAdmin, getAllSocials);
 router.post("/social/update", auth, isAdmin, updateSocial);
 router.post("/social/toggle", auth, isAdmin, toggleSocial);
+
+router.post("/contacts", auth, isAdmin, getAllContacts);
+router.post("/contact/read", auth, isAdmin, markContactRead);
+router.post("/contact/reply", auth, isAdmin, replyToContact);
+
+router.post("/newsletter/subscribers", auth, isAdmin, getNewsletterSubscribers);
+
+router.post("/newsletters", auth, isAdmin, getNewsletters);
+
+router.post("/newsletter/send", auth, isAdmin, sendNewsletter);
 
 export default router;

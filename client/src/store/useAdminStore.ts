@@ -106,6 +106,55 @@ interface AdminState {
   updateSocial: (platform: string, url: string) => Promise<any>;
   toggleSocial: (platform: string, active: number) => Promise<any>;
 
+  /* ================= CONTACTS ================= */
+loadingContacts: boolean;
+replyingContact: boolean;
+updatingContactStatus: boolean;
+
+contacts: any[];
+selectedContact: any | null;
+
+fetchContacts: (params?: {
+  search?: string;
+  status?: "new" | "read" | "replied";
+}) => Promise<void>;
+
+markContactRead: (id: number) => Promise<any>;
+replyToContact: (id: number, reply: string) => Promise<any>;
+clearSelectedContact: () => void;
+
+  /* ================= NEWSLETTER ================= */
+  loadingSubscribers: boolean;
+  loadingNewsletters: boolean;
+  sendingNewsletter: boolean;
+
+  subscribers: {
+    id: number;
+    email: string;
+    active: number;
+    subscribedAt: string;
+  }[];
+
+  newsletters: {
+    id: number;
+    subject: string;
+    content: string;
+    sentCount: number;
+    createdAt: string;
+  }[];
+
+  fetchNewsletterSubscribers: (params?: {
+    search?: string;
+  }) => Promise<void>;
+
+  fetchNewsletters: () => Promise<void>;
+
+  sendNewsletter: (payload: {
+    subject: string;
+    content: string;
+  }) => Promise<any>;
+
+
 }
 
 /* ------------------ store ------------------ */
@@ -168,6 +217,22 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   socials: [],
 
+  /* ================= CONTACTS ================= */
+loadingContacts: false,
+replyingContact: false,
+updatingContactStatus: false,
+
+contacts: [],
+selectedContact: null,
+
+
+  /* ================= NEWSLETTER ================= */
+  loadingSubscribers: false,
+  loadingNewsletters: false,
+  sendingNewsletter: false,
+
+  subscribers: [],
+  newsletters: [],
 
   /* ================= STATS ================= */
   fetchStats: async () => {
@@ -720,5 +785,128 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
   },
 
+/* ================= CONTACTS ================= */
+
+fetchContacts: async (params = {}) => {
+  try {
+    set({ loadingContacts: true });
+
+    const { data } = await api.post("/admin/contacts", params);
+    if (!data?.success) return;
+
+    set({
+      contacts: data.contacts || [],
+    });
+  } catch (e) {
+    console.error("Fetch contacts error", e);
+  } finally {
+    set({ loadingContacts: false });
+  }
+},
+
+markContactRead: async (id: number) => {
+  try {
+    set({ updatingContactStatus: true });
+
+    const { data } = await api.post("/admin/contact/read", { id });
+
+    if (data.success) {
+      get().fetchContacts();
+    }
+
+    return data;
+  } catch (e) {
+    console.error("Mark contact read error", e);
+    return { success: false };
+  } finally {
+    set({ updatingContactStatus: false });
+  }
+},
+
+replyToContact: async (id: number, reply: string) => {
+  try {
+    set({ replyingContact: true });
+
+    const { data } = await api.post("/admin/contact/reply", {
+      id,
+      reply,
+    });
+
+    if (data.success) {
+      get().fetchContacts();
+    }
+
+    return data;
+  } catch (e) {
+    console.error("Reply contact error", e);
+    return { success: false };
+  } finally {
+    set({ replyingContact: false });
+  }
+},
+
+clearSelectedContact: () => set({ selectedContact: null }),
+
+  /* ================= NEWSLETTER ================= */
+
+  fetchNewsletterSubscribers: async (params = {}) => {
+    try {
+      set({ loadingSubscribers: true });
+
+      const { data } = await api.post(
+        "/admin/newsletter/subscribers",
+        params
+      );
+
+      if (!data?.success) return;
+
+      set({
+        subscribers: data.subscribers || [],
+      });
+    } catch (e) {
+      console.error("Fetch newsletter subscribers error", e);
+    } finally {
+      set({ loadingSubscribers: false });
+    }
+  },
+
+  fetchNewsletters: async () => {
+    try {
+      set({ loadingNewsletters: true });
+
+      const { data } = await api.post("/admin/newsletters");
+      if (!data?.success) return;
+
+      set({
+        newsletters: data.newsletters || [],
+      });
+    } catch (e) {
+      console.error("Fetch newsletters error", e);
+    } finally {
+      set({ loadingNewsletters: false });
+    }
+  },
+
+  sendNewsletter: async (payload) => {
+    try {
+      set({ sendingNewsletter: true });
+
+      const { data } = await api.post(
+        "/admin/newsletter/send",
+        payload
+      );
+
+      if (data.success) {
+        get().fetchNewsletters();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Send newsletter error", e);
+      return { success: false };
+    } finally {
+      set({ sendingNewsletter: false });
+    }
+  },
 
 }));

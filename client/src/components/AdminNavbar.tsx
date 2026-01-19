@@ -23,6 +23,8 @@ export const AdminNavbar = () => {
     { label: "Sliders", to: "/admin/sliders", icon: <Rows size={18} /> },
     { label: "Our Story", to: "/admin/story", icon: <BookOpen size={18} /> },
     { label: "Socials", to: "/admin/socials", icon: <BookOpen size={18} /> },
+    { label: "Contacts", to: "/admin/contacts", icon: <BookOpen size={18} /> },
+    { label: "newsletters", to: "/admin/newsletters", icon: <BookOpen size={18} /> },
   ];
 
     useEffect(() => {

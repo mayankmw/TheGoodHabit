@@ -372,3 +372,27 @@ INSERT INTO social_links (platform, url) VALUES
 ('instagram', 'https://www.instagram.com/instagram/?hl=en'),
 ('linkedin', 'https://www.linkedin.com/company/linkedin/'),
 ('whatsapp', '7827510913');
+
+CREATE TABLE contact_messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  message TEXT NOT NULL,
+  status ENUM('new', 'read', 'replied') DEFAULT 'new',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE newsletter_subscribers (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  status ENUM('active', 'unsubscribed') DEFAULT 'active',
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE newsletters (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  subject VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  sentCount INT DEFAULT 0,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);
