@@ -67,6 +67,45 @@ interface AdminState {
   toggleCoupon: (id: number, active: number) => Promise<any>;
   clearSelectedCoupon: () => void;
 
+  /* ================= SLIDERS ================= */
+  loadingSliders: boolean;
+  savingSlider: boolean;
+  togglingSlider: boolean;
+  deletingSlider: boolean;
+
+  sliders: any[];
+  selectedSlider: any | null;
+
+  fetchSliders: () => Promise<void>;
+  createSlider: (payload: any) => Promise<any>;
+  updateSlider: (payload: any) => Promise<any>;
+  reorderSliders: (items: { id: number; sort_order: number }[]) => Promise<any>;
+  toggleSlider: (id: number, active: number) => Promise<any>;
+  deleteSlider: (id: number) => Promise<any>;
+  clearSelectedSlider: () => void;
+
+  /* ================= STORY ================= */
+  loadingStory: boolean;
+  story: any | null;
+
+  fetchStory: () => Promise<void>;
+  updateStory: (file: File) => Promise<any>;
+
+  /* ================= SOCIALS ================= */
+  loadingSocials: boolean;
+  savingSocial: boolean;
+  togglingSocial: boolean;
+
+  socials: {
+    platform: string;
+    url: string;
+    active: number;
+  }[];
+
+  fetchSocials: () => Promise<void>;
+  updateSocial: (platform: string, url: string) => Promise<any>;
+  toggleSocial: (platform: string, active: number) => Promise<any>;
+
 }
 
 /* ------------------ store ------------------ */
@@ -108,6 +147,26 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   coupons: [],
   selectedCoupon: null,
+
+  /* ================= SLIDERS ================= */
+  loadingSliders: false,
+  savingSlider: false,
+  togglingSlider: false,
+  deletingSlider: false,
+
+  sliders: [],
+  selectedSlider: null,
+
+  /* ================= STORY ================= */
+  loadingStory: false,
+  story: null,
+
+  /* ================= SOCIALS ================= */
+  loadingSocials: false,
+  savingSocial: false,
+  togglingSocial: false,
+
+  socials: [],
 
 
   /* ================= STATS ================= */
@@ -453,6 +512,213 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   clearSelectedCoupon: () => set({ selectedCoupon: null }),
+
+  fetchSliders: async () => {
+    try {
+      set({ loadingSliders: true });
+      const { data } = await api.post("/admin/sliders");
+
+      if (!data.success) return;
+
+      set({ sliders: data.sliders || [] });
+    } catch (e) {
+      console.log("Fetch sliders error", e);
+    } finally {
+      set({ loadingSliders: false });
+    }
+  },
+
+  createSlider: async (payload) => {
+    try {
+      set({ savingSlider: true });
+
+      const { data } = await api.post("/admin/slider/create", payload);
+
+      if (data.success) {
+        get().fetchSliders();
+      }
+
+      return data;
+    } catch (e) {
+      console.log("Create slider error", e);
+      return { success: false };
+    } finally {
+      set({ savingSlider: false });
+    }
+  },
+
+  updateSlider: async (payload) => {
+    try {
+      set({ savingSlider: true });
+
+      const { data } = await api.post("/admin/slider/update", payload);
+
+      if (data.success) {
+        get().fetchSliders();
+      }
+
+      return data;
+    } catch (e) {
+      console.log("Update slider error", e);
+      return { success: false };
+    } finally {
+      set({ savingSlider: false });
+    }
+  },
+
+  reorderSliders: async (items) => {
+    try {
+      const { data } = await api.post("/admin/slider/reorder", { items });
+
+      if (data.success) {
+        get().fetchSliders();
+      }
+
+      return data;
+    } catch (e) {
+      console.log("Reorder slider error", e);
+      return { success: false };
+    }
+  },
+
+  toggleSlider: async (id, active) => {
+    try {
+      set({ togglingSlider: true });
+
+      const { data } = await api.post("/admin/slider/toggle", {
+        id,
+        active,
+      });
+
+      if (data.success) {
+        get().fetchSliders();
+      }
+
+      return data;
+    } catch (e) {
+      console.log("Toggle slider error", e);
+      return { success: false };
+    } finally {
+      set({ togglingSlider: false });
+    }
+  },
+
+  deleteSlider: async (id) => {
+    try {
+      set({ deletingSlider: true });
+
+      const { data } = await api.post("/admin/slider/delete", { id });
+
+      if (data.success) {
+        get().fetchSliders();
+      }
+
+      return data;
+    } catch (e) {
+      console.log("Delete slider error", e);
+      return { success: false };
+    } finally {
+      set({ deletingSlider: false });
+    }
+  },
+
+  clearSelectedSlider: () => set({ selectedSlider: null }),
+
+  fetchStory: async () => {
+    try {
+      set({ loadingStory: true });
+
+      const { data } = await api.post("/admin/story");
+      if (!data?.success) return;
+
+      set({ story: data.story });
+    } catch (e) {
+      console.error("Fetch story error", e);
+    } finally {
+      set({ loadingStory: false });
+    }
+  },
+
+  updateStory: async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const { data } = await api.post(
+        "/admin/story/update",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      if (data.success) {
+        get().fetchStory();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Update story error", e);
+      return { success: false };
+    }
+  },
+
+  fetchSocials: async () => {
+    try {
+      set({ loadingSocials: true });
+
+      const { data } = await api.post("/admin/socials");
+      if (!data?.success) return;
+
+      set({ socials: data.socials || [] });
+    } catch (e) {
+      console.error("Fetch socials error", e);
+    } finally {
+      set({ loadingSocials: false });
+    }
+  },
+
+  updateSocial: async (platform, url) => {
+    try {
+      set({ savingSocial: true });
+
+      const { data } = await api.post("/admin/social/update", {
+        platform,
+        url,
+      });
+
+      if (data.success) {
+        get().fetchSocials();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Update social error", e);
+      return { success: false };
+    } finally {
+      set({ savingSocial: false });
+    }
+  },
+
+  toggleSocial: async (platform, active) => {
+    try {
+      set({ togglingSocial: true });
+
+      const { data } = await api.post("/admin/social/toggle", {
+        platform,
+        active,
+      });
+
+      if (data.success) {
+        get().fetchSocials();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Toggle social error", e);
+      return { success: false };
+    } finally {
+      set({ togglingSocial: false });
+    }
+  },
 
 
 }));

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent } from "lucide-react";
+import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
 
 export const AdminNavbar = () => {
@@ -20,6 +20,9 @@ export const AdminNavbar = () => {
     { label: "Orders", to: "/admin/orders", icon: <ShoppingBag size={18} /> },
     { label: "Coupons", to: "/admin/coupons", icon: <TicketPercent size={18} /> },
     { label: "Assets", to: "/admin/assets", icon: <Image size={18} /> },
+    { label: "Sliders", to: "/admin/sliders", icon: <Rows size={18} /> },
+    { label: "Our Story", to: "/admin/story", icon: <BookOpen size={18} /> },
+    { label: "Socials", to: "/admin/socials", icon: <BookOpen size={18} /> },
   ];
 
     useEffect(() => {

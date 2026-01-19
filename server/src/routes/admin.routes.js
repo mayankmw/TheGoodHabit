@@ -19,7 +19,18 @@ import {
   getCouponById,
   createCoupon,
   updateCoupon,
-  toggleCouponStatus
+  toggleCouponStatus,
+  getAllSliders,
+  createSlider,
+  updateSlider,
+  reorderSliders,
+  toggleSlider,
+  deleteSlider,
+  getStory,
+  updateStory,
+  getAllSocials,
+  updateSocial,
+  toggleSocial,
 } from "../controllers/admin.controller.js";
 
 const router = express.Router();
@@ -54,5 +65,24 @@ router.post("/coupon/create", auth, isAdmin, createCoupon);
 router.post("/coupon/update", auth, isAdmin, updateCoupon);
 router.post("/coupon/toggle", auth, isAdmin, toggleCouponStatus);
 
+router.post("/sliders", auth, isAdmin, getAllSliders);
+router.post("/slider/create", auth, isAdmin, createSlider);
+router.post("/slider/update", auth, isAdmin, updateSlider);
+router.post("/slider/reorder", auth, isAdmin, reorderSliders);
+router.post("/slider/toggle", auth, isAdmin, toggleSlider);
+router.post("/slider/delete", auth, isAdmin, deleteSlider);
+
+router.post("/story", auth, isAdmin, getStory);
+router.post(
+  "/story/update",
+  auth,
+  isAdmin,
+  uploadImage("uploads/story").single("image"),
+  updateStory
+);
+
+router.post("/socials", auth, isAdmin, getAllSocials);
+router.post("/social/update", auth, isAdmin, updateSocial);
+router.post("/social/toggle", auth, isAdmin, toggleSocial);
 
 export default router;

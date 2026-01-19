@@ -23,6 +23,9 @@ import AdminProducts from "./pages/AdminProducts";
 import AdminOrders from "./pages/AdminOrders";
 import AdminAssets from "./pages/AdminAssets";
 import AdminCoupons from "./pages/AdminCoupons";
+import AdminSliders from "./pages/AdminSliders";
+import AdminStory from "./pages/AdminStory";
+import AdminSocials from "./pages/AdminSocials";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +64,9 @@ const App = () => (
             <Route path="orders" element={<AdminOrders />} />
             <Route path="assets" element={<AdminAssets />} />
             <Route path="coupons" element={<AdminCoupons />} />
+            <Route path="sliders" element={<AdminSliders />} />
+            <Route path="story" element={<AdminStory />} />
+            <Route path="socials" element={<AdminSocials />} />
           </Route>
 
           {/* Standalone routes (no layout) */}

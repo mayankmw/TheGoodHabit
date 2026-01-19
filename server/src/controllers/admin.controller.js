@@ -3,6 +3,7 @@ import { db } from "../config/db.js";
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 const ASSET_IMAGE_URL = process.env.ASSET_IMAGE_URL || "";
+const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
 
 export const getStats = async (req, res) => {
   try {
@@ -746,3 +747,281 @@ export const toggleCouponStatus = async (req, res) => {
   }
 };
 
+export const getAllSliders = async (req, res) => {
+  const [sliders] = await db.query(
+    `SELECT * FROM sliders ORDER BY position, sort_order ASC`
+  );
+  res.json({ success: true, sliders });
+};
+
+export const createSlider = async (req, res) => {
+  const { position, text, sort_order = 0 } = req.body;
+
+  if (!position || !text) {
+    return res.status(400).json({
+      success: false,
+      message: "Position and text are required",
+    });
+  }
+
+  await db.query(
+    `INSERT INTO sliders (position, text, sort_order)
+     VALUES (?, ?, ?)`,
+    [position, text, sort_order]
+  );
+
+  res.json({ success: true, message: "Slider added" });
+};
+
+export const updateSlider = async (req, res) => {
+  const { id, text, sort_order } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ success: false });
+  }
+
+  await db.query(
+    `UPDATE sliders SET
+      text = COALESCE(?, text),
+      sort_order = COALESCE(?, sort_order)
+     WHERE id = ?`,
+    [text, sort_order, id]
+  );
+
+  res.json({ success: true, message: "Slider updated" });
+};
+
+export const reorderSliders = async (req, res) => {
+  try {
+    const { items } = req.body;
+    // items = [{ id, sort_order }]
+
+    if (!Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payload",
+      });
+    }
+
+    const conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    for (const item of items) {
+      await conn.query(
+        `UPDATE sliders SET sort_order = ? WHERE id = ?`,
+        [item.sort_order, item.id]
+      );
+    }
+
+    await conn.commit();
+    conn.release();
+
+    res.json({
+      success: true,
+      message: "Slider order updated",
+    });
+  } catch (err) {
+    console.error("Reorder slider error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const toggleSlider = async (req, res) => {
+  try {
+    const { id, active } = req.body;
+
+    if (id === undefined || active === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Slider ID and active status are required",
+      });
+    }
+
+    await db.query(
+      `UPDATE sliders SET active = ? WHERE id = ?`,
+      [active, id]
+    );
+
+    res.json({
+      success: true,
+      message: active
+        ? "Slider activated successfully"
+        : "Slider deactivated successfully",
+    });
+  } catch (err) {
+    console.error("Toggle Slider Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const deleteSlider = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Slider ID is required",
+      });
+    }
+
+    const [result] = await db.query(
+      `DELETE FROM sliders WHERE id = ?`,
+      [id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Slider not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Slider deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete Slider Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const getStory = async (req, res) => {
+  try {
+    const [[story]] = await db.query(
+      `SELECT * FROM story_assets LIMIT 1`
+    );
+
+    if (!story) {
+      return res.json({ success: true, story: null });
+    }
+
+    res.json({
+      success: true,
+      story: {
+        ...story,
+        image: story.image
+          ? `${UPLOADS_APP_URL}${STORY_IMAGE_URL}${story.image}`
+          : null,
+      },
+    });
+  } catch (err) {
+    console.error("Get Story Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const updateStory = async (req, res) => {
+  try {
+    const image = req.file?.filename;
+
+    if (!image) {
+      return res.status(400).json({
+        success: false,
+        message: "Story image is required",
+      });
+    }
+
+    await db.query(
+      `UPDATE story_assets SET image = ? LIMIT 1`,
+      [image]
+    );
+
+    res.json({
+      success: true,
+      message: "Story image updated successfully",
+    });
+  } catch (err) {
+    console.error("Update Story Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const getAllSocials = async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT platform, url, active FROM social_links ORDER BY platform`
+    );
+
+    res.json({
+      success: true,
+      socials: rows,
+    });
+  } catch (err) {
+    console.error("Get Socials Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const updateSocial = async (req, res) => {
+  try {
+    const { platform, url } = req.body;
+
+    if (!platform || !url) {
+      return res.status(400).json({
+        success: false,
+        message: "Platform and URL are required",
+      });
+    }
+
+    await db.query(
+      `UPDATE social_links SET url = ? WHERE platform = ?`,
+      [url, platform]
+    );
+
+    res.json({
+      success: true,
+      message: `${platform} link updated`,
+    });
+  } catch (err) {
+    console.error("Update Social Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const toggleSocial = async (req, res) => {
+  try {
+    const { platform, active } = req.body;
+
+    if (platform === undefined || active === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Platform and active status required",
+      });
+    }
+
+    await db.query(
+      `UPDATE social_links SET active = ? WHERE platform = ?`,
+      [active, platform]
+    );
+
+    res.json({
+      success: true,
+      message: active
+        ? `${platform} enabled`
+        : `${platform} disabled`,
+    });
+  } catch (err) {
+    console.error("Toggle Social Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};

@@ -339,3 +339,36 @@ ADD COLUMN gift_product_id INT UNSIGNED NULL AFTER discount_type;
 
 ALTER TABLE coupons
 MODIFY gift_product_id VARCHAR(36) NULL;
+
+CREATE TABLE sliders (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  position ENUM('top', 'bottom') NOT NULL,   -- where it appears
+  text VARCHAR(255) NOT NULL,                -- what admin writes
+
+  sort_order INT DEFAULT 0,                  -- display order
+  active TINYINT(1) DEFAULT 1,                -- show / hide
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE story_assets (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  image VARCHAR(255) DEFAULT NULL,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE social_links (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  platform ENUM('instagram', 'linkedin', 'whatsapp') NOT NULL UNIQUE,
+  url VARCHAR(255) NOT NULL,
+  active TINYINT(1) DEFAULT 1,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO social_links (platform, url) VALUES
+('instagram', 'https://www.instagram.com/instagram/?hl=en'),
+('linkedin', 'https://www.linkedin.com/company/linkedin/'),
+('whatsapp', '7827510913');
