@@ -6,6 +6,23 @@ function toNumber(value: any, fallback = 0) {
   return Number(value);
 }
 
+/* ================= REELS ================= */
+
+interface ReelItem {
+  id: number;
+  short_video: string;
+  short_video_url: string;
+  main_video: string;
+  main_video_url: string;
+  product_id: number;
+  product_name?: string;
+  active: number;
+  sort_order: number;
+  views: number;
+  likes: number;
+  created_at: string;
+}
+
 interface AdminState {
   loadingStats: boolean;
   loadingRevenue: boolean;
@@ -107,21 +124,21 @@ interface AdminState {
   toggleSocial: (platform: string, active: number) => Promise<any>;
 
   /* ================= CONTACTS ================= */
-loadingContacts: boolean;
-replyingContact: boolean;
-updatingContactStatus: boolean;
+  loadingContacts: boolean;
+  replyingContact: boolean;
+  updatingContactStatus: boolean;
 
-contacts: any[];
-selectedContact: any | null;
+  contacts: any[];
+  selectedContact: any | null;
 
-fetchContacts: (params?: {
-  search?: string;
-  status?: "new" | "read" | "replied";
-}) => Promise<void>;
+  fetchContacts: (params?: {
+    search?: string;
+    status?: "new" | "read" | "replied";
+  }) => Promise<void>;
 
-markContactRead: (id: number) => Promise<any>;
-replyToContact: (id: number, reply: string) => Promise<any>;
-clearSelectedContact: () => void;
+  markContactRead: (id: number) => Promise<any>;
+  replyToContact: (id: number, reply: string) => Promise<any>;
+  clearSelectedContact: () => void;
 
   /* ================= NEWSLETTER ================= */
   loadingSubscribers: boolean;
@@ -154,6 +171,22 @@ clearSelectedContact: () => void;
     content: string;
   }) => Promise<any>;
 
+  /* ================= REELS ================= */
+  loadingReels: boolean;
+  savingReel: boolean;
+  togglingReel: boolean;
+  deletingReel: boolean;
+
+  reels: ReelItem[];
+  selectedReel: ReelItem | null;
+
+  fetchReels: () => Promise<void>;
+  createReel: (payload: any) => Promise<any>;
+  updateReel: (payload: any) => Promise<any>;
+  reorderReels: (items: { id: number; sort_order: number }[]) => Promise<any>;
+  toggleReel: (id: number, active: number) => Promise<any>;
+  deleteReel: (id: number) => Promise<any>;
+  clearSelectedReel: () => void;
 
 }
 
@@ -218,12 +251,12 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   socials: [],
 
   /* ================= CONTACTS ================= */
-loadingContacts: false,
-replyingContact: false,
-updatingContactStatus: false,
+  loadingContacts: false,
+  replyingContact: false,
+  updatingContactStatus: false,
 
-contacts: [],
-selectedContact: null,
+  contacts: [],
+  selectedContact: null,
 
 
   /* ================= NEWSLETTER ================= */
@@ -233,6 +266,16 @@ selectedContact: null,
 
   subscribers: [],
   newsletters: [],
+
+  /* ================= REELS ================= */
+  loadingReels: false,
+  savingReel: false,
+  togglingReel: false,
+  deletingReel: false,
+
+  reels: [],
+  selectedReel: null,
+
 
   /* ================= STATS ================= */
   fetchStats: async () => {
@@ -785,67 +828,67 @@ selectedContact: null,
     }
   },
 
-/* ================= CONTACTS ================= */
+  /* ================= CONTACTS ================= */
 
-fetchContacts: async (params = {}) => {
-  try {
-    set({ loadingContacts: true });
+  fetchContacts: async (params = {}) => {
+    try {
+      set({ loadingContacts: true });
 
-    const { data } = await api.post("/admin/contacts", params);
-    if (!data?.success) return;
+      const { data } = await api.post("/admin/contacts", params);
+      if (!data?.success) return;
 
-    set({
-      contacts: data.contacts || [],
-    });
-  } catch (e) {
-    console.error("Fetch contacts error", e);
-  } finally {
-    set({ loadingContacts: false });
-  }
-},
-
-markContactRead: async (id: number) => {
-  try {
-    set({ updatingContactStatus: true });
-
-    const { data } = await api.post("/admin/contact/read", { id });
-
-    if (data.success) {
-      get().fetchContacts();
+      set({
+        contacts: data.contacts || [],
+      });
+    } catch (e) {
+      console.error("Fetch contacts error", e);
+    } finally {
+      set({ loadingContacts: false });
     }
+  },
 
-    return data;
-  } catch (e) {
-    console.error("Mark contact read error", e);
-    return { success: false };
-  } finally {
-    set({ updatingContactStatus: false });
-  }
-},
+  markContactRead: async (id: number) => {
+    try {
+      set({ updatingContactStatus: true });
 
-replyToContact: async (id: number, reply: string) => {
-  try {
-    set({ replyingContact: true });
+      const { data } = await api.post("/admin/contact/read", { id });
 
-    const { data } = await api.post("/admin/contact/reply", {
-      id,
-      reply,
-    });
+      if (data.success) {
+        get().fetchContacts();
+      }
 
-    if (data.success) {
-      get().fetchContacts();
+      return data;
+    } catch (e) {
+      console.error("Mark contact read error", e);
+      return { success: false };
+    } finally {
+      set({ updatingContactStatus: false });
     }
+  },
 
-    return data;
-  } catch (e) {
-    console.error("Reply contact error", e);
-    return { success: false };
-  } finally {
-    set({ replyingContact: false });
-  }
-},
+  replyToContact: async (id: number, reply: string) => {
+    try {
+      set({ replyingContact: true });
 
-clearSelectedContact: () => set({ selectedContact: null }),
+      const { data } = await api.post("/admin/contact/reply", {
+        id,
+        reply,
+      });
+
+      if (data.success) {
+        get().fetchContacts();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Reply contact error", e);
+      return { success: false };
+    } finally {
+      set({ replyingContact: false });
+    }
+  },
+
+  clearSelectedContact: () => set({ selectedContact: null }),
 
   /* ================= NEWSLETTER ================= */
 
@@ -909,4 +952,133 @@ clearSelectedContact: () => set({ selectedContact: null }),
     }
   },
 
+  fetchReels: async () => {
+    try {
+      set({ loadingReels: true });
+
+      const { data } = await api.post("/admin/reels");
+      if (!data?.success) return;
+
+      set({ reels: data.reels || [] });
+    } catch (e) {
+      console.error("Fetch reels error", e);
+    } finally {
+      set({ loadingReels: false });
+    }
+  },
+
+  createReel: async (payload) => {
+    try {
+      set({ savingReel: true });
+
+      const formData = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        formData.append(key, value as any);
+      });
+
+      const { data } = await api.post(
+        "/admin/reel/create",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      if (data.success) {
+        get().fetchReels();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Create reel error", e);
+      return { success: false };
+    } finally {
+      set({ savingReel: false });
+    }
+  },
+
+  updateReel: async (payload) => {
+    try {
+      set({ savingReel: true });
+
+      const formData = new FormData();
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        formData.append(key, value as any);
+      });
+
+      const { data } = await api.post(
+        "/admin/reel/update",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      if (data.success) {
+        get().fetchReels();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Update reel error", e);
+      return { success: false };
+    } finally {
+      set({ savingReel: false });
+    }
+  },
+
+  reorderReels: async (items) => {
+    try {
+      const { data } = await api.post("/admin/reel/reorder", { items });
+
+      if (data.success) {
+        get().fetchReels();
+      }
+      return data;
+    } catch (e) {
+      console.log("Reorder slider error", e);
+      return { success: false };
+    }
+  },
+
+  toggleReel: async (id, active) => {
+    try {
+      set({ togglingReel: true });
+
+      const { data } = await api.post("/admin/reel/toggle", {
+        id,
+        active,
+      });
+
+      if (data.success) {
+        get().fetchReels();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Toggle reel error", e);
+      return { success: false };
+    } finally {
+      set({ togglingReel: false });
+    }
+  },
+
+  deleteReel: async (id) => {
+    try {
+      set({ deletingReel: true });
+
+      const { data } = await api.post("/admin/reel/delete", { id });
+
+      if (data.success) {
+        get().fetchReels();
+      }
+
+      return data;
+    } catch (e) {
+      console.error("Delete reel error", e);
+      return { success: false };
+    } finally {
+      set({ deletingReel: false });
+    }
+  },
+
+  clearSelectedReel: () => set({ selectedReel: null }),
 }));

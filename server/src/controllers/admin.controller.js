@@ -5,6 +5,8 @@ const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 const ASSET_IMAGE_URL = process.env.ASSET_IMAGE_URL || "";
 const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
+const REEL_SHORT_URL = process.env.REEL_SHORT_URL || "";
+const REEL_MAIN_URL = process.env.REEL_MAIN_URL || "";
 
 export const getStats = async (req, res) => {
   try {
@@ -1263,3 +1265,210 @@ export const sendNewsletter = async (req, res) => {
   }
 };
 
+export const getAllReels = async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT
+        r.*,
+        p.name AS product_name
+      FROM reels r
+      JOIN products p ON p.id = r.product_id
+      ORDER BY r.sort_order ASC, r.created_at DESC
+    `);
+
+    const reels = rows.map((r) => ({
+      ...r,
+
+      short_video_url: r.short_video
+        ? `${UPLOADS_APP_URL}${REEL_SHORT_URL}/${r.short_video}`
+        : null,
+
+      main_video_url: r.main_video
+        ? `${UPLOADS_APP_URL}${REEL_MAIN_URL}/${r.main_video}`
+        : null,
+    }));
+
+    res.json({
+      success: true,
+      reels,
+    });
+  } catch (err) {
+    console.error("Get Reels Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const createReel = async (req, res) => {
+  try {
+    const { product_id } = req.body;
+
+    const shortVideo = req.files?.short_video?.[0]?.filename;
+    const mainVideo = req.files?.main_video?.[0]?.filename;
+
+    if (!shortVideo || !mainVideo || !product_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Short video, main video and product are required",
+      });
+    }
+
+    // 🔹 Auto-calculate next sort order
+    const [[{ maxOrder }]] = await db.query(
+      `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM reels`
+    );
+
+    const nextOrder = maxOrder + 1;
+
+    await db.query(
+      `
+      INSERT INTO reels
+        (short_video, main_video, product_id, sort_order, created_by)
+      VALUES (?, ?, ?, ?, ?)
+      `,
+      [shortVideo, mainVideo, product_id, nextOrder, req.user.id]
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Reel created successfully",
+    });
+  } catch (err) {
+    console.error("Create Reel Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const updateReel = async (req, res) => {
+  try {
+    const { id, product_id, sort_order } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Reel ID is required",
+      });
+    }
+
+    const shortVideo = req.files?.short_video?.[0]?.filename || null;
+    const mainVideo = req.files?.main_video?.[0]?.filename || null;
+
+    const [[existing]] = await db.query(
+      `SELECT id FROM reels WHERE id = ?`,
+      [id]
+    );
+
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: "Reel not found",
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE reels SET
+        short_video = COALESCE(?, short_video),
+        main_video = COALESCE(?, main_video),
+        product_id = COALESCE(?, product_id),
+        sort_order = COALESCE(?, sort_order)
+      WHERE id = ?
+      `,
+      [shortVideo, mainVideo, product_id, sort_order, id]
+    );
+
+    res.json({
+      success: true,
+      message: "Reel updated successfully",
+    });
+  } catch (err) {
+    console.error("Update Reel Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const reorderReels = async (req, res) => {
+  try {
+    const { items } = req.body;
+    // items = [{ id, sort_order }]
+
+    if (!Array.isArray(items)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payload",
+      });
+    }
+
+    const conn = await db.getConnection();
+    await conn.beginTransaction();
+
+    for (const item of items) {
+      await conn.query(
+        `UPDATE reels SET sort_order = ? WHERE id = ?`,
+        [item.sort_order, item.id]
+      );
+    }
+
+    await conn.commit();
+    conn.release();
+
+    res.json({
+      success: true,
+      message: "Reel order updated",
+    });
+  } catch (err) {
+    console.error("Reorder reels error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+export const toggleReel = async (req, res) => {
+  try {
+    const { id, active } = req.body;
+
+    if (id === undefined || active === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: "Reel ID and active status are required",
+      });
+    }
+
+    await db.query(
+      `UPDATE reels SET active = ? WHERE id = ?`,
+      [active, id]
+    );
+
+    res.json({
+      success: true,
+      message: active ? "Reel activated" : "Reel deactivated",
+    });
+  } catch (err) {
+    console.error("Toggle Reel Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const deleteReel = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Reel ID is required",
+      });
+    }
+
+    await db.query(`DELETE FROM reels WHERE id = ?`, [id]);
+
+    res.json({
+      success: true,
+      message: "Reel deleted successfully",
+    });
+  } catch (err) {
+    console.error("Delete Reel Error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};

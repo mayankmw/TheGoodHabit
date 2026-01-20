@@ -29,6 +29,21 @@ interface SocialsState {
   whatsapp?: string;
 }
 
+/* ---------- reels ---------- */
+interface ReelItem {
+  id: number;
+  video: string | null;
+  activeVideo: string | null;
+  views: string;
+  product: {
+    id: number;
+    name: string;
+    price: number;
+    originalPrice?: number | null;
+    discount?: string | null;
+  };
+}
+
 interface CommonState {
   /* ---------- assets ---------- */
   loadingAssets: boolean;
@@ -49,6 +64,11 @@ interface CommonState {
   loadingSocials: boolean;
   socials: SocialsState;
   fetchSocials: () => Promise<void>;
+
+  /* ---------- reels ---------- */
+  loadingReels: boolean;
+  reels: ReelItem[];
+  fetchReels: () => Promise<void>;
 
   /* ---------- newsletter ---------- */
   loadingNewsletter: boolean;
@@ -129,15 +149,32 @@ export const useCommonStore = create<CommonState>((set) => ({
     }
   },
 
+  /* ================= REELS ================= */
+  loadingReels: false,
+  reels: [],
+
+  fetchReels: async () => {
+    try {
+      set({ loadingReels: true });
+      const { data } = await api.get("/reels");
+
+      if (data?.success) {
+        set({ reels: data.reels || [] });
+      }
+    } catch (e) {
+      console.error("Public reels fetch error", e);
+    } finally {
+      set({ loadingReels: false });
+    }
+  },
+
   /* ================= NEWSLETTER ================= */
   loadingNewsletter: false,
 
   subscribeNewsletter: async (email: string) => {
     try {
       set({ loadingNewsletter: true });
-
       const { data } = await api.post("/newsletter/subscribe", { email });
-
       return data;
     } catch (e) {
       console.error("Newsletter subscribe error", e);

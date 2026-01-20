@@ -396,3 +396,90 @@ CREATE TABLE newsletters (
   sentCount INT DEFAULT 0,
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE reels (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  /* ================= MEDIA ================= */
+  short_video VARCHAR(255) NOT NULL,
+  main_video VARCHAR(255) NOT NULL,
+
+  /* ================= PRODUCT ================= */
+  product_id BIGINT UNSIGNED NOT NULL,
+
+  /* ================= VISIBILITY ================= */
+  active TINYINT(1) DEFAULT 1,
+  sort_order INT DEFAULT 0,
+
+  /* ================= ANALYTICS ================= */
+  views INT UNSIGNED DEFAULT 0,
+  likes INT UNSIGNED DEFAULT 0,
+
+  /* ================= META ================= */
+  created_by BIGINT UNSIGNED NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- For homepage carousel
+CREATE INDEX idx_reels_active_order
+  ON reels (active, sort_order);
+
+-- For product → reels lookup
+CREATE INDEX idx_reels_product
+  ON reels (product_id);
+
+INSERT INTO reels (short_video, main_video, product_id, active, sort_order)
+VALUES
+(
+  'reel-short-1.mp4',
+  'reel-1.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  1
+),
+(
+  'reel-short-2.mp4',
+  'reel-2.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  2
+),
+(
+  'reel-short-3.mp4',
+  'reel-3.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  3
+),
+(
+  'reel-short-4.mp4',
+  'reel-4.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  4
+),
+(
+  'reel-short-5.mp4',
+  'reel-5.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  5
+),
+(
+  'reel-short-6.mp4',
+  'reel-6.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  6
+),
+(
+  'reel-short-7.mp4',
+  'reel-7.mp4',
+  (SELECT id FROM products ORDER BY RAND() LIMIT 1),
+  1,
+  7
+);
+
+change id in products to bigint , turned on auto increment , also changed values to 1,2,3,4 so on

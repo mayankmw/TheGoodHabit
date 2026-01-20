@@ -37,6 +37,12 @@ import {
   getNewsletterSubscribers,
   getNewsletters,
   sendNewsletter,
+  getAllReels,
+  createReel,
+  updateReel,
+  reorderReels,
+  toggleReel,
+  deleteReel
 } from "../controllers/admin.controller.js";
 
 const router = express.Router();
@@ -100,5 +106,37 @@ router.post("/newsletter/subscribers", auth, isAdmin, getNewsletterSubscribers);
 router.post("/newsletters", auth, isAdmin, getNewsletters);
 
 router.post("/newsletter/send", auth, isAdmin, sendNewsletter);
+
+/* ================= REELS ================= */
+
+router.post("/reels", auth, isAdmin, getAllReels);
+
+router.post(
+  "/reel/create",
+  auth,
+  isAdmin,
+  uploadImage("uploads/reels").fields([
+    { name: "short_video", maxCount: 1 },
+    { name: "main_video", maxCount: 1 },
+  ]),
+  createReel
+);
+
+router.post(
+  "/reel/update",
+  auth,
+  isAdmin,
+  uploadImage("uploads/reels").fields([
+    { name: "short_video", maxCount: 1 },
+    { name: "main_video", maxCount: 1 },
+  ]),
+  updateReel
+);
+router.post("/reel/reorder", auth, isAdmin, reorderReels);
+
+router.post("/reel/toggle", auth, isAdmin, toggleReel);
+
+router.post("/reel/delete", auth, isAdmin, deleteReel);
+
 
 export default router;
