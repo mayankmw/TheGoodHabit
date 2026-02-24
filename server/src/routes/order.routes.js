@@ -6,6 +6,6 @@ const router = express.Router();
 
 router.post("/create", auth, createRazorpayOrder);
 router.post("/verify", auth, verifyRazorpayPayment);
-router.post("/list", auth, getOrders);
+router.post("", auth, getOrders);
 
 export default router;

@@ -10,7 +10,13 @@ interface BannerItem {
   position: number;
 }
 
-export const BannerSlider = ({ banners = [] }: { banners: BannerItem[] }) => {
+export const BannerSlider = ({
+  banners = [],
+  onSlideChange,
+}: {
+  banners: BannerItem[];
+  onSlideChange?: (index: number) => void;
+}) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     Autoplay({ delay: 5000, stopOnInteraction: false }),
   ]);
@@ -28,8 +34,10 @@ export const BannerSlider = ({ banners = [] }: { banners: BannerItem[] }) => {
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
-    setSelectedIndex(emblaApi.selectedScrollSnap());
-  }, [emblaApi]);
+    const index = emblaApi.selectedScrollSnap();
+    setSelectedIndex(index);
+    onSlideChange?.(index);
+  }, [emblaApi, onSlideChange]);
 
   useEffect(() => {
     if (!emblaApi) return;

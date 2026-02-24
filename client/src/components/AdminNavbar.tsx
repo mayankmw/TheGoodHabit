@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, PlaySquare, Film } from "lucide-react";
+import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, Film, Users } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
 
 export const AdminNavbar = () => {
@@ -50,6 +50,7 @@ export const AdminNavbar = () => {
       children: [
         { label: "Contacts", to: "/admin/contacts", icon: <MessageSquare size={16} /> },
         { label: "Newsletters", to: "/admin/newsletters", icon: <Mail size={16} /> },
+        { label: "Subscribers", to: "/admin/newsletters/subscribers", icon: <Users size={16} /> },
       ],
     },
   ];

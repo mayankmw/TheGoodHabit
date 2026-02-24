@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,42 @@ export const Product = () => {
   const { id } = useParams();
 
   const { product, fetchSingleProduct, loading } = useProductStore();
+  const [selectedImage, setSelectedImage] = useState("");
 
   useEffect(() => {
     if (id) fetchSingleProduct(id);
   }, [id]);
+
+  const galleryImages = useMemo(() => {
+    if (!product) return [];
+
+    const images = new Set<string>();
+    if (product.image) images.add(product.image);
+
+    const maybeGallery = product as unknown as {
+      images?: unknown;
+      gallery?: unknown;
+      additionalImages?: unknown;
+    };
+
+    [maybeGallery.images, maybeGallery.gallery, maybeGallery.additionalImages].forEach(
+      source => {
+        if (Array.isArray(source)) {
+          source.forEach(item => {
+            if (typeof item === "string" && item.trim()) images.add(item);
+          });
+        }
+      }
+    );
+
+    return Array.from(images);
+  }, [product]);
+
+  useEffect(() => {
+    if (galleryImages.length) {
+      setSelectedImage(galleryImages[0]);
+    }
+  }, [galleryImages]);
 
   if (loading || !product) {
     return (
@@ -36,18 +68,49 @@ export const Product = () => {
         
         {/* Product Image */}
         <motion.div
-          className="relative group"
+          className="space-y-4"
           initial={{ opacity: 0, x: -60 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8 }}
         >
-          <motion.img
-            src={product.image}
-            alt={product.name}
-            className="rounded-2xl shadow-xl w-full object-cover transition-transform duration-300 group-hover:scale-105"
-            animate={isDatesProduct ? { y: [0, -10, 0] } : {}}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          />
+          <div className="w-full rounded-2xl border bg-white p-3 shadow-sm">
+            <div className="aspect-square overflow-hidden rounded-xl bg-slate-50">
+              <img
+                src={selectedImage || product.image}
+                alt={product.name}
+                className="h-full w-full object-contain"
+              />
+            </div>
+          </div>
+
+          {galleryImages.length > 1 && (
+            <div className="grid grid-cols-5 gap-3">
+              {galleryImages.map((image, index) => {
+                const isActive = image === selectedImage;
+                return (
+                  <button
+                    key={`${image}-${index}`}
+                    type="button"
+                    onClick={() => setSelectedImage(image)}
+                    className={`overflow-hidden rounded-lg border bg-white p-1 transition ${
+                      isActive
+                        ? "border-primary ring-2 ring-primary/30"
+                        : "border-slate-200 hover:border-slate-400"
+                    }`}
+                    aria-label={`View image ${index + 1}`}
+                  >
+                    <div className="aspect-square overflow-hidden rounded-md bg-slate-50">
+                      <img
+                        src={image}
+                        alt={`${product.name} thumbnail ${index + 1}`}
+                        className="h-full w-full object-contain"
+                      />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </motion.div>
 
         {/* Product Info */}

@@ -17,6 +17,7 @@ export const AdminBannerSlider = ({
       {/* Public slider */}
       <BannerSlider
         banners={banners}
+        onSlideChange={setActiveIndex}
       />
 
       {/* Admin overlay */}

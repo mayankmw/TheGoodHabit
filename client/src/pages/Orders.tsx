@@ -1,13 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Package } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 const statusBadge = (status: string) => {
   if (status === "delivered")
     return "bg-green-100 text-green-700";
+  if (status === "shipped")
+    return "bg-blue-100 text-blue-700";
   if (status === "processing")
-    return "bg-yellow-100 text-yellow-700";
+    return "bg-amber-100 text-amber-700";
+  if (status === "cancelled")
+    return "bg-red-100 text-red-700";
   return "bg-gray-100 text-gray-700";
 };
 
@@ -19,27 +24,32 @@ export default function Orders() {
     fetchOrders(true);
   }, []);
 
-  const all = orders;
-  const processing = orders.filter(o => o.status === "processing");
-  const delivered = orders.filter(o => o.status === "delivered");
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-16 px-4">
-      <div className="max-w-4xl mx-auto">
-        
-        <h1 className="text-3xl font-bold flex items-center gap-2 mb-6 text-primary">
-          <Package /> My Orders
-        </h1>
+    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-white to-orange-50 py-12 px-4 md:px-6">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-8 rounded-2xl border border-amber-100 bg-white/80 p-6 shadow-sm backdrop-blur">
+          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3 text-primary">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <Package className="h-5 w-5" />
+            </span>
+            My Orders
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Track every order, payment, and delivery status in one place.
+          </p>
+        </div>
 
         <Tabs
-        defaultValue="all"
-        className="w-full"
-        onValueChange={(value) => changeStatus(value)}
+          defaultValue="all"
+          className="w-full"
+          onValueChange={(value) => changeStatus(value)}
         >
-        <TabsList className="grid grid-cols-3 w-full">
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="processing">Processing</TabsTrigger>
-            <TabsTrigger value="delivered">Delivered</TabsTrigger>
+        <TabsList className="h-auto w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 bg-transparent p-0">
+            <TabsTrigger className="rounded-xl border bg-white data-[state=active]:bg-primary data-[state=active]:text-white" value="all">All</TabsTrigger>
+            <TabsTrigger className="rounded-xl border bg-white data-[state=active]:bg-primary data-[state=active]:text-white" value="processing">Processing</TabsTrigger>
+            <TabsTrigger className="rounded-xl border bg-white data-[state=active]:bg-primary data-[state=active]:text-white" value="shipped">Shipped</TabsTrigger>
+            <TabsTrigger className="rounded-xl border bg-white data-[state=active]:bg-primary data-[state=active]:text-white" value="delivered">Delivered</TabsTrigger>
+            <TabsTrigger className="rounded-xl border bg-white data-[state=active]:bg-primary data-[state=active]:text-white" value="cancelled">Cancelled</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all">
@@ -68,6 +78,24 @@ export default function Orders() {
             hasMore={hasMore}
             />
         </TabsContent>
+
+        <TabsContent value="shipped">
+            <OrdersList
+            list={orders}
+            loading={loading}
+            loadMore={loadMore}
+            hasMore={hasMore}
+            />
+        </TabsContent>
+
+        <TabsContent value="cancelled">
+            <OrdersList
+            list={orders}
+            loading={loading}
+            loadMore={loadMore}
+            hasMore={hasMore}
+            />
+        </TabsContent>
         </Tabs>
 
       </div>
@@ -77,52 +105,68 @@ export default function Orders() {
 
 function OrdersList({ list, loading, loadMore, hasMore }) {
   if (loading && !list.length)
-    return <p className="text-center mt-10 text-muted-foreground">Loading orders...</p>;
+    return (
+      <div className="mt-6 rounded-2xl border border-dashed bg-white/70 p-10 text-center text-muted-foreground">
+        Loading orders...
+      </div>
+    );
 
   if (!list.length)
-    return <p className="text-center mt-10 text-muted-foreground">No orders found</p>;
+    return (
+      <div className="mt-6 rounded-2xl border border-dashed bg-white/70 p-10 text-center">
+        <p className="text-muted-foreground">No orders found</p>
+      </div>
+    );
 
   return (
     <>
-    <div className="space-y-5 mt-5">
+    <div className="space-y-4 mt-6">
       {list.map(order => (
         <div
           key={order.id}
-          className="p-6 bg-white rounded-2xl shadow border hover:shadow-md transition"
+          className="rounded-2xl border border-amber-100/70 bg-white p-5 shadow-sm transition hover:shadow-md"
         >
-          <div className="flex justify-between">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Order ID
+              </p>
               <h3 className="font-semibold text-primary">
-                Order ID: {order.id}
+                #{order.id}
               </h3>
 
               <p className="text-sm text-muted-foreground">
-                {new Date(order.createdAt).toDateString()}
+                {new Date(order.createdAt).toLocaleDateString(undefined, {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}
               </p>
             </div>
 
-            <span className={`text-sm px-3 py-1 rounded-full capitalize ${statusBadge(order.status)}`}>
+            <span className={`text-xs px-3 py-1.5 rounded-full capitalize font-medium ${statusBadge(order.status)}`}>
               {order.status}
             </span>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-4 rounded-xl border bg-slate-50/60 p-3">
           {order.items?.map((i, idx) => (
             <div
               key={idx}
-              className="text-sm border-b pb-2 flex justify-between items-center"
+              className="text-sm border-b last:border-b-0 py-2 flex justify-between items-center gap-3"
             >
-              <span>
+              <span className="text-foreground/90">
                 {i.name} × {i.quantity}
               </span>
 
-              <span className="font-semibold">
+              <span className="font-semibold whitespace-nowrap">
                 ₹{i.price}
               </span>
             </div>
           ))}
+          </div>
 
-          <div className="mt-4 text-right space-y-1">
+          <div className="mt-4 flex flex-col items-end space-y-1">
             {/* Subtotal */}
             <p className="text-sm text-muted-foreground">
               Subtotal: <span className="font-semibold text-foreground">₹{order.totalPrice}</span>
@@ -136,24 +180,23 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
             )}
 
             {/* Final Amount */}
-            <p className="text-lg font-bold">
+            <p className="text-lg font-bold text-primary">
               Paid: ₹{order.discountedPrice}
             </p>
           </div>
 
-          </div>
         </div>
       ))}
     </div>
 
       {hasMore && (
         <div className="flex justify-center mt-6">
-          <button
-            className="px-6 py-2 bg-primary text-white rounded-lg"
+          <Button
+            className="rounded-full px-8"
             onClick={loadMore}
           >
             Load More
-          </button>
+          </Button>
         </div>
       )}
     </>

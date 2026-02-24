@@ -1,6 +1,7 @@
 import express from "express";
 import { auth } from "../middlewares/authMiddleware.js";
 import { uploadImage } from "../middlewares/imageUpload.js";
+import { uploadNewsletterAttachments } from "../middlewares/newsletterUpload.js";
 import { isAdmin } from "../middlewares/isAdmin.js";
 import {
   getStats,
@@ -102,10 +103,17 @@ router.post("/contact/read", auth, isAdmin, markContactRead);
 router.post("/contact/reply", auth, isAdmin, replyToContact);
 
 router.post("/newsletter/subscribers", auth, isAdmin, getNewsletterSubscribers);
+router.post("/newsletters/subscribers", auth, isAdmin, getNewsletterSubscribers);
 
 router.post("/newsletters", auth, isAdmin, getNewsletters);
 
-router.post("/newsletter/send", auth, isAdmin, sendNewsletter);
+router.post(
+  "/newsletter/send",
+  auth,
+  isAdmin,
+  uploadNewsletterAttachments.array("attachments", 5),
+  sendNewsletter
+);
 
 /* ================= REELS ================= */
 

@@ -42,7 +42,7 @@ export const useOrderStore = create<OrderState>((set, get) => ({
     try {
       set({ loading: true });
 
-      const { data } = await api.post("/order/list", {
+      const { data } = await api.post("/orders", {
         page,
         limit: 10,
         status,

@@ -148,25 +148,43 @@ interface AdminState {
   subscribers: {
     id: number;
     email: string;
+    status: "active" | "unsubscribed";
     active: number;
     subscribedAt: string;
   }[];
+
+  subscriberStats: {
+    total: number;
+    active: number;
+    unsubscribed: number;
+  };
+
+  subscriberPagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 
   newsletters: {
     id: number;
     subject: string;
     content: string;
     sentCount: number;
+    failedCount?: number;
     createdAt: string;
   }[];
 
   fetchNewsletterSubscribers: (params?: {
     search?: string;
+    status?: "all" | "active" | "unsubscribed";
+    page?: number;
+    limit?: number;
   }) => Promise<void>;
 
   fetchNewsletters: () => Promise<void>;
 
-  sendNewsletter: (payload: {
+  sendNewsletter: (payload: FormData | {
     subject: string;
     content: string;
   }) => Promise<any>;
@@ -265,6 +283,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   sendingNewsletter: false,
 
   subscribers: [],
+  subscriberStats: {
+    total: 0,
+    active: 0,
+    unsubscribed: 0,
+  },
+  subscriberPagination: {
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  },
   newsletters: [],
 
   /* ================= REELS ================= */
@@ -897,7 +926,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       set({ loadingSubscribers: true });
 
       const { data } = await api.post(
-        "/admin/newsletter/subscribers",
+        "/admin/newsletters/subscribers",
         params
       );
 
@@ -905,6 +934,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       set({
         subscribers: data.subscribers || [],
+        subscriberStats: data.stats || {
+          total: 0,
+          active: 0,
+          unsubscribed: 0,
+        },
+        subscriberPagination: data.pagination || {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 1,
+        },
       });
     } catch (e) {
       console.error("Fetch newsletter subscribers error", e);
@@ -934,9 +974,15 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       set({ sendingNewsletter: true });
 
+      const config =
+        payload instanceof FormData
+          ? { headers: { "Content-Type": "multipart/form-data" } }
+          : undefined;
+
       const { data } = await api.post(
         "/admin/newsletter/send",
-        payload
+        payload,
+        config
       );
 
       if (data.success) {

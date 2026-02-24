@@ -229,7 +229,7 @@ export const createProduct = async (req, res) => {
         originalPrice,
         discountedPrice || originalPrice,
         description || null,
-        JSON.stringify(ingredients)
+        ingredients
       ]
     );
 
@@ -286,7 +286,7 @@ export const updateProduct = async (req, res) => {
         originalPrice,
         discountedPrice,
         description,
-        ingredients ? JSON.stringify(ingredients) : null,
+        ingredients ?? null,
         imageFile,
         id
       ]
@@ -1153,27 +1153,86 @@ export const replyToContact = async (req, res) => {
 
 export const getNewsletterSubscribers = async (req, res) => {
   try {
-    const { search } = req.body;
+    const { search, status = "all" } = req.body || {};
+    const hasPagination =
+      req.body?.page !== undefined || req.body?.limit !== undefined;
+    const page = Math.max(Number(req.body?.page || 1), 1);
+    const limit = hasPagination
+      ? Math.min(Math.max(Number(req.body?.limit || 20), 1), 100)
+      : undefined;
+    const offset = hasPagination ? (page - 1) * (limit || 20) : 0;
 
     let sql = `
-      SELECT id, email, active, subscribedAt
+      SELECT
+        id,
+        email,
+        status,
+        CASE WHEN status = 'active' THEN 1 ELSE 0 END AS active,
+        createdAt AS subscribedAt
       FROM newsletter_subscribers
       WHERE 1=1
     `;
     const params = [];
 
+    let countSql = `
+      SELECT COUNT(*) AS total
+      FROM newsletter_subscribers
+      WHERE 1=1
+    `;
+    const countParams = [];
+
     if (search) {
       sql += ` AND email LIKE ?`;
       params.push(`%${search}%`);
+
+      countSql += ` AND email LIKE ?`;
+      countParams.push(`%${search}%`);
     }
 
-    sql += ` ORDER BY subscribedAt DESC`;
+    if (status && status !== "all") {
+      sql += ` AND status = ?`;
+      params.push(status);
+
+      countSql += ` AND status = ?`;
+      countParams.push(status);
+    }
+
+    if (hasPagination) {
+      sql += ` ORDER BY subscribedAt DESC LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+    } else {
+      sql += ` ORDER BY subscribedAt DESC`;
+    }
 
     const [rows] = await db.query(sql, params);
+    const [[countResult]] = await db.query(countSql, countParams);
+    const [[stats]] = await db.query(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(status = 'active') AS active,
+        SUM(status = 'unsubscribed') AS unsubscribed
+      FROM newsletter_subscribers
+    `);
+
+    const total = Number(countResult?.total || 0);
+    const totalPages = hasPagination
+      ? Math.max(Math.ceil(total / (limit || 20)), 1)
+      : 1;
 
     res.json({
       success: true,
       subscribers: rows,
+      pagination: {
+        page,
+        limit: limit || rows.length || 1,
+        total,
+        totalPages,
+      },
+      stats: {
+        total: Number(stats?.total || 0),
+        active: Number(stats?.active || 0),
+        unsubscribed: Number(stats?.unsubscribed || 0),
+      },
     });
   } catch (err) {
     console.error("Get newsletter subscribers error:", err);
@@ -1208,6 +1267,20 @@ export const getNewsletters = async (req, res) => {
 export const sendNewsletter = async (req, res) => {
   try {
     const { subject, content } = req.body;
+    const attachments = Array.isArray(req.files)
+      ? req.files.map((file) => ({
+          filename: file.originalname,
+          content: file.buffer,
+          contentType: file.mimetype,
+        }))
+      : [];
+
+    const plainTextContent = (content || "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
 
     if (!subject || !content) {
       return res.status(400).json({
@@ -1228,19 +1301,42 @@ export const sendNewsletter = async (req, res) => {
       });
     }
 
-    /* ================= SEND EMAILS ================= */
-    for (const sub of subscribers) {
-      const html = `
-        <div style="font-family: Arial, sans-serif;">
-          ${content.replace(/\n/g, "<br />")}
-          <br /><br />
-          <p style="font-size:12px;color:#999">
-            You received this email because you subscribed to The Good Habit.
-          </p>
-        </div>
-      `;
+    const html = `
+      <div style="font-family: Arial, sans-serif; line-height:1.55;">
+        ${content}
+        <br /><br />
+        <p style="font-size:12px;color:#999">
+          You received this email because you subscribed to The Good Habit.
+        </p>
+      </div>
+    `;
 
-      await sendEmail(sub.email, subject, content, html);
+    /* ================= SEND EMAILS IN BATCHES ================= */
+    let sentCount = 0;
+    let failedCount = 0;
+    const BATCH_SIZE = 25;
+
+    for (let i = 0; i < subscribers.length; i += BATCH_SIZE) {
+      const batch = subscribers.slice(i, i + BATCH_SIZE);
+      const result = await Promise.allSettled(
+        batch.map((sub) =>
+          sendEmail(
+            sub.email,
+            subject,
+            plainTextContent || subject,
+            html,
+            attachments
+          )
+        )
+      );
+
+      result.forEach((item) => {
+        if (item.status === "fulfilled") {
+          sentCount += 1;
+        } else {
+          failedCount += 1;
+        }
+      });
     }
 
     /* ================= SAVE NEWSLETTER ================= */
@@ -1249,12 +1345,17 @@ export const sendNewsletter = async (req, res) => {
       INSERT INTO newsletters (subject, content, sentCount)
       VALUES (?, ?, ?)
       `,
-      [subject, content, subscribers.length]
+      [subject, content, sentCount]
     );
 
     res.json({
       success: true,
-      message: `Newsletter sent to ${subscribers.length} subscribers`,
+      message:
+        failedCount > 0
+          ? `Newsletter sent to ${sentCount} subscribers (${failedCount} failed)`
+          : `Newsletter sent to ${sentCount} subscribers`,
+      sentCount,
+      failedCount,
     });
   } catch (err) {
     console.error("Send newsletter error:", err);

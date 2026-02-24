@@ -28,6 +28,7 @@ import AdminStory from "./pages/AdminStory";
 import AdminSocials from "./pages/AdminSocials";
 import AdminContacts from "./pages/AdminContacts";
 import AdminNewsletter from "./pages/AdminNewsletter";
+import AdminNewsletterSubscribers from "./pages/AdminNewsletterSubscribers";
 import AdminReels from "./pages/AdminReels";
 
 const queryClient = new QueryClient();
@@ -72,6 +73,7 @@ const App = () => (
             <Route path="socials" element={<AdminSocials />} />
             <Route path="contacts" element={<AdminContacts />} />
             <Route path="newsletters" element={<AdminNewsletter />} />
+            <Route path="newsletters/subscribers" element={<AdminNewsletterSubscribers />} />
             <Route path="reels" element={<AdminReels />} />
           </Route>
 

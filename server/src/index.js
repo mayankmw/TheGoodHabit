@@ -60,7 +60,7 @@ app.get("/", async (req, res) => {
 app.use("/user", userRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
-app.use("/order", orderRoutes);
+app.use("/orders", orderRoutes);
 app.use("/contact", contactRoutes);
 app.use("/address", addressRoutes);
 app.use("/admin", adminRoutes);
