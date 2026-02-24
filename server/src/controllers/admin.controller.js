@@ -1168,7 +1168,8 @@ export const getNewsletterSubscribers = async (req, res) => {
         email,
         status,
         CASE WHEN status = 'active' THEN 1 ELSE 0 END AS active,
-        createdAt AS subscribedAt
+        createdAt AS subscribedAt,
+        unsubscribedAt
       FROM newsletter_subscribers
       WHERE 1=1
     `;

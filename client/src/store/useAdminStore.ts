@@ -151,6 +151,7 @@ interface AdminState {
     status: "active" | "unsubscribed";
     active: number;
     subscribedAt: string;
+    unsubscribedAt?: string | null;
   }[];
 
   subscriberStats: {

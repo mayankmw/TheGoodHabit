@@ -72,7 +72,14 @@ interface CommonState {
 
   /* ---------- newsletter ---------- */
   loadingNewsletter: boolean;
-  subscribeNewsletter: (email: string) => Promise<any>;
+  subscribeNewsletter: (email: string) => Promise<{
+    success: boolean;
+    message: string;
+  }>;
+  unsubscribeNewsletter: (email: string) => Promise<{
+    success: boolean;
+    message: string;
+  }>;
 }
 
 /* ================= STORE ================= */
@@ -181,6 +188,22 @@ export const useCommonStore = create<CommonState>((set) => ({
       return {
         success: false,
         message: "Failed to subscribe",
+      };
+    } finally {
+      set({ loadingNewsletter: false });
+    }
+  },
+
+  unsubscribeNewsletter: async (email: string) => {
+    try {
+      set({ loadingNewsletter: true });
+      const { data } = await api.post("/newsletter/unsubscribe", { email });
+      return data;
+    } catch (e) {
+      console.error("Newsletter unsubscribe error", e);
+      return {
+        success: false,
+        message: "Failed to unsubscribe",
       };
     } finally {
       set({ loadingNewsletter: false });

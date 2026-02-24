@@ -8,6 +8,9 @@ export const Footer = () => {
   const subscribeNewsletter = useCommonStore(
     (s) => s.subscribeNewsletter
   );
+  const unsubscribeNewsletter = useCommonStore(
+    (s) => s.unsubscribeNewsletter
+  );
   const loadingNewsletter = useCommonStore(
     (s) => s.loadingNewsletter
   );
@@ -29,6 +32,22 @@ export const Footer = () => {
       setEmail("");
     } else {
       toast.error(res?.message || "Subscription failed");
+    }
+  };
+
+  const handleUnsubscribe = async () => {
+    if (!email.trim()) {
+      toast.error("Please enter your email");
+      return;
+    }
+
+    const res = await unsubscribeNewsletter(email);
+
+    if (res?.success) {
+      toast.success(res.message || "Unsubscribed successfully");
+      setEmail("");
+    } else {
+      toast.error(res?.message || "Unsubscribe failed");
     }
   };
 
@@ -133,6 +152,15 @@ export const Footer = () => {
               className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-500 transition-colors disabled:opacity-60"
             >
               {loadingNewsletter ? "Joining..." : "Join"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleUnsubscribe}
+              disabled={loadingNewsletter}
+              className="border border-zinc-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-60"
+            >
+              {loadingNewsletter ? "Please wait..." : "Unsubscribe"}
             </button>
           </form>
         </div>

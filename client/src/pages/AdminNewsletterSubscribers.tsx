@@ -119,19 +119,20 @@ export default function AdminNewsletterSubscribers() {
               <th className="px-4 py-3 text-left">Email</th>
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-left">Subscribed At</th>
+              <th className="px-4 py-3 text-left">Unsubscribed At</th>
             </tr>
           </thead>
 
           <tbody>
             {loadingSubscribers ? (
               <tr>
-                <td colSpan={3} className="px-6 py-16 text-center text-gray-500">
+                <td colSpan={4} className="px-6 py-16 text-center text-gray-500">
                   Loading subscribers...
                 </td>
               </tr>
             ) : subscribers.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-6 py-16 text-center">
+                <td colSpan={4} className="px-6 py-16 text-center">
                   <div className="space-y-2">
                     <Users className="w-8 h-8 mx-auto text-gray-400" />
                     <p className="text-gray-600 font-medium">No subscribers found</p>
@@ -157,6 +158,11 @@ export default function AdminNewsletterSubscribers() {
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {new Date(sub.subscribedAt).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {sub.unsubscribedAt
+                      ? new Date(sub.unsubscribedAt).toLocaleString()
+                      : "-"}
                   </td>
                 </tr>
               ))
@@ -196,4 +202,3 @@ export default function AdminNewsletterSubscribers() {
     </div>
   );
 }
-

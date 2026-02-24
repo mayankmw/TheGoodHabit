@@ -447,6 +447,8 @@ CREATE TABLE newsletter_subscribers (
 
   status ENUM('active','unsubscribed') DEFAULT 'active',
 
+  unsubscribedAt DATETIME NULL,
+
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 );
