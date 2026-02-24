@@ -8,59 +8,136 @@ const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
 const REEL_SHORT_URL = process.env.REEL_SHORT_URL || "";
 const REEL_MAIN_URL = process.env.REEL_MAIN_URL || "";
 
+const pad2 = (value) => String(value).padStart(2, "0");
+const toSqlDate = (date) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+const resolveDashboardRange = (payload = {}) => {
+  const range = payload?.range || "last7";
+  const today = new Date();
+  const end = new Date(today);
+  let start = new Date(today);
+
+  if (range === "last7") {
+    start.setDate(end.getDate() - 6);
+  } else if (range === "last30") {
+    start.setDate(end.getDate() - 29);
+  } else if (range === "lastYear") {
+    start.setDate(end.getDate() - 364);
+  } else if (range === "custom") {
+    const { startDate, endDate } = payload;
+    const validDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!startDate || !endDate) {
+      return { error: "Custom range requires startDate and endDate" };
+    }
+
+    if (!validDateRegex.test(startDate) || !validDateRegex.test(endDate)) {
+      return { error: "Dates must be in YYYY-MM-DD format" };
+    }
+
+    if (startDate > endDate) {
+      return { error: "startDate cannot be after endDate" };
+    }
+
+    return {
+      range,
+      startDate,
+      endDate,
+    };
+  } else {
+    return { error: "Invalid range" };
+  }
+
+  return {
+    range,
+    startDate: toSqlDate(start),
+    endDate: toSqlDate(end),
+  };
+};
+
 export const getStats = async (req, res) => {
   try {
-    const [[ordersCount]] = await db.query(`
+    const parsedRange = resolveDashboardRange(req.body || {});
+    if (parsedRange.error) {
+      return res.status(400).json({
+        success: false,
+        message: parsedRange.error,
+      });
+    }
+
+    const { range, startDate, endDate } = parsedRange;
+
+    const [[ordersCount]] = await db.query(
+      `
       SELECT 
         COUNT(*) AS total,
-        SUM(status='pending') AS pending,
-        SUM(status='processing') AS processing,
-        SUM(status='shipped') AS shipped,
-        SUM(status='delivered') AS delivered,
-        SUM(status='cancelled') AS cancelled,
-        SUM(DATE(createdAt)=CURDATE()) AS todayOrders
+        COALESCE(SUM(status='pending'),0) AS pending,
+        COALESCE(SUM(status='processing'),0) AS processing,
+        COALESCE(SUM(status='shipped'),0) AS shipped,
+        COALESCE(SUM(status='delivered'),0) AS delivered,
+        COALESCE(SUM(status='cancelled'),0) AS cancelled
       FROM orders
-    `);
+      WHERE DATE(createdAt) BETWEEN ? AND ?
+    `,
+      [startDate, endDate]
+    );
 
-    const [[revenue]] = await db.query(`
+    const [[revenue]] = await db.query(
+      `
       SELECT 
         COALESCE(SUM(amount)/100,0) AS totalRevenue,
         COUNT(*) AS paidOrders
       FROM payments
       WHERE status='paid'
-    `);
+      AND DATE(createdAt) BETWEEN ? AND ?
+    `,
+      [startDate, endDate]
+    );
 
-    const [[todayRevenue]] = await db.query(`
-      SELECT COALESCE(SUM(amount)/100,0) AS todayRevenue
-      FROM payments
-      WHERE status='paid'
-      AND DATE(createdAt) = CURDATE()
-    `);
-
-    const [[users]] = await db.query(`
+    const [[users]] = await db.query(
+      `
       SELECT 
-        COUNT(*) AS totalUsers,
-        SUM(DATE(createdAt)=CURDATE()) AS newToday
+        COUNT(*) AS totalUsers
       FROM users
-    `);
+      WHERE DATE(createdAt) BETWEEN ? AND ?
+    `,
+      [startDate, endDate]
+    );
 
-    const [[products]] = await db.query(`
-      SELECT COUNT(*) AS totalProducts FROM products
-    `);
+    const [[products]] = await db.query(
+      `
+      SELECT COUNT(*) AS totalProducts
+      FROM products
+      WHERE DATE(createdAt) BETWEEN ? AND ?
+    `,
+      [startDate, endDate]
+    );
 
     return res.json({
       success: true,
+      range: {
+        range,
+        startDate,
+        endDate,
+      },
       stats: {
-        orders: ordersCount,
+        orders: {
+          ...ordersCount,
+          todayOrders: Number(ordersCount.total || 0),
+        },
         revenue: {
           totalRevenue: Number(revenue.totalRevenue || 0),
           averageOrderValue:
             revenue.paidOrders > 0
               ? Number((revenue.totalRevenue / revenue.paidOrders).toFixed(2))
               : 0,
-          todayRevenue: Number(todayRevenue.todayRevenue || 0),
+          todayRevenue: Number(revenue.totalRevenue || 0),
         },
-        users,
+        users: {
+          ...users,
+          newToday: Number(users.totalUsers || 0),
+        },
         products
       }
     });
@@ -73,11 +150,22 @@ export const getStats = async (req, res) => {
 
 export const getRevenueTrend = async (req, res) => {
   try {
-    const [revenueLast7Days] = await db.query(`
+    const parsedRange = resolveDashboardRange(req.body || {});
+    if (parsedRange.error) {
+      return res.status(400).json({
+        success: false,
+        message: parsedRange.error,
+      });
+    }
+
+    const { range, startDate, endDate } = parsedRange;
+
+    const [revenueTrend] = await db.query(
+      `
       WITH RECURSIVE dates AS (
-        SELECT CURDATE() - INTERVAL 6 DAY AS day
+        SELECT DATE(?) AS day
         UNION ALL
-        SELECT day + INTERVAL 1 DAY FROM dates WHERE day < CURDATE()
+        SELECT day + INTERVAL 1 DAY FROM dates WHERE day < DATE(?)
       )
       SELECT 
         dates.day AS date,
@@ -87,11 +175,18 @@ export const getRevenueTrend = async (req, res) => {
       ON DATE(p.createdAt) = dates.day AND p.status='paid'
       GROUP BY dates.day
       ORDER BY dates.day ASC
-    `);
+    `,
+      [startDate, endDate]
+    );
 
     res.json({
       success: true,
-      revenueLast7Days
+      range: {
+        range,
+        startDate,
+        endDate,
+      },
+      revenueTrend
     });
 
   } catch (err) {
@@ -102,11 +197,22 @@ export const getRevenueTrend = async (req, res) => {
 
 export const getOrdersTrend = async (req, res) => {
   try {
-    const [ordersLast7Days] = await db.query(`
+    const parsedRange = resolveDashboardRange(req.body || {});
+    if (parsedRange.error) {
+      return res.status(400).json({
+        success: false,
+        message: parsedRange.error,
+      });
+    }
+
+    const { range, startDate, endDate } = parsedRange;
+
+    const [ordersTrend] = await db.query(
+      `
       WITH RECURSIVE dates AS (
-        SELECT CURDATE() - INTERVAL 6 DAY AS day
+        SELECT DATE(?) AS day
         UNION ALL
-        SELECT day + INTERVAL 1 DAY FROM dates WHERE day < CURDATE()
+        SELECT day + INTERVAL 1 DAY FROM dates WHERE day < DATE(?)
       )
       SELECT 
         dates.day AS date,
@@ -116,11 +222,18 @@ export const getOrdersTrend = async (req, res) => {
       ON DATE(o.createdAt) = dates.day
       GROUP BY dates.day
       ORDER BY dates.day ASC
-    `);
+    `,
+      [startDate, endDate]
+    );
 
     res.json({
       success: true,
-      ordersLast7Days
+      range: {
+        range,
+        startDate,
+        endDate,
+      },
+      ordersTrend
     });
 
   } catch (err) {

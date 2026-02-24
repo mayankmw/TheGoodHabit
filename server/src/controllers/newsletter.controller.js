@@ -1,4 +1,5 @@
 import { db } from "../config/db.js";
+import sendEmail from "../utils/sendEmail.js";
 
 const isValidEmail = (email = "") => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -43,6 +44,19 @@ export const subscribeNewsletter = async (req, res) => {
         [email]
       );
 
+      await sendEmail(
+        email,
+        "Welcome back to The Good Habit Newsletter",
+        "Your newsletter subscription has been reactivated successfully.",
+        `
+          <div style="font-family: Arial, sans-serif; line-height:1.6;">
+            <h2 style="margin:0 0 12px;">Welcome back!</h2>
+            <p>Your newsletter subscription has been reactivated.</p>
+            <p>You will now receive updates, offers, and new launches from The Good Habit.</p>
+          </div>
+        `
+      );
+
       return res.json({
         success: true,
         message: "Subscription reactivated 🎉",
@@ -53,6 +67,19 @@ export const subscribeNewsletter = async (req, res) => {
     await db.query(
       `INSERT INTO newsletter_subscribers (email, unsubscribedAt) VALUES (?, NULL)`,
       [email]
+    );
+
+    await sendEmail(
+      email,
+      "You're subscribed to The Good Habit Newsletter",
+      "Your newsletter subscription is confirmed.",
+      `
+        <div style="font-family: Arial, sans-serif; line-height:1.6;">
+          <h2 style="margin:0 0 12px;">Subscription confirmed</h2>
+          <p>Thank you for subscribing to The Good Habit newsletter.</p>
+          <p>You will receive product updates, wellness tips, and special offers.</p>
+        </div>
+      `
     );
 
     return res.json({
@@ -110,6 +137,19 @@ export const unsubscribeNewsletter = async (req, res) => {
        SET status = 'unsubscribed', unsubscribedAt = NOW()
        WHERE email = ?`,
       [email]
+    );
+
+    await sendEmail(
+      email,
+      "You've been unsubscribed from The Good Habit Newsletter",
+      "Your newsletter unsubscription is confirmed.",
+      `
+        <div style="font-family: Arial, sans-serif; line-height:1.6;">
+          <h2 style="margin:0 0 12px;">Unsubscribed successfully</h2>
+          <p>You have been unsubscribed from The Good Habit newsletter.</p>
+          <p>If this was accidental, you can subscribe again anytime from our website.</p>
+        </div>
+      `
     );
 
     return res.json({

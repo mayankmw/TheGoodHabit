@@ -102,4 +102,91 @@ export const fetchSingleProduct = async (req, res) => {
   }
 };
 
+export const fetchFrequentlyBoughtTogether = async (req, res) => {
+  const { id, limit = 3 } = req.body;
+
+  if (!id) {
+    return res.status(400).json({
+      success: false,
+      message: "Product ID is required",
+    });
+  }
+
+  const parsedLimit = Math.min(Math.max(Number(limit) || 3, 1), 6);
+
+  try {
+    const [coBoughtRows] = await db.query(
+      `
+      SELECT
+        p.*,
+        COUNT(DISTINCT oi.orderId) AS togetherCount,
+        COALESCE(SUM(oi.quantity), 0) AS togetherQty
+      FROM order_items oiBase
+      JOIN order_items oi
+        ON oi.orderId = oiBase.orderId
+       AND oi.productId <> oiBase.productId
+      JOIN products p
+        ON p.id = oi.productId
+      WHERE oiBase.productId = ?
+      GROUP BY p.id
+      ORDER BY togetherCount DESC, togetherQty DESC, p.rating DESC
+      LIMIT ?
+      `,
+      [id, parsedLimit]
+    );
+
+    let rows = coBoughtRows;
+
+    if (!rows.length) {
+      const [[baseProduct]] = await db.query(
+        "SELECT id, category FROM products WHERE id = ? LIMIT 1",
+        [id]
+      );
+
+      if (baseProduct?.category) {
+        const [relatedRows] = await db.query(
+          `
+          SELECT *
+          FROM products
+          WHERE category = ? AND id <> ?
+          ORDER BY rating DESC, reviews DESC, createdAt DESC
+          LIMIT ?
+          `,
+          [baseProduct.category, id, parsedLimit]
+        );
+        rows = relatedRows;
+      } else {
+        const [recommendedRows] = await db.query(
+          `
+          SELECT *
+          FROM products
+          WHERE id <> ?
+          ORDER BY rating DESC, reviews DESC, createdAt DESC
+          LIMIT ?
+          `,
+          [id, parsedLimit]
+        );
+        rows = recommendedRows;
+      }
+    }
+
+    const formatted = rows.map((p) => ({
+      ...p,
+      image: p.image
+        ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
+        : null,
+    }));
+
+    return res.json({
+      success: true,
+      products: formatted,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch frequently bought together products",
+      error: err.message,
+    });
+  }
+};
 

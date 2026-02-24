@@ -5,16 +5,30 @@ import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether";
 import { useProductStore } from "@/store/useProductStore";
+import { useCartStore } from "@/store/useCartStore";
+import { useUIStore } from "@/store/useUIStore";
 
 export const Product = () => {
   const { id } = useParams();
 
-  const { product, fetchSingleProduct, loading } = useProductStore();
+  const {
+    product,
+    fetchSingleProduct,
+    fetchFrequentlyBought,
+    frequentlyBought,
+    loading,
+    loadingFrequentlyBought,
+  } = useProductStore();
+  const addToCart = useCartStore((s) => s.addToCart);
+  const setOpenCart = useUIStore((s) => s.setOpenCart);
+  const setOpenSearch = useUIStore((s) => s.setOpenSearch);
   const [selectedImage, setSelectedImage] = useState("");
 
   useEffect(() => {
-    if (id) fetchSingleProduct(id);
-  }, [id]);
+    if (!id) return;
+    fetchSingleProduct(id);
+    fetchFrequentlyBought(id);
+  }, [id, fetchSingleProduct, fetchFrequentlyBought]);
 
   const galleryImages = useMemo(() => {
     if (!product) return [];
@@ -217,7 +231,16 @@ export const Product = () => {
               </div>
             </div>
 
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/80 px-6 py-3 rounded-full font-semibold transition">
+            <Button
+              className="bg-primary text-primary-foreground hover:bg-primary/80 px-6 py-3 rounded-full font-semibold transition"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                addToCart(product.id);
+                setOpenSearch(false);
+                setOpenCart(true);
+              }}
+            >
               Add to Cart
             </Button>
           </div>
@@ -247,7 +270,17 @@ export const Product = () => {
         </motion.div>
       </div>
 
-      <FrequentlyBoughtTogether />
+      <FrequentlyBoughtTogether
+        currentProduct={{
+          id: product.id,
+          name: product.name,
+          image: product.image,
+          originalPrice: product.originalPrice,
+          discountedPrice: product.discountedPrice,
+        }}
+        products={frequentlyBought}
+        loading={loadingFrequentlyBought}
+      />
     </section>
   );
 };

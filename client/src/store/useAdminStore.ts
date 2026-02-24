@@ -6,6 +6,13 @@ function toNumber(value: any, fallback = 0) {
   return Number(value);
 }
 
+type DashboardRange = "last7" | "last30" | "lastYear" | "custom";
+type DashboardFilterParams = {
+  range?: DashboardRange;
+  startDate?: string;
+  endDate?: string;
+};
+
 /* ================= REELS ================= */
 
 interface ReelItem {
@@ -32,9 +39,9 @@ interface AdminState {
   revenueLast7Days: { date: string; amount: number }[];
   ordersLast7Days: { date: string; orders: number }[];
 
-  fetchStats: () => Promise<void>;
-  fetchRevenueTrend: () => Promise<void>;
-  fetchOrdersTrend: () => Promise<void>;
+  fetchStats: (params?: DashboardFilterParams) => Promise<void>;
+  fetchRevenueTrend: (params?: DashboardFilterParams) => Promise<void>;
+  fetchOrdersTrend: (params?: DashboardFilterParams) => Promise<void>;
 
   loadingProducts: boolean;
   loadingProduct: boolean;
@@ -308,10 +315,10 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
 
   /* ================= STATS ================= */
-  fetchStats: async () => {
+  fetchStats: async (params = {}) => {
     try {
       set({ loadingStats: true });
-      const { data } = await api.post("/admin/stats");
+      const { data } = await api.post("/admin/stats", params);
       if (!data.success) return;
 
       const s = data.stats;
@@ -325,16 +332,19 @@ export const useAdminStore = create<AdminState>((set, get) => ({
             shipped: toNumber(s.orders.shipped),
             delivered: toNumber(s.orders.delivered),
             cancelled: toNumber(s.orders.cancelled),
-            todayOrders: toNumber(s.orders.todayOrders),
+            todayOrders: toNumber(s.orders.todayOrders, toNumber(s.orders.total)),
           },
           revenue: {
             totalRevenue: toNumber(s.revenue.totalRevenue),
             averageOrderValue: toNumber(s.revenue.averageOrderValue),
-            todayRevenue: toNumber(s.revenue.todayRevenue),
+            todayRevenue: toNumber(
+              s.revenue.todayRevenue,
+              toNumber(s.revenue.totalRevenue)
+            ),
           },
           users: {
             totalUsers: toNumber(s.users.totalUsers),
-            newToday: toNumber(s.users.newToday),
+            newToday: toNumber(s.users.newToday, toNumber(s.users.totalUsers)),
           },
           products: {
             totalProducts: toNumber(s.products.totalProducts),
@@ -349,13 +359,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   /* ================= REVENUE TREND ================= */
-  fetchRevenueTrend: async () => {
+  fetchRevenueTrend: async (params = {}) => {
     try {
       set({ loadingRevenue: true });
-      const { data } = await api.post("/admin/trends/revenue");
+      const { data } = await api.post("/admin/trends/revenue", params);
+      const revenueSeries = data.revenueTrend || data.revenueLast7Days || [];
 
       set({
-        revenueLast7Days: data.revenueLast7Days.map((r: any) => ({
+        revenueLast7Days: revenueSeries.map((r: any) => ({
           date: r.date,
           amount: toNumber(r.amount),
         })),
@@ -368,13 +379,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   /* ================= ORDERS TREND ================= */
-  fetchOrdersTrend: async () => {
+  fetchOrdersTrend: async (params = {}) => {
     try {
       set({ loadingOrdersTrend: true });
-      const { data } = await api.post("/admin/trends/orders");
+      const { data } = await api.post("/admin/trends/orders", params);
+      const ordersSeries = data.ordersTrend || data.ordersLast7Days || [];
 
       set({
-        ordersLast7Days: data.ordersLast7Days.map((r: any) => ({
+        ordersLast7Days: ordersSeries.map((r: any) => ({
           date: r.date,
           orders: toNumber(r.orders),
         })),
