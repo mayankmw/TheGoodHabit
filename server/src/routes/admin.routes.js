@@ -55,8 +55,26 @@ router.post("/trends/orders", auth, isAdmin, getOrdersTrend);
 router.get("/products", getProducts);
 router.post("/product", getProductById);
 
-router.post("/product/create", auth, isAdmin, uploadImage("uploads/products").single("image"), createProduct);
-router.post("/product/update", auth, isAdmin, uploadImage("uploads/products").single("image"), updateProduct);
+router.post(
+  "/product/create",
+  auth,
+  isAdmin,
+  uploadImage("uploads/products").fields([
+    { name: "image", maxCount: 1 },
+    { name: "images", maxCount: 10 },
+  ]),
+  createProduct
+);
+router.post(
+  "/product/update",
+  auth,
+  isAdmin,
+  uploadImage("uploads/products").fields([
+    { name: "image", maxCount: 1 },
+    { name: "images", maxCount: 10 },
+  ]),
+  updateProduct
+);
 
 router.post("/orders", auth, isAdmin, fetchOrders);
 router.post("/order", auth, isAdmin, fetchOrderById);

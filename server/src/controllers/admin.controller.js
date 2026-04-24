@@ -8,6 +8,89 @@ const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
 const REEL_SHORT_URL = process.env.REEL_SHORT_URL || "";
 const REEL_MAIN_URL = process.env.REEL_MAIN_URL || "";
 
+const parseJsonArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const toCleanStringArray = (value) =>
+  (Array.isArray(value) ? value : [])
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+
+const parseIngredientsInput = (value) => {
+  if (value === undefined) return null;
+  if (Array.isArray(value)) return toCleanStringArray(value);
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    const parsed = parseJsonArray(trimmed);
+    if (parsed.length) return toCleanStringArray(parsed);
+    return toCleanStringArray(trimmed.split(","));
+  }
+
+  return [];
+};
+
+const toPublicProductImage = (fileName) =>
+  fileName ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${fileName}` : null;
+
+const toStoredProductImage = (value) => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const fullPrefix = `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}`;
+  if (trimmed.startsWith(fullPrefix)) {
+    return trimmed.slice(fullPrefix.length);
+  }
+
+  if (trimmed.startsWith(PRODUCT_IMAGE_URL)) {
+    return trimmed.slice(PRODUCT_IMAGE_URL.length);
+  }
+
+  const normalized = trimmed.split("?")[0].split("#")[0];
+  const parts = normalized.split("/").filter(Boolean);
+  return parts[parts.length - 1] || null;
+};
+
+const normalizeStoredProductImages = (rawImages) => {
+  const images = toCleanStringArray(parseJsonArray(rawImages));
+  return [...new Set(images)];
+};
+
+const collectUploadedProductImages = (req) => {
+  const filesObj = req.files && !Array.isArray(req.files) ? req.files : {};
+  const fromImages = Array.isArray(filesObj.images) ? filesObj.images : [];
+  const fromLegacyImage = Array.isArray(filesObj.image) ? filesObj.image : [];
+  const fromSingle = req.file ? [req.file] : [];
+
+  return [...fromImages, ...fromLegacyImage, ...fromSingle]
+    .map((file) => file?.filename)
+    .filter(Boolean);
+};
+
+const formatProductRecord = (product) => {
+  const imageFiles = normalizeStoredProductImages(product.images);
+  const imageUrls = imageFiles
+    .map((fileName) => toPublicProductImage(fileName))
+    .filter(Boolean);
+  const { image: _legacyImage, ...rest } = product;
+
+  return {
+    ...rest,
+    ingredients: parseJsonArray(product.ingredients),
+    images: imageUrls,
+  };
+};
+
 const pad2 = (value) => String(value).padStart(2, "0");
 const toSqlDate = (date) =>
   `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
@@ -262,14 +345,7 @@ export const getProducts = async (req, res) => {
     sql += ` ORDER BY createdAt DESC`;
 
     const [products] = await db.query(sql, params);
-
-    const formatted = products.map(p => ({
-      ...p,
-      ingredients: p.ingredients ? JSON.parse(p.ingredients) : [],
-      image: p.image
-        ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
-        : null
-    }));
+    const formatted = products.map((p) => formatProductRecord(p));
 
     res.json({ success: true, products: formatted });
 
@@ -292,12 +368,7 @@ export const getProductById = async (req, res) => {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
 
-    product.ingredients = product.ingredients ? JSON.parse(product.ingredients) : [];
-    product.image = product.image
-      ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${product.image}`
-      : null;
-
-    res.json({ success: true, product });
+    res.json({ success: true, product: formatProductRecord(product) });
 
   } catch (err) {
     console.error("Get Product Error:", err);
@@ -313,7 +384,7 @@ export const createProduct = async (req, res) => {
       originalPrice,
       discountedPrice,
       description,
-      ingredients = []
+      ingredients
     } = req.body;
 
     if (!name || originalPrice === undefined) {
@@ -323,33 +394,42 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    const productId = crypto.randomUUID();
-    const imageFile = req.file ? req.file.filename : null;
+    const parsedIngredients = parseIngredientsInput(ingredients ?? []);
+
+    const uploadedImageFiles = collectUploadedProductImages(req);
+    const requestedImageFiles = toCleanStringArray(parseJsonArray(req.body.images))
+      .map((image) => toStoredProductImage(image))
+      .filter(Boolean);
+    const requestedPrimaryImage = toStoredProductImage(req.body.image);
+
+    const imageFiles = [...new Set([
+      ...(requestedPrimaryImage ? [requestedPrimaryImage] : []),
+      ...requestedImageFiles,
+      ...uploadedImageFiles,
+    ])];
 
     await db.query(
       `
       INSERT INTO products (
-        id, name, image, category,
+        name, images, category,
         originalPrice, discountedPrice,
         description, ingredients
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `,
       [
-        productId,
         name,
-        imageFile,
+        JSON.stringify(imageFiles),
         category || null,
         originalPrice,
         discountedPrice || originalPrice,
         description || null,
-        ingredients
+        JSON.stringify(parsedIngredients || []),
       ]
     );
 
     res.status(201).json({
       success: true,
       message: "Product created successfully",
-      productId
     });
 
   } catch (err) {
@@ -370,39 +450,92 @@ export const updateProduct = async (req, res) => {
       ingredients
     } = req.body;
 
-    const imageFile = req.file ? req.file.filename : null;
-
-    const [[existing]] = await db.query(
-      `SELECT image FROM products WHERE id = ?`,
-      [id]
-    );
+    const [[existing]] = await db.query(`SELECT images FROM products WHERE id = ?`, [id]);
 
     if (!existing) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
 
+    const uploadedImageFiles = collectUploadedProductImages(req);
+    const existingImageFiles = normalizeStoredProductImages(existing.images);
+
+    let retainedExistingFiles = existingImageFiles;
+    if (req.body.existingImages !== undefined) {
+      const requestedExisting = new Set(
+        toCleanStringArray(parseJsonArray(req.body.existingImages))
+          .map((image) => toStoredProductImage(image))
+          .filter(Boolean)
+      );
+      retainedExistingFiles = existingImageFiles.filter((image) => requestedExisting.has(image));
+    }
+
+    const requestedImageFiles = toCleanStringArray(parseJsonArray(req.body.images))
+      .map((image) => toStoredProductImage(image))
+      .filter(Boolean);
+    const requestedPrimaryImage = toStoredProductImage(req.body.image);
+
+    const mergedImages = [...new Set([
+      ...retainedExistingFiles,
+      ...(requestedPrimaryImage ? [requestedPrimaryImage] : []),
+      ...requestedImageFiles,
+      ...uploadedImageFiles,
+    ])];
+
+    const shouldUpdateImages =
+      req.body.existingImages !== undefined ||
+      req.body.images !== undefined ||
+      req.body.image !== undefined ||
+      uploadedImageFiles.length > 0;
+
+    const updates = [];
+    const values = [];
+
+    if (name !== undefined) {
+      updates.push("name = ?");
+      values.push(name);
+    }
+    if (category !== undefined) {
+      updates.push("category = ?");
+      values.push(category || null);
+    }
+    if (originalPrice !== undefined) {
+      updates.push("originalPrice = ?");
+      values.push(originalPrice);
+    }
+    if (discountedPrice !== undefined) {
+      updates.push("discountedPrice = ?");
+      values.push(discountedPrice);
+    }
+    if (description !== undefined) {
+      updates.push("description = ?");
+      values.push(description || null);
+    }
+    if (ingredients !== undefined) {
+      updates.push("ingredients = ?");
+      values.push(JSON.stringify(parseIngredientsInput(ingredients) || []));
+    }
+
+    if (shouldUpdateImages) {
+      updates.push("images = ?");
+      values.push(JSON.stringify(mergedImages));
+    }
+
+    if (!updates.length) {
+      return res.status(400).json({
+        success: false,
+        message: "No valid fields provided for update",
+      });
+    }
+
+    values.push(id);
+
     await db.query(
       `
       UPDATE products SET
-        name = COALESCE(?, name),
-        category = COALESCE(?, category),
-        originalPrice = COALESCE(?, originalPrice),
-        discountedPrice = COALESCE(?, discountedPrice),
-        description = COALESCE(?, description),
-        ingredients = COALESCE(?, ingredients),
-        image = COALESCE(?, image)
+        ${updates.join(", ")}
       WHERE id = ?
       `,
-      [
-        name,
-        category,
-        originalPrice,
-        discountedPrice,
-        description,
-        ingredients ?? null,
-        imageFile,
-        id
-      ]
+      values
     );
 
     res.json({ success: true, message: "Product updated successfully" });
@@ -465,13 +598,22 @@ export const fetchOrderById = async (req, res) => {
         oi.quantity,
         oi.price,
         p.name,
-        p.image
+        p.images
       FROM order_items oi
       JOIN products p ON p.id = oi.productId
       WHERE oi.orderId = ?
       `,
       [id]
     );
+
+    const formattedItems = items.map((item) => {
+      const primaryImage = normalizeStoredProductImages(item.images)[0] || null;
+      const { images: _images, ...rest } = item;
+      return {
+        ...rest,
+        image: primaryImage ? toPublicProductImage(primaryImage) : null,
+      };
+    });
 
     return res.json({
       success: true,
@@ -480,7 +622,7 @@ export const fetchOrderById = async (req, res) => {
         appliedCoupons: order.appliedCoupons
           ? JSON.parse(order.appliedCoupons)
           : [],
-        items
+        items: formattedItems
       }
     });
   } catch (err) {

@@ -39,6 +39,32 @@ export const Product = () => {
   const galleryImages = useMemo(() => {
     if (!product) return [];
 
+    const parseImageSource = (source: unknown): string[] => {
+      if (Array.isArray(source)) {
+        return source
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean);
+      }
+
+      if (typeof source === "string") {
+        const trimmed = source.trim();
+        if (!trimmed) return [];
+
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed
+              .map((item) => (typeof item === "string" ? item.trim() : ""))
+              .filter(Boolean);
+          }
+        } catch {
+          return [];
+        }
+      }
+
+      return [];
+    };
+
     const images = new Set<string>();
     if (product.image) images.add(product.image);
 
@@ -48,15 +74,10 @@ export const Product = () => {
       additionalImages?: unknown;
     };
 
-    [maybeGallery.images, maybeGallery.gallery, maybeGallery.additionalImages].forEach(
-      source => {
-        if (Array.isArray(source)) {
-          source.forEach(item => {
-            if (typeof item === "string" && item.trim()) images.add(item);
-          });
-        }
-      }
-    );
+    [maybeGallery.images, maybeGallery.gallery, maybeGallery.additionalImages]
+      .forEach((source) => {
+        parseImageSource(source).forEach((image) => images.add(image));
+      });
 
     return Array.from(images);
   }, [product]);
@@ -280,7 +301,7 @@ export const Product = () => {
         currentProduct={{
           id: product.id,
           name: product.name,
-          image: product.image,
+          image: galleryImages[0] || product.image,
           originalPrice: product.originalPrice,
           discountedPrice: product.discountedPrice,
         }}

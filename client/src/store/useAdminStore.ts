@@ -6,6 +6,35 @@ function toNumber(value: any, fallback = 0) {
   return Number(value);
 }
 
+function buildMultipartFormData(payload: Record<string, any>) {
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+
+    if (key === "images" && Array.isArray(value)) {
+      value.forEach((file) => {
+        if (file instanceof File) formData.append("images", file);
+      });
+      return;
+    }
+
+    if (value instanceof File) {
+      formData.append(key, value);
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      formData.append(key, JSON.stringify(value));
+      return;
+    }
+
+    formData.append(key, value as any);
+  });
+
+  return formData;
+}
+
 type DashboardRange = "last7" | "last30" | "lastYear" | "custom";
 type DashboardFilterParams = {
   range?: DashboardRange;
@@ -431,15 +460,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       set({ savingProduct: true });
 
-      const formData = new FormData();
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value as any);
-        }
-      });
+      const formData = buildMultipartFormData(payload);
 
       const { data } = await api.post("/admin/product/create", formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -459,15 +480,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       set({ savingProduct: true });
 
-      const formData = new FormData();
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        if (Array.isArray(value)) {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value as any);
-        }
-      });
+      const formData = buildMultipartFormData(payload);
 
       const { data } = await api.post("/admin/product/update", formData, {
         headers: { "Content-Type": "multipart/form-data" },

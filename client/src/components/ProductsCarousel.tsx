@@ -9,6 +9,39 @@ import { useProductStore } from "@/store/useProductStore";
 export const ProductsCarousel = () => {
   const { products, fetchProducts, loading } = useProductStore();
 
+  const resolvePrimaryImage = (product: { image?: unknown; images?: unknown }) => {
+    if (typeof product?.image === "string" && product.image.trim()) {
+      return product.image;
+    }
+
+    const parseImages = (value: unknown): string[] => {
+      if (Array.isArray(value)) {
+        return value
+          .map((item) => (typeof item === "string" ? item.trim() : ""))
+          .filter(Boolean);
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return [];
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed
+              .map((item) => (typeof item === "string" ? item.trim() : ""))
+              .filter(Boolean);
+          }
+        } catch {
+          return [];
+        }
+      }
+
+      return [];
+    };
+
+    return parseImages(product?.images)[0] || "";
+  };
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: 1,
@@ -33,7 +66,7 @@ export const ProductsCarousel = () => {
   // 👉 Fetch products on mount
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -94,7 +127,7 @@ export const ProductsCarousel = () => {
                 key={product.id}
                 className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_calc(50%-12px)] lg:flex-[0_0_calc(25%-18px)]"
               >
-                  <ProductCard {...product} />
+                  <ProductCard {...product} image={resolvePrimaryImage(product)} />
               </div>
             ))}
           </div>

@@ -3,6 +3,31 @@ import { db } from "../config/db.js";
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 
+const parseJsonArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const resolvePrimaryImage = (value) => {
+  const asArray = parseJsonArray(value)
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+  if (asArray.length) return asArray[0];
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  return null;
+};
+
 /**
  * Helper: calculate cart total from items (discountedPrice * qty).
  * Accepts items array or computes from DB if not provided.
@@ -37,7 +62,7 @@ export const getCart = async (req, res) => {
          ci.productId,
          ci.quantity,
          p.name,
-         p.image,
+         p.images,
          p.originalPrice,
          p.discountedPrice
        FROM cart_items ci
@@ -46,12 +71,16 @@ export const getCart = async (req, res) => {
       [cartId]
     );
 
-    const formattedItems = items.map((item) => ({
-  ...item,
-  image: item.image
-    ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${item.image}`
-    : null,
-}));
+    const formattedItems = items.map((item) => {
+      const primaryImage = resolvePrimaryImage(item.images);
+      const { images: _images, ...rest } = item;
+      return {
+        ...rest,
+        image: primaryImage
+          ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${primaryImage}`
+          : null,
+      };
+    });
 
     // base total (before coupons)
     const cartTotalBeforeDiscount = calcCartTotal(formattedItems);
@@ -474,4 +503,3 @@ export const removeCartCoupon = async (req, res) => {
     return res.status(500).json({ success: false, message: err.message });
   }
 };
-

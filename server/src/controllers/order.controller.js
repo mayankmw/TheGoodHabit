@@ -2,6 +2,34 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { db } from "../config/db.js";
 
+const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
+const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
+
+const parseJsonArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const resolvePrimaryImage = (value) => {
+  const asArray = parseJsonArray(value)
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+  if (asArray.length) return asArray[0];
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || null;
+  }
+
+  return null;
+};
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
   key_secret: process.env.RAZORPAY_KEY_SECRET,
@@ -275,14 +303,23 @@ export const getOrders = async (req, res) => {
            oi.price,
            p.id AS productId,
            p.name,
-           p.image
+           p.images
          FROM order_items oi
          JOIN products p ON oi.productId = p.id
          WHERE oi.orderId = ?`,
         [order.id]
       );
 
-      order.items = items;
+      order.items = items.map((item) => {
+        const primaryImage = resolvePrimaryImage(item.images);
+        const { images: _images, ...rest } = item;
+        return {
+          ...rest,
+          image: primaryImage
+            ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${primaryImage}`
+            : null,
+        };
+      });
     }
 
     return res.json({
@@ -302,5 +339,3 @@ export const getOrders = async (req, res) => {
     });
   }
 };
-
-

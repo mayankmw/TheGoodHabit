@@ -78,6 +78,35 @@ export const Navbar = () => {
 
   const categories = [{ name: "All Products", image: "/images/categories/all.avif" }];
 
+  const resolveProductImage = (product: { image?: unknown; images?: unknown }) => {
+    if (typeof product?.image === "string" && product.image.trim()) {
+      return product.image;
+    }
+
+    if (Array.isArray(product?.images)) {
+      const first = product.images.find(
+        (item): item is string => typeof item === "string" && item.trim().length > 0
+      );
+      if (first) return first;
+    }
+
+    if (typeof product?.images === "string" && product.images.trim()) {
+      try {
+        const parsed = JSON.parse(product.images);
+        if (Array.isArray(parsed)) {
+          const first = parsed.find(
+            (item): item is string => typeof item === "string" && item.trim().length > 0
+          );
+          if (first) return first;
+        }
+      } catch {
+        return "";
+      }
+    }
+
+    return "";
+  };
+
   const menuItems = [
     { label: "Shop by Category", href: "#category", hasSubmenu: true, icon: ShoppingBag },
     { label: "Our Story", href: "/our-story", hasSubmenu: false, icon: HeartHandshake },
@@ -154,7 +183,7 @@ export const Navbar = () => {
 
   useEffect(() => {
     if (token) fetchMe();
-  }, [token]);
+  }, [token, fetchMe]);
   // ---------- initial loads ----------
   useEffect(() => {
     fetchRecommended();
@@ -239,7 +268,7 @@ export const Navbar = () => {
     } catch (e) {
       console.error("addToCart error", e);
       // still refresh
-      try { await fetchCart(); } catch (_) { }
+      try { await fetchCart(); } catch (refreshError) { console.warn("fetchCart after add failed", refreshError); }
     }
   };
 
@@ -255,7 +284,7 @@ export const Navbar = () => {
       await fetchCart();
     } catch (e) {
       console.error("update quantity error", e);
-      try { await fetchCart(); } catch (_) { }
+      try { await fetchCart(); } catch (refreshError) { console.warn("fetchCart after quantity update failed", refreshError); }
     }
   };
 
@@ -814,7 +843,7 @@ export const Navbar = () => {
               {query.length > 0 && !searching && results.length > 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                   {results.map((product) => (
-                    <ProductCardMini key={product.id} id={product.id} image={product.image} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                    <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                   ))}
                 </div>
               )}
@@ -824,7 +853,7 @@ export const Navbar = () => {
               {query.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                   {recommended.map((product) => (
-                    <ProductCardMini key={product.id} id={product.id} image={product.image} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                    <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                   ))}
                 </div>
               )}

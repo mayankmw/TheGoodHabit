@@ -3,6 +3,44 @@ import { db } from "../config/db.js";
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 
+const parseJsonArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const toCleanStringArray = (value) =>
+  (Array.isArray(value) ? value : [])
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean);
+
+const toPublicProductImage = (fileName) =>
+  fileName ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${fileName}` : null;
+
+const normalizeStoredProductImages = (rawImages) => {
+  const images = toCleanStringArray(parseJsonArray(rawImages));
+  return [...new Set(images)];
+};
+
+const formatProductRecord = (product) => {
+  const imageFiles = normalizeStoredProductImages(product.images);
+  const imageUrls = imageFiles
+    .map((fileName) => toPublicProductImage(fileName))
+    .filter(Boolean);
+  const { image: _legacyImage, ...rest } = product;
+
+  return {
+    ...rest,
+    ingredients: parseJsonArray(product.ingredients),
+    images: imageUrls,
+  };
+};
+
 export const fetchProducts = async (req, res) => {
   try {
     const { search, recommended } = req.body;
@@ -13,12 +51,7 @@ export const fetchProducts = async (req, res) => {
         "SELECT * FROM products ORDER BY rating DESC LIMIT 4"
       );
 
-      const formatted = rows.map(p => ({
-        ...p,
-        image: p.image
-          ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
-          : null
-      }));
+      const formatted = rows.map((p) => formatProductRecord(p));
 
       return res.json({
         success: true,
@@ -39,12 +72,7 @@ export const fetchProducts = async (req, res) => {
 
     const [products] = await db.query(sql, params);
 
-    const formatted = products.map(p => ({
-      ...p,
-      image: p.image
-        ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
-        : null
-    }));
+    const formatted = products.map((p) => formatProductRecord(p));
 
     return res.json({
       success: true,
@@ -85,13 +113,9 @@ export const fetchSingleProduct = async (req, res) => {
       });
     }
 
-    product.image = product.image
-      ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${product.image}`
-      : null;
-
     return res.json({
       success: true,
-      product,
+      product: formatProductRecord(product),
     });
   } catch (err) {
     return res.status(500).json({
@@ -170,12 +194,7 @@ export const fetchFrequentlyBoughtTogether = async (req, res) => {
       }
     }
 
-    const formatted = rows.map((p) => ({
-      ...p,
-      image: p.image
-        ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${p.image}`
-        : null,
-    }));
+    const formatted = rows.map((p) => formatProductRecord(p));
 
     return res.json({
       success: true,
@@ -189,4 +208,3 @@ export const fetchFrequentlyBoughtTogether = async (req, res) => {
     });
   }
 };
-
