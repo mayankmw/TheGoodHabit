@@ -60,7 +60,7 @@ export const Footer = () => {
         {/* Brand Section */}
         <div className="text-center md:text-left space-y-3">
           <h3 className="text-2xl font-extrabold text-white tracking-widest">
-            The Good Habit
+            NoshBOB
           </h3>
           <p className="text-sm max-w-xs text-gray-400">
             Fuel your journey to better health — one mindful choice at a time.
@@ -168,7 +168,7 @@ export const Footer = () => {
 
       {/* Bottom Strip */}
       <div className="border-t border-zinc-800 text-center py-4 text-sm text-gray-500">
-        © {new Date().getFullYear()} The Good Habit. All rights reserved.
+        © {new Date().getFullYear()} NoshBOB. All rights reserved.
       </div>
     </footer>
   );

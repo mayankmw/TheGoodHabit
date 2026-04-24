@@ -1229,7 +1229,7 @@ export const replyToContact = async (req, res) => {
     }
 
     /* ================= SEND EMAIL ================= */
-    const subject = "Re: Your message to The Good Habit";
+    const subject = "Re: Your message to NoshBOB";
 
     const html = `
       <div style="font-family: Arial, sans-serif;">
@@ -1239,7 +1239,7 @@ export const replyToContact = async (req, res) => {
 
         <br />
         <p>Best regards,</p>
-        <p><strong>The Good Habit Team</strong></p>
+        <p><strong>NoshBOB Team</strong></p>
       </div>
     `;
 
@@ -1420,7 +1420,7 @@ export const sendNewsletter = async (req, res) => {
         ${content}
         <br /><br />
         <p style="font-size:12px;color:#999">
-          You received this email because you subscribed to The Good Habit.
+          You received this email because you subscribed to NoshBOB.
         </p>
       </div>
     `;

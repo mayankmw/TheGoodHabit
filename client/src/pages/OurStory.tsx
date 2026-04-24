@@ -15,7 +15,7 @@ const OurStory = () => {
         {/* Hero Section */}
         <section className="text-center mb-16 my-8">
           <h1 className="text-4xl md:text-5xl font-extrabold text-primary mb-4">
-            The Good Habit
+            NoshBOB
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Every good habit begins with a purpose — and ours began with a

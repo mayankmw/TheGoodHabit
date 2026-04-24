@@ -31,7 +31,7 @@ const transporter = nodemailer.createTransport({
   ) => {
     try {
       const mailOptions = {
-        from: `"The Good Habit" <${process.env.EMAIL_USER}>`,
+        from: `"NoshBOB" <${process.env.EMAIL_USER}>`,
         to,
         subject,
         text,

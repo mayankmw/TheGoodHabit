@@ -15,7 +15,7 @@ export const usePaymentStore = create((set, get) => ({
       set({ loading: true, error: null });
 
       // call backend
-      const { data } = await api.post("/order/create");
+      const { data } = await api.post("/orders/create");
 
       set({
         razorpayOrderId: data.orderId,
@@ -37,7 +37,7 @@ export const usePaymentStore = create((set, get) => ({
     try {
       set({ loading: true, error: null });
 
-      const { data } = await api.post("/order/verify", paymentData);
+      const { data } = await api.post("/orders/verify", paymentData);
 
       set({ loading: false });
 

@@ -143,7 +143,7 @@ const handleSubmit = async (e) => {
       <div>
         <h3 className="font-semibold">Address</h3>
         <p className="text-sm text-muted-foreground">
-          The Good Habit HQ, Bengaluru, India
+          NoshBOB HQ, Bengaluru, India
         </p>
       </div>
     </a>

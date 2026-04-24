@@ -44,7 +44,7 @@ const NotFound = () => {
 
         {/* Decorative text */}
         <p className="text-sm text-gray-500">
-          Fuel your next click — The Good Habit awaits 🌿
+          Fuel your next click — NoshBOB awaits 🌿
         </p>
       </div>
     </div>

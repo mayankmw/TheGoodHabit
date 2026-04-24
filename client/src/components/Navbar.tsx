@@ -352,7 +352,7 @@ export const Navbar = () => {
                 className="w-80 bg-accent text-accent-foreground overflow-y-auto inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,215,0,0.08),transparent)]"
               >
                 <div className="flex flex-col gap-4 mt-8">
-                  <h2 className="text-2xl font-bold mb-2">The Good Habit</h2>
+                  <h2 className="text-2xl font-bold mb-2">NoshBOB</h2>
 
                   {finalMenu.map((item) =>
                     item.hasSubmenu ? (

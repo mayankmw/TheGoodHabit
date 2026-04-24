@@ -46,13 +46,13 @@ export const subscribeNewsletter = async (req, res) => {
 
       await sendEmail(
         email,
-        "Welcome back to The Good Habit Newsletter",
+        "Welcome back to NoshBOB Newsletter",
         "Your newsletter subscription has been reactivated successfully.",
         `
           <div style="font-family: Arial, sans-serif; line-height:1.6;">
             <h2 style="margin:0 0 12px;">Welcome back!</h2>
             <p>Your newsletter subscription has been reactivated.</p>
-            <p>You will now receive updates, offers, and new launches from The Good Habit.</p>
+            <p>You will now receive updates, offers, and new launches from NoshBOB.</p>
           </div>
         `
       );
@@ -71,12 +71,12 @@ export const subscribeNewsletter = async (req, res) => {
 
     await sendEmail(
       email,
-      "You're subscribed to The Good Habit Newsletter",
+      "You're subscribed to NoshBOB Newsletter",
       "Your newsletter subscription is confirmed.",
       `
         <div style="font-family: Arial, sans-serif; line-height:1.6;">
           <h2 style="margin:0 0 12px;">Subscription confirmed</h2>
-          <p>Thank you for subscribing to The Good Habit newsletter.</p>
+          <p>Thank you for subscribing to NoshBOB newsletter.</p>
           <p>You will receive product updates, wellness tips, and special offers.</p>
         </div>
       `
@@ -141,12 +141,12 @@ export const unsubscribeNewsletter = async (req, res) => {
 
     await sendEmail(
       email,
-      "You've been unsubscribed from The Good Habit Newsletter",
+      "You've been unsubscribed from NoshBOB Newsletter",
       "Your newsletter unsubscription is confirmed.",
       `
         <div style="font-family: Arial, sans-serif; line-height:1.6;">
           <h2 style="margin:0 0 12px;">Unsubscribed successfully</h2>
-          <p>You have been unsubscribed from The Good Habit newsletter.</p>
+          <p>You have been unsubscribed from NoshBOB newsletter.</p>
           <p>If this was accidental, you can subscribe again anytime from our website.</p>
         </div>
       `

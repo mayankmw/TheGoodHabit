@@ -58,7 +58,7 @@ export const Blogs = () => {
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-16 px-4">
       <div className="max-w-6xl mx-auto text-center mb-10">
         <h1 className="text-3xl md:text-4xl font-extrabold text-primary mb-2">
-          The Good Habit Journal
+          NoshBOB Journal
         </h1>
         <p className="text-muted-foreground">
           Stories, tips, and inspiration to build better habits — one bite at a time.

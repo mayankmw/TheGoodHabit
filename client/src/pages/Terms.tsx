@@ -8,7 +8,7 @@ export const Terms = () => {
             Terms & Conditions
           </h1>
           <p className="text-muted-foreground">
-            Please read these terms carefully before using The Good Habit.
+            Please read these terms carefully before using NoshBOB.
           </p>
         </div>
 
@@ -19,7 +19,7 @@ export const Terms = () => {
               1. Acceptance of Terms
             </h2>
             <p>
-              By accessing or using The Good Habit website, you agree to be bound
+              By accessing or using NoshBOB website, you agree to be bound
               by these Terms & Conditions. If you do not agree, please do not use
               our services.
             </p>
@@ -42,7 +42,7 @@ export const Terms = () => {
             </h2>
             <p>
               All content, branding, designs, logos, and materials on this site
-              are the property of The Good Habit and may not be copied or reused
+              are the property of NoshBOB and may not be copied or reused
               without written permission.
             </p>
           </section>
