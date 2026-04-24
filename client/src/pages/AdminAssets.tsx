@@ -127,6 +127,7 @@ export default function AdminAssets() {
                   {/* Position badge */}
                   <span className="absolute top-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
                     Position {hero.position}
+                    {hero.position === 3 && " (Product Page Hero Image)"}
                   </span>
 
                   {/* Always-visible edit */}

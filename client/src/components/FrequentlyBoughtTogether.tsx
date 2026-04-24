@@ -30,7 +30,7 @@ export const FrequentlyBoughtTogether = ({
 
   if (loading) {
     return (
-      <section className="bg-zinc-50 py-12">
+      <section className="py-12">
         <div className="container mx-auto px-4 text-center text-muted-foreground">
           Loading frequently bought products...
         </div>

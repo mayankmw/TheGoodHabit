@@ -154,14 +154,14 @@ export const Footer = () => {
               {loadingNewsletter ? "Joining..." : "Join"}
             </button>
 
-            <button
+            {/* <button
               type="button"
               onClick={handleUnsubscribe}
               disabled={loadingNewsletter}
               className="border border-zinc-600 text-gray-200 px-4 py-2 rounded-lg font-semibold hover:bg-zinc-800 transition-colors disabled:opacity-60"
             >
               {loadingNewsletter ? "Please wait..." : "Unsubscribe"}
-            </button>
+            </button> */}
           </form>
         </div>
       </div>

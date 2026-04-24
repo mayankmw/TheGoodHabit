@@ -7,6 +7,8 @@ import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether"
 import { useProductStore } from "@/store/useProductStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
+import { useCommonStore } from "@/store/useCommonStore";
+import HeroImage from "@/components/HeroImage";
 
 export const Product = () => {
   const { id } = useParams();
@@ -23,6 +25,10 @@ export const Product = () => {
   const setOpenCart = useUIStore((s) => s.setOpenCart);
   const setOpenSearch = useUIStore((s) => s.setOpenSearch);
   const [selectedImage, setSelectedImage] = useState("");
+
+  const { assets } = useCommonStore();
+
+  const hero3 = assets?.hero?.find(h => h.position === 3);
 
   useEffect(() => {
     if (!id) return;
@@ -281,6 +287,16 @@ export const Product = () => {
         products={frequentlyBought}
         loading={loadingFrequentlyBought}
       />
+
+      {/* ✅ Hero 3 (Product Page Banner) */}
+      {hero3?.image && (
+        <div >
+          <HeroImage
+            src={hero3.image}
+            alt="Product Page Hero Image"
+          />
+        </div>
+      )}
     </section>
   );
 };

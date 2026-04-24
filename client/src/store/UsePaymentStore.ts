@@ -1,7 +1,20 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 
-export const usePaymentStore = create((set, get) => ({
+interface PaymentState {
+  loading: boolean;
+  error: any;
+
+  razorpayOrderId: string | null;
+  appOrderId: number | null;
+  amount: number;
+
+  createOrder: () => Promise<any>;
+  verifyPayment: (paymentData: any) => Promise<any>;
+  reset: () => void;
+}
+
+export const usePaymentStore = create<PaymentState>((set, get) => ({
   loading: false,
   error: null,
 

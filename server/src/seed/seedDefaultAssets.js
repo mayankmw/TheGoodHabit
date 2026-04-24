@@ -29,6 +29,11 @@ export const seedDefaultAssets = async () => {
         position: 2,
         image: "default-hero-2.png",
       },
+      {
+        type: "hero",
+        position: 3,
+        image: "default-hero-3.png",
+      },
     ];
 
     for (const asset of defaults) {
