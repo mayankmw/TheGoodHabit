@@ -268,7 +268,7 @@ export default function AdminNewsletter() {
 
       <Dialog open={openSend} onOpenChange={setOpenSend} modal={false}>
         <DialogContent
-          className="max-w-4xl"
+          className="max-w-4xl max-h-[90vh] flex flex-col"
           onPointerDownOutside={(e) => {
             if (isInsideCkEditorUi(e.target)) {
               e.preventDefault();
@@ -289,7 +289,7 @@ export default function AdminNewsletter() {
             <DialogTitle>Send Newsletter</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto pr-2">
             <div className="space-y-1">
               <Label>Subject</Label>
               <Input
@@ -336,7 +336,7 @@ export default function AdminNewsletter() {
                 </div>
 
                 {form.attachments.length > 0 ? (
-                  <div className="mt-3 space-y-2">
+                 <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300">
                     {form.attachments.map((file, idx) => (
                       <div
                         key={`${file.name}-${file.size}-${idx}`}

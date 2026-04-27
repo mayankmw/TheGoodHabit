@@ -155,13 +155,13 @@ export const getStats = async (req, res) => {
       `
       SELECT 
         COUNT(*) AS total,
-        COALESCE(SUM(status='pending'),0) AS pending,
         COALESCE(SUM(status='processing'),0) AS processing,
         COALESCE(SUM(status='shipped'),0) AS shipped,
         COALESCE(SUM(status='delivered'),0) AS delivered,
         COALESCE(SUM(status='cancelled'),0) AS cancelled
       FROM orders
-      WHERE DATE(createdAt) BETWEEN ? AND ?
+      WHERE status != 'pending'
+      AND DATE(createdAt) BETWEEN ? AND ?
     `,
       [startDate, endDate]
     );
