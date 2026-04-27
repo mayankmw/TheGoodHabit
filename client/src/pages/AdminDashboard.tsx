@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/select";
 
 type DashboardRange = "last7" | "last30" | "lastYear" | "custom";
+type TrendPoint = { date: string; value: number };
+type TrendGranularity = "day" | "week" | "month";
 
 const formatRangeLabel = (
   range: DashboardRange,
@@ -26,6 +28,120 @@ const formatRangeLabel = (
     return `${startDate} - ${endDate}`;
   }
   return "Custom Range";
+};
+
+const parseTrendDate = (value: string | Date) => {
+  if (value instanceof Date) {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  const normalized = String(value).split("T")[0];
+  const [year, month, day] = normalized.split("-").map(Number);
+
+  if (year && month && day) {
+    return new Date(year, month - 1, day);
+  }
+
+  const fallback = new Date(value);
+  return new Date(
+    fallback.getFullYear(),
+    fallback.getMonth(),
+    fallback.getDate()
+  );
+};
+
+const formatDayLabel = (date: Date) =>
+  date.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "short",
+  });
+
+const getInclusiveDayGap = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return 0;
+
+  const start = parseTrendDate(startDate);
+  const end = parseTrendDate(endDate);
+  const diffMs = end.getTime() - start.getTime();
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+};
+
+const resolveTrendGranularity = (
+  range: DashboardRange,
+  startDate?: string,
+  endDate?: string
+): TrendGranularity => {
+  if (range === "last7") return "day";
+  if (range === "last30") return "week";
+  if (range === "lastYear") return "month";
+
+  const dayGap = getInclusiveDayGap(startDate, endDate);
+
+  if (dayGap <= 14) return "day";
+  if (dayGap <= 90) return "week";
+  return "month";
+};
+
+const aggregateTrend = (
+  points: TrendPoint[],
+  granularity: TrendGranularity
+) => {
+  if (granularity === "day") {
+    return points.map((point) => ({
+      label: formatDayLabel(parseTrendDate(point.date)),
+      value: point.value,
+    }));
+  }
+
+  if (granularity === "month") {
+    const monthMap = new Map<string, { label: string; value: number }>();
+
+    points.forEach((point) => {
+      const date = parseTrendDate(point.date);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      const existing = monthMap.get(key);
+
+      if (existing) {
+        existing.value += point.value;
+        return;
+      }
+
+      monthMap.set(key, {
+        label: date.toLocaleDateString("en-IN", {
+          month: "short",
+          year: "numeric",
+        }),
+        value: point.value,
+      });
+    });
+
+    return Array.from(monthMap.values());
+  }
+
+  const weekBuckets: Array<{
+    label: string;
+    value: number;
+  }> = [];
+
+  for (let index = 0; index < points.length; index += 7) {
+    const bucket = points.slice(index, index + 7);
+    const start = parseTrendDate(bucket[0].date);
+    const end = parseTrendDate(bucket[bucket.length - 1].date);
+
+    weekBuckets.push({
+      label:
+        start.getMonth() === end.getMonth() &&
+        start.getFullYear() === end.getFullYear()
+          ? `${String(start.getDate()).padStart(2, "0")}-${String(
+              end.getDate()
+            ).padStart(2, "0")} ${end.toLocaleDateString("en-IN", {
+              month: "short",
+            })}`
+          : `${formatDayLabel(start)}-${formatDayLabel(end)}`,
+      value: bucket.reduce((sum, point) => sum + point.value, 0),
+    });
+  }
+
+  return weekBuckets;
 };
 
 export default function AdminDashboard() {
@@ -101,6 +217,40 @@ export default function AdminDashboard() {
     [appliedFilters]
   );
 
+  const trendGranularity = useMemo(
+    () =>
+      resolveTrendGranularity(
+        appliedFilters.range,
+        appliedFilters.startDate,
+        appliedFilters.endDate
+      ),
+    [appliedFilters]
+  );
+
+  const revenueChartData = useMemo(
+    () =>
+      aggregateTrend(
+        revenueLast7Days.map((r) => ({
+          date: r.date,
+          value: r.amount,
+        })),
+        trendGranularity
+      ),
+    [revenueLast7Days, trendGranularity]
+  );
+
+  const ordersChartData = useMemo(
+    () =>
+      aggregateTrend(
+        ordersLast7Days.map((r) => ({
+          date: r.date,
+          value: r.orders,
+        })),
+        trendGranularity
+      ),
+    [ordersLast7Days, trendGranularity]
+  );
+
   if (loadingStats) return <p className="text-center mt-10">Loading...</p>;
   if (!stats) return <p>No data</p>;
 
@@ -110,17 +260,12 @@ export default function AdminDashboard() {
       stroke: { curve: "smooth", width: 3 },
       colors: ["#facc15"],
       xaxis: {
-        categories: revenueLast7Days.map((r) =>
-          new Date(r.date).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-          })
-        ),
+        categories: revenueChartData.map((r) => r.label),
       },
       dataLabels: { enabled: false },
       fill: { type: "gradient", gradient: { opacityFrom: 0.5, opacityTo: 0 } },
     },
-    series: [{ name: "Revenue", data: revenueLast7Days.map((r) => r.amount) }],
+    series: [{ name: "Revenue", data: revenueChartData.map((r) => r.value) }],
   };
 
   const ordersChart = {
@@ -128,16 +273,11 @@ export default function AdminDashboard() {
       chart: { toolbar: { show: false } },
       colors: ["#34d399"],
       xaxis: {
-        categories: ordersLast7Days.map((r) =>
-          new Date(r.date).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-          })
-        ),
+        categories: ordersChartData.map((r) => r.label),
       },
       dataLabels: { enabled: false },
     },
-    series: [{ name: "Orders", data: ordersLast7Days.map((r) => r.orders) }],
+    series: [{ name: "Orders", data: ordersChartData.map((r) => r.value) }],
   };
 
   return (

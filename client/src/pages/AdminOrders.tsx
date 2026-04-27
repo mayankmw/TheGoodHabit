@@ -133,7 +133,7 @@ export default function AdminOrders() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-600">
             <tr>
-              <th className="px-4 py-3 text-left">Order ID</th>
+              <th className="px-4 py-3 text-left">Order Code</th>
               <th className="px-4 py-3 text-left">Customer</th>
               <th className="px-4 py-3 text-left">Total</th>
               <th className="px-4 py-3 text-left">Discounted</th>
