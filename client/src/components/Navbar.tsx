@@ -108,7 +108,7 @@ export const Navbar = () => {
   };
 
   const menuItems = [
-    { label: "Shop by Category", href: "#category", hasSubmenu: true, icon: ShoppingBag },
+    // { label: "Shop by Category", href: "#category", hasSubmenu: true, icon: ShoppingBag },
     { label: "Our Story", href: "/our-story", hasSubmenu: false, icon: HeartHandshake },
     { label: "Track Your Order", href: "/track-order", hasSubmenu: false, icon: PackageSearch },
   ];

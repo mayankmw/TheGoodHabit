@@ -128,7 +128,7 @@ export const createRazorpayOrder = async (req, res) => {
     );
 
     const appOrderId = orderResult.insertId;
-    const orderCode = `TGH${String(appOrderId).padStart(6, "0")}`;
+    const orderCode = `NB${String(appOrderId).padStart(6, "0")}`;
 
     await db.query(
       `UPDATE orders SET orderCode = ? WHERE id = ?`,
@@ -333,6 +333,180 @@ export const getOrders = async (req, res) => {
 
   } catch (err) {
     console.error("Fetch Orders Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server Error",
+    });
+  }
+};
+
+const buildTrackingSteps = (order) => {
+  if (order.status === "cancelled") {
+    return [
+      {
+        key: "placed",
+        label: "Order Placed",
+        state: "completed",
+        date: order.createdAt,
+      },
+      {
+        key: "processing",
+        label: "Processing",
+        state: "pending",
+        date: null,
+      },
+      {
+        key: "shipped",
+        label: "Shipped",
+        state: "pending",
+        date: order.shippedAt,
+      },
+      {
+        key: "delivered",
+        label: "Delivered",
+        state: "pending",
+        date: order.deliveredAt,
+      },
+    ];
+  }
+
+  const statusOrder = ["pending", "processing", "shipped", "delivered"];
+  const currentIndex = statusOrder.indexOf(order.status);
+
+  return [
+    {
+      key: "placed",
+      label: "Order Placed",
+      state: currentIndex >= 0 ? "completed" : "active",
+      date: order.createdAt,
+    },
+    {
+      key: "processing",
+      label: "Processing",
+      state:
+        currentIndex > 1
+          ? "completed"
+          : currentIndex === 1
+          ? "active"
+          : "pending",
+      date: currentIndex >= 1 ? order.updatedAt : null,
+    },
+    {
+      key: "shipped",
+      label: "Shipped",
+      state:
+        currentIndex > 2
+          ? "completed"
+          : currentIndex === 2
+          ? "active"
+          : "pending",
+      date: order.shippedAt,
+    },
+    {
+      key: "delivered",
+      label: "Delivered",
+      state: currentIndex === 3 ? "active" : currentIndex > 3 ? "completed" : "pending",
+      date: order.deliveredAt,
+    },
+  ];
+};
+
+export const trackOrderByCode = async (req, res) => {
+  const { orderCode } = req.body;
+
+  try {
+    const userId = req.user.id;
+    const normalizedCode = String(orderCode || "").trim().toUpperCase();
+
+    if (!normalizedCode) {
+      return res.status(400).json({
+        success: false,
+        message: "Order code is required",
+      });
+    }
+
+    const [[order]] = await db.query(
+      `
+      SELECT
+        id,
+        orderCode,
+        totalPrice,
+        discountedPrice,
+        status,
+        shippingPartner,
+        trackingNumber,
+        trackingUrl,
+        shippedAt,
+        deliveredAt,
+        createdAt,
+        updatedAt
+      FROM orders
+      WHERE orderCode = ? AND userId = ?
+      LIMIT 1
+      `,
+      [normalizedCode, userId]
+    );
+
+    if (!order) {
+      return res.status(200).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const [items] = await db.query(
+      `SELECT
+         oi.quantity,
+         oi.price,
+         p.id AS productId,
+         p.name,
+         p.images
+       FROM order_items oi
+       JOIN products p ON oi.productId = p.id
+       WHERE oi.orderId = ?`,
+      [order.id]
+    );
+
+    const formattedItems = items.map((item) => {
+      const primaryImage = resolvePrimaryImage(item.images);
+      const { images: _images, ...rest } = item;
+      return {
+        ...rest,
+        image: primaryImage
+          ? `${UPLOADS_APP_URL}${PRODUCT_IMAGE_URL}${primaryImage}`
+          : null,
+      };
+    });
+
+    return res.json({
+      success: true,
+      tracking: {
+        orderCode: order.orderCode,
+        orderId: order.id,
+        status: order.status,
+        statusLabel:
+          order.status.charAt(0).toUpperCase() + order.status.slice(1),
+        placedAt: order.createdAt,
+        shippedAt: order.shippedAt,
+        deliveredAt: order.deliveredAt,
+        shippingPartner: order.shippingPartner,
+        trackingNumber: order.trackingNumber,
+        trackingUrl: order.trackingUrl,
+        summary: {
+          subtotal: Number(order.totalPrice || 0),
+          paid: Number(order.discountedPrice ?? order.totalPrice ?? 0),
+          discount: Math.max(
+            0,
+            Number(order.totalPrice || 0) -
+              Number(order.discountedPrice ?? order.totalPrice ?? 0)
+          ),
+        },
+        steps: buildTrackingSteps(order),
+        items: formattedItems,
+      },
+    });
+  } catch (err) {
+    console.error("Track Order Error:", err);
     return res.status(500).json({
       success: false,
       message: "Server Error",

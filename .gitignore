@@ -1,3 +1,15 @@
+# Ignore all files inside uploads subfolders
+server/uploads/assets/*
+server/uploads/products/*
+server/uploads/reels/*
+server/uploads/story/*
+
+# Keep the folders (using .gitkeep)
+!server/uploads/assets/.gitkeep
+!server/uploads/products/.gitkeep
+!server/uploads/reels/.gitkeep
+!server/uploads/story/.gitkeep
+
 # macOS system files
 .DS_Store
 **/.DS_Store
