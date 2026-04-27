@@ -79,21 +79,31 @@ verifyOtp: async (email, code) => {
   logout: (callback) => {
     localStorage.removeItem("token");
     set({ token: null, user: null });
+
     if (callback) callback();
   },
 
   fetchMe: async () => {
     const token = get().token;
-    if (!token) return null;
+    if (!token) {
+      set({ user: null }); // 👈 important
+      return null;
+    }
 
-    const { data } = await api.post("/user/me");
+    try {
+      const { data } = await api.post("/user/me");
 
-    set({
-      user: {
-        ...data.user,
-      },
-    });
+      set({
+        user: {
+          ...data.user,
+        },
+      });
 
-    return data.user;
+      return data.user;
+    } catch (err) {
+      set({ user: null, token: null });
+      localStorage.removeItem("token");
+      return null;
+    }
   },
 }));

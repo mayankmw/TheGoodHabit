@@ -106,14 +106,14 @@ const handleSubmit = async (e) => {
 
     {/* Email */}
     <a
-      href="mailto:support@thegoodhabit.com"
+      href="mailto:support@noshbob.com"
       className="flex items-start gap-4 hover:bg-muted/40 p-2 rounded-lg transition"
     >
       <Mail className="text-primary mt-1" />
       <div>
         <h3 className="font-semibold">Email</h3>
         <p className="text-sm text-muted-foreground">
-          support@thegoodhabit.com
+          support@noshbob.com
         </p>
       </div>
     </a>

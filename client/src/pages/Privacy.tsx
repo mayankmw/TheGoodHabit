@@ -84,7 +84,7 @@ export const Privacy = () => {
             <p>
               If you have questions about this Privacy Policy, contact us at{" "}
               <span className="font-medium text-foreground">
-                support@thegoodhabit.com
+                support@noshbob.com
               </span>
               .
             </p>

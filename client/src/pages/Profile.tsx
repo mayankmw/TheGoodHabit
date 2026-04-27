@@ -261,8 +261,7 @@ export const Profile = () => {
                 variant="outline"
                 className="rounded-full border-border bg-background/80 text-foreground hover:bg-muted"
                 onClick={() => {
-                  logout();
-                  navigate("/signin");
+                  logout(() => navigate("/signin"));
                 }}
               >
                 <LogOut className="mr-2 h-4 w-4" />

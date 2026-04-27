@@ -75,7 +75,7 @@ export const Terms = () => {
               If you have any questions regarding these Terms & Conditions, you
               can contact us at{" "}
               <span className="font-medium text-foreground">
-                support@thegoodhabit.com
+                support@noshbob.com
               </span>
               .
             </p>
