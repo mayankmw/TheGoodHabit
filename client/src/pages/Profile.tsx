@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Check,
   LogOut,
   Mail,
   MapPin,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAddressStore } from "@/store/useAddressStore";
 
@@ -35,6 +37,10 @@ type AddressDraft = {
   country: string;
 };
 
+type AddressField = keyof AddressDraft;
+
+type AddressErrors = Partial<Record<Exclude<AddressField, "id" | "addressLine2">, string>>;
+
 const emptyAddressDraft = (): AddressDraft => ({
   addressLine: "",
   addressLine2: "",
@@ -44,14 +50,69 @@ const emptyAddressDraft = (): AddressDraft => ({
   country: "India",
 });
 
+const PINCODE_REGEX = /^\d{6}$/;
+
+const sanitizeAddressDraft = (draft: AddressDraft): AddressDraft => ({
+  ...draft,
+  addressLine: draft.addressLine.trim(),
+  addressLine2: draft.addressLine2.trim(),
+  city: draft.city.trim(),
+  state: draft.state.trim(),
+  pincode: draft.pincode.replace(/\D/g, "").slice(0, 6),
+  country: draft.country.trim(),
+});
+
+const validateAddressDraft = (draft: AddressDraft | null): AddressErrors => {
+  if (!draft) return {};
+
+  const normalized = sanitizeAddressDraft(draft);
+  const errors: AddressErrors = {};
+
+  if (!normalized.addressLine) {
+    errors.addressLine = "Address line 1 is required";
+  }
+
+  if (!normalized.city) {
+    errors.city = "City is required";
+  }
+
+  if (!normalized.state) {
+    errors.state = "State is required";
+  }
+
+  if (!normalized.country) {
+    errors.country = "Country is required";
+  }
+
+  if (!normalized.pincode) {
+    errors.pincode = "Pincode is required";
+  } else if (!PINCODE_REGEX.test(normalized.pincode)) {
+    errors.pincode = "Pincode must be exactly 6 digits";
+  }
+
+  return errors;
+};
+
 function AddressForm({
   draft,
   onChange,
+  errors,
+  touchedFields,
+  onFieldBlur,
 }: {
   draft: AddressDraft | null;
   onChange: (value: AddressDraft) => void;
+  errors: AddressErrors;
+  touchedFields: Partial<Record<AddressField, boolean>>;
+  onFieldBlur: (field: AddressField) => void;
 }) {
   if (!draft) return null;
+
+  const showFieldError = (field: keyof AddressErrors) =>
+    Boolean(touchedFields[field] && errors[field]);
+
+  const inputClassName = (field: keyof AddressErrors) =>
+    cn(showFieldError(field) && "border-destructive focus-visible:ring-destructive");
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -60,8 +121,13 @@ function AddressForm({
         <Input
           value={draft.addressLine}
           onChange={(e) => onChange({ ...draft, addressLine: e.target.value })}
+          onBlur={() => onFieldBlur("addressLine")}
           placeholder="House no, street, landmark"
+          className={inputClassName("addressLine")}
         />
+        {showFieldError("addressLine") ? (
+          <p className="text-sm text-destructive">{errors.addressLine}</p>
+        ) : null}
       </div>
 
       <div className="space-y-2 md:col-span-2">
@@ -69,6 +135,7 @@ function AddressForm({
         <Input
           value={draft.addressLine2}
           onChange={(e) => onChange({ ...draft, addressLine2: e.target.value })}
+          onBlur={() => onFieldBlur("addressLine2")}
           placeholder="Apartment, area, optional details"
         />
       </div>
@@ -77,9 +144,21 @@ function AddressForm({
         <Label>Pincode</Label>
         <Input
           value={draft.pincode}
-          onChange={(e) => onChange({ ...draft, pincode: e.target.value })}
+          onChange={(e) =>
+            onChange({
+              ...draft,
+              pincode: e.target.value.replace(/\D/g, "").slice(0, 6),
+            })
+          }
+          onBlur={() => onFieldBlur("pincode")}
           placeholder="110001"
+          inputMode="numeric"
+          maxLength={6}
+          className={inputClassName("pincode")}
         />
+        {showFieldError("pincode") ? (
+          <p className="text-sm text-destructive">{errors.pincode}</p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -87,8 +166,13 @@ function AddressForm({
         <Input
           value={draft.city}
           onChange={(e) => onChange({ ...draft, city: e.target.value })}
+          onBlur={() => onFieldBlur("city")}
           placeholder="New Delhi"
+          className={inputClassName("city")}
         />
+        {showFieldError("city") ? (
+          <p className="text-sm text-destructive">{errors.city}</p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -96,8 +180,13 @@ function AddressForm({
         <Input
           value={draft.state}
           onChange={(e) => onChange({ ...draft, state: e.target.value })}
+          onBlur={() => onFieldBlur("state")}
           placeholder="Delhi"
+          className={inputClassName("state")}
         />
+        {showFieldError("state") ? (
+          <p className="text-sm text-destructive">{errors.state}</p>
+        ) : null}
       </div>
 
       <div className="space-y-2">
@@ -105,8 +194,13 @@ function AddressForm({
         <Input
           value={draft.country}
           onChange={(e) => onChange({ ...draft, country: e.target.value })}
+          onBlur={() => onFieldBlur("country")}
           placeholder="India"
+          className={inputClassName("country")}
         />
+        {showFieldError("country") ? (
+          <p className="text-sm text-destructive">{errors.country}</p>
+        ) : null}
       </div>
     </div>
   );
@@ -124,14 +218,45 @@ export const Profile = () => {
     createAddress,
     updateAddress,
     deleteAddress,
+    setPrimaryAddress,
   } = useAddressStore();
 
   const [pageLoading, setPageLoading] = useState(true);
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [draft, setDraft] = useState<AddressDraft | null>(null);
+  const [touchedFields, setTouchedFields] = useState<Partial<Record<AddressField, boolean>>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const navigate = useNavigate();
+
+  const validationErrors = validateAddressDraft(draft);
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+
+  const resetAddressFormState = () => {
+    setDraft(null);
+    setTouchedFields({});
+    setSubmitAttempted(false);
+  };
+
+  const markAllAddressFieldsTouched = () => {
+    setTouchedFields({
+      addressLine: true,
+      addressLine2: true,
+      city: true,
+      state: true,
+      pincode: true,
+      country: true,
+    });
+  };
+
+  const handleAddressDraftChange = (value: AddressDraft) => {
+    setDraft(value);
+  };
+
+  const handleAddressFieldBlur = (field: AddressField) => {
+    setTouchedFields((prev) => ({ ...prev, [field]: true }));
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -148,20 +273,29 @@ export const Profile = () => {
 
   const handleAddAddress = async () => {
     if (!draft) return;
+    setSubmitAttempted(true);
+    markAllAddressFieldsTouched();
+
+    if (hasValidationErrors) {
+      toast.error("Please fix the address form errors");
+      return;
+    }
+
+    const normalizedDraft = sanitizeAddressDraft(draft);
 
     const res = await createAddress({
-      addressLine1: draft.addressLine,
-      addressLine2: draft.addressLine2 || null,
-      city: draft.city,
-      state: draft.state,
-      postalCode: draft.pincode,
-      country: draft.country || "India",
+      addressLine1: normalizedDraft.addressLine,
+      addressLine2: normalizedDraft.addressLine2 || null,
+      city: normalizedDraft.city,
+      state: normalizedDraft.state,
+      postalCode: normalizedDraft.pincode,
+      country: normalizedDraft.country || "India",
     });
 
     if (res?.success) {
       toast.success(res.message);
       setOpenAdd(false);
-      setDraft(null);
+      resetAddressFormState();
     } else {
       toast.error(res?.message || "Failed to add address");
     }
@@ -169,21 +303,30 @@ export const Profile = () => {
 
   const handleEditAddress = async () => {
     if (!draft?.id) return;
+    setSubmitAttempted(true);
+    markAllAddressFieldsTouched();
+
+    if (hasValidationErrors) {
+      toast.error("Please fix the address form errors");
+      return;
+    }
+
+    const normalizedDraft = sanitizeAddressDraft(draft);
 
     const res = await updateAddress({
-      id: draft.id,
-      addressLine1: draft.addressLine,
-      addressLine2: draft.addressLine2 || null,
-      city: draft.city,
-      state: draft.state,
-      postalCode: draft.pincode,
-      country: draft.country || "India",
+      id: normalizedDraft.id,
+      addressLine1: normalizedDraft.addressLine,
+      addressLine2: normalizedDraft.addressLine2 || null,
+      city: normalizedDraft.city,
+      state: normalizedDraft.state,
+      postalCode: normalizedDraft.pincode,
+      country: normalizedDraft.country || "India",
     });
 
     if (res?.success) {
       toast.success(res.message);
       setOpenEdit(false);
-      setDraft(null);
+      resetAddressFormState();
     } else {
       toast.error(res?.message || "Failed to update address");
     }
@@ -199,7 +342,18 @@ export const Profile = () => {
     }
   };
 
+  const handleSetPrimaryAddress = async (id: number) => {
+    const res = await setPrimaryAddress(id);
+
+    if (res?.success) {
+      toast.success(res.message);
+    } else {
+      toast.error(res?.message || "Failed to update primary address");
+    }
+  };
+
   const openCreateDialog = () => {
+    resetAddressFormState();
     setDraft(emptyAddressDraft());
     setOpenAdd(true);
   };
@@ -364,21 +518,39 @@ export const Profile = () => {
               </div>
             ) : (
               <div className="mt-8 grid gap-4 md:grid-cols-2">
-                {addresses.map((address, index) => (
+                {addresses.map((address) => (
                   <article
                     key={address.id}
                     className="group rounded-[24px] border bg-[linear-gradient(180deg,hsl(var(--background))_0%,hsl(var(--secondary)/0.12)_100%)] p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <div className="inline-flex rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
-                          {index === 0 ? "Primary Address" : `Address ${index + 1}`}
+                        <div
+                          className={cn(
+                            "inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide",
+                            address.isPrimary
+                              ? "bg-primary/10 text-primary"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {address.isPrimary ? "Primary Address" : "Saved Address"}
                         </div>
                         <h3 className="mt-3 text-lg font-semibold text-foreground">
                           {user?.name || "Account Address"}
                         </h3>
                       </div>
                       <div className="flex gap-2 opacity-100 transition md:opacity-0 md:group-hover:opacity-100">
+                        {!address.isPrimary ? (
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full border-primary/20 text-primary hover:bg-primary/5"
+                            onClick={() => handleSetPrimaryAddress(address.id)}
+                            aria-label="Make primary address"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        ) : null}
                         <Button
                           variant="outline"
                           size="icon"
@@ -393,6 +565,8 @@ export const Profile = () => {
                               pincode: address.postalCode,
                               country: address.country || "India",
                             });
+                            setTouchedFields({});
+                            setSubmitAttempted(false);
                             setOpenEdit(true);
                           }}
                         >
@@ -419,6 +593,19 @@ export const Profile = () => {
                     </div>
 
                     <div className="mt-6 flex gap-3 md:hidden">
+                      {!address.isPrimary ? (
+                        <Button
+                          variant="secondary"
+                          className="flex-1 rounded-full"
+                          onClick={() => handleSetPrimaryAddress(address.id)}
+                        >
+                          Make Primary
+                        </Button>
+                      ) : (
+                        <div className="flex flex-1 items-center justify-center rounded-full bg-primary/10 px-4 text-sm font-semibold text-primary">
+                          Primary Address
+                        </div>
+                      )}
                       <Button
                         variant="outline"
                         className="flex-1 rounded-full"
@@ -432,6 +619,8 @@ export const Profile = () => {
                             pincode: address.postalCode,
                             country: address.country || "India",
                           });
+                          setTouchedFields({});
+                          setSubmitAttempted(false);
                           setOpenEdit(true);
                         }}
                       >
@@ -445,6 +634,18 @@ export const Profile = () => {
                         Delete
                       </Button>
                     </div>
+
+                    {!address.isPrimary ? (
+                      <div className="mt-6 hidden md:block">
+                        <Button
+                          variant="secondary"
+                          className="rounded-full"
+                          onClick={() => handleSetPrimaryAddress(address.id)}
+                        >
+                          Make Primary
+                        </Button>
+                      </div>
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -457,7 +658,7 @@ export const Profile = () => {
         open={openAdd}
         onOpenChange={(value) => {
           setOpenAdd(value);
-          if (!value) setDraft(null);
+          if (!value) resetAddressFormState();
         }}
       >
         <DialogContent className="sm:max-w-2xl">
@@ -465,13 +666,28 @@ export const Profile = () => {
             <DialogTitle>Add New Address</DialogTitle>
           </DialogHeader>
 
-          <AddressForm draft={draft} onChange={setDraft} />
+          <AddressForm
+            draft={draft}
+            onChange={handleAddressDraftChange}
+            errors={validationErrors}
+            touchedFields={submitAttempted ? {
+              addressLine: true,
+              addressLine2: true,
+              city: true,
+              state: true,
+              pincode: true,
+              country: true,
+            } : touchedFields}
+            onFieldBlur={handleAddressFieldBlur}
+          />
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setOpenAdd(false)}>
               Cancel
             </Button>
-            <Button onClick={handleAddAddress}>Save Address</Button>
+            <Button onClick={handleAddAddress} disabled={!draft || hasValidationErrors}>
+              Save Address
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -480,7 +696,7 @@ export const Profile = () => {
         open={openEdit}
         onOpenChange={(value) => {
           setOpenEdit(value);
-          if (!value) setDraft(null);
+          if (!value) resetAddressFormState();
         }}
       >
         <DialogContent className="sm:max-w-2xl">
@@ -488,13 +704,28 @@ export const Profile = () => {
             <DialogTitle>Edit Address</DialogTitle>
           </DialogHeader>
 
-          <AddressForm draft={draft} onChange={setDraft} />
+          <AddressForm
+            draft={draft}
+            onChange={handleAddressDraftChange}
+            errors={validationErrors}
+            touchedFields={submitAttempted ? {
+              addressLine: true,
+              addressLine2: true,
+              city: true,
+              state: true,
+              pincode: true,
+              country: true,
+            } : touchedFields}
+            onFieldBlur={handleAddressFieldBlur}
+          />
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setOpenEdit(false)}>
               Cancel
             </Button>
-            <Button onClick={handleEditAddress}>Save Changes</Button>
+            <Button onClick={handleEditAddress} disabled={!draft || hasValidationErrors}>
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

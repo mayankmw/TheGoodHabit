@@ -67,6 +67,7 @@ CREATE TABLE addresses (
   postalCode VARCHAR(100) NOT NULL,
 
   country VARCHAR(100) DEFAULT 'India',
+  isPrimary TINYINT(1) NOT NULL DEFAULT 0,
 
   userId INT UNSIGNED NOT NULL,
 
