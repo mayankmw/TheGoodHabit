@@ -13,6 +13,7 @@ import Product from "./pages/Product";
 import TrackOrder from "./pages/TrackOrder";
 import Blogs from "./pages/Blogs";
 import Contact from "./pages/Contact";
+import BulkOrder from "./pages/BulkOrder";
 import Profile from "./pages/Profile";
 import Orders from "./pages/Orders";
 import Terms from "./pages/Terms";
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/track-order" element={<TrackOrder />} />
             <Route path="/blogs" element={<Blogs />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/bulk-order" element={<BulkOrder />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/terms-and-conditions" element={<Terms />} />

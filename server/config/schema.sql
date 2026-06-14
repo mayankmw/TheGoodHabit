@@ -434,6 +434,41 @@ CREATE TABLE contact_messages (
 
 
 -- =====================================================
+-- BULK ORDERS
+-- =====================================================
+
+CREATE TABLE bulk_orders (
+
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  name VARCHAR(150) NOT NULL,
+  email VARCHAR(150) NOT NULL,
+  phone VARCHAR(30) NOT NULL,
+  address TEXT NOT NULL,
+
+  status ENUM('new','contacted','closed') DEFAULT 'new',
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+);
+
+
+
+CREATE TABLE bulk_order_items (
+
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  bulkOrderId INT UNSIGNED NOT NULL,
+  productId BIGINT UNSIGNED NOT NULL,
+  quantity INT UNSIGNED NOT NULL,
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+-- =====================================================
 -- NEWSLETTER
 -- =====================================================
 

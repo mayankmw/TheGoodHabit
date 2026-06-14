@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   HeartHandshake,
   PackageSearch,
+  Boxes,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -110,6 +111,7 @@ export const Navbar = () => {
   const menuItems = [
     // { label: "Shop by Category", href: "#category", hasSubmenu: true, icon: ShoppingBag },
     { label: "Our Story", href: "/our-story", hasSubmenu: false, icon: HeartHandshake },
+    { label: "Bulk Order", href: "/bulk-order", hasSubmenu: false, icon: Boxes },
     { label: "Track Your Order", href: "/track-order", hasSubmenu: false, icon: PackageSearch },
   ];
 
