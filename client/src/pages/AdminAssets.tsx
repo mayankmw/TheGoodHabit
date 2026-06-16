@@ -62,7 +62,7 @@ export default function AdminAssets() {
       toast.success("Asset updated");
       setOpen(false);
     } else {
-      toast.error("Failed to update asset");
+      toast.error(res?.message || "Failed to update asset");
     }
   };
 
@@ -183,6 +183,9 @@ export default function AdminAssets() {
                   }
                 }}
               />
+              <p className="text-xs text-muted-foreground">
+                Allowed formats: PNG, JPEG, WEBP. Max file size: 5 MB.
+              </p>
             </div>
           )}
 

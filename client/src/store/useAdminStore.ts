@@ -577,9 +577,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       if (data.success) get().fetchAssets();
       return data;
-    } catch (e) {
+    } catch (e: any) {
       console.log("Update asset error", e);
-      return { success: false };
+      return (
+        e?.response?.data || {
+          success: false,
+          message: "Failed to update asset",
+        }
+      );
     } finally {
       set({ savingAsset: false });
     }

@@ -6,6 +6,7 @@ dotenv.config();
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOAD_PATH = process.env.UPLOAD_PATH || "";
+const PRODUCT_IMAGE_LIMIT_BYTES = 5 * 1024 * 1024;
 
 const storage = multer.diskStorage({
   destination(req, file, cb) {
@@ -32,5 +33,5 @@ const fileFilter = (req, file, cb) => {
 export const uploadProductImage = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 } // 2MB
+  limits: { fileSize: PRODUCT_IMAGE_LIMIT_BYTES }
 });

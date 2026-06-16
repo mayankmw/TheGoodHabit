@@ -1,6 +1,6 @@
 import express from "express";
 import { auth } from "../middlewares/authMiddleware.js";
-import { uploadImage } from "../middlewares/imageUpload.js";
+import { handleMulterImageUpload, uploadImage } from "../middlewares/imageUpload.js";
 import { uploadNewsletterAttachments } from "../middlewares/newsletterUpload.js";
 import { isAdmin } from "../middlewares/isAdmin.js";
 import {
@@ -59,20 +59,24 @@ router.post(
   "/product/create",
   auth,
   isAdmin,
-  uploadImage("uploads/products").fields([
-    { name: "image", maxCount: 1 },
-    { name: "images", maxCount: 10 },
-  ]),
+  handleMulterImageUpload(
+    uploadImage("uploads/products").fields([
+      { name: "image", maxCount: 1 },
+      { name: "images", maxCount: 10 },
+    ])
+  ),
   createProduct
 );
 router.post(
   "/product/update",
   auth,
   isAdmin,
-  uploadImage("uploads/products").fields([
-    { name: "image", maxCount: 1 },
-    { name: "images", maxCount: 10 },
-  ]),
+  handleMulterImageUpload(
+    uploadImage("uploads/products").fields([
+      { name: "image", maxCount: 1 },
+      { name: "images", maxCount: 10 },
+    ])
+  ),
   updateProduct
 );
 
@@ -86,7 +90,9 @@ router.post(
   "/assets/update",
   auth,
   isAdmin,
-  uploadImage("uploads/assets").single("image"),
+  handleMulterImageUpload(
+    uploadImage("uploads/assets").single("image")
+  ),
   updateAsset
 );
 
@@ -108,7 +114,9 @@ router.post(
   "/story/update",
   auth,
   isAdmin,
-  uploadImage("uploads/story").single("image"),
+  handleMulterImageUpload(
+    uploadImage("uploads/story").single("image")
+  ),
   updateStory
 );
 
@@ -141,10 +149,12 @@ router.post(
   "/reel/create",
   auth,
   isAdmin,
-  uploadImage("uploads/reels").fields([
-    { name: "short_video", maxCount: 1 },
-    { name: "main_video", maxCount: 1 },
-  ]),
+  handleMulterImageUpload(
+    uploadImage("uploads/reels").fields([
+      { name: "short_video", maxCount: 1 },
+      { name: "main_video", maxCount: 1 },
+    ])
+  ),
   createReel
 );
 
@@ -152,10 +162,12 @@ router.post(
   "/reel/update",
   auth,
   isAdmin,
-  uploadImage("uploads/reels").fields([
-    { name: "short_video", maxCount: 1 },
-    { name: "main_video", maxCount: 1 },
-  ]),
+  handleMulterImageUpload(
+    uploadImage("uploads/reels").fields([
+      { name: "short_video", maxCount: 1 },
+      { name: "main_video", maxCount: 1 },
+    ])
+  ),
   updateReel
 );
 router.post("/reel/reorder", auth, isAdmin, reorderReels);

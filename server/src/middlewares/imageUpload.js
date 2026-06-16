@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const UPLOAD_PATH = process.env.UPLOAD_PATH || "";
+const IMAGE_UPLOAD_LIMIT_BYTES = 5 * 1024 * 1024;
 
 const fileFilter = (req, file, cb) => {
   if (
@@ -33,6 +34,31 @@ export const uploadImage = (folder) => {
   return multer({
     storage,
     fileFilter,
-    limits: { fileSize: 2 * 1024 * 1024 } // 2MB
+    limits: { fileSize: IMAGE_UPLOAD_LIMIT_BYTES }
+  });
+};
+
+export const handleMulterImageUpload = (uploadHandler) => (req, res, next) => {
+  uploadHandler(req, res, (err) => {
+    if (!err) return next();
+
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({
+          success: false,
+          message: "Image must be 5 MB or smaller",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: err.message || "Image upload failed",
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: err.message || "Only image files allowed",
+    });
   });
 };

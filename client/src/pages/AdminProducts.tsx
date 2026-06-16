@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import {
   Select,
@@ -352,133 +353,13 @@ export default function AdminProducts() {
       </div>
 
       <Dialog open={openAdd} onOpenChange={setOpenAdd}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Product</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-3">
-            <Label>Name</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-
-            <Label>Category</Label>
-            <Select
-              value={form.category}
-              onValueChange={(value) => setForm({ ...form, category: value })}
-            >
-              <SelectTrigger className="bg-white border border-input">
-                <SelectValue placeholder="Select product category" />
-              </SelectTrigger>
-
-              <SelectContent className="bg-white border shadow-lg z-50">
-                {PRODUCT_CATEGORIES.map((c) => (
-                  <SelectItem key={c.value} value={c.value}>
-                    {c.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Label>Original Price(INR)</Label>
-            <Input
-              type="number"
-              value={form.originalPrice}
-              onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
-            />
-
-            <Label>Discounted Price(INR)</Label>
-            <Input
-              type="number"
-              value={form.discountedPrice}
-              onChange={(e) => setForm({ ...form, discountedPrice: e.target.value })}
-            />
-
-            <Label>Description</Label>
-            <Input
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-
-            <Label>Ingredients (comma separated)</Label>
-            <Input
-              value={form.ingredients}
-              onChange={(e) => setForm({ ...form, ingredients: e.target.value })}
-            />
-
-            <Label>Images</Label>
-            <Input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={(e) => {
-                const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
-                handleSelectImages(selectedFiles);
-                e.currentTarget.value = "";
-              }}
-            />
-
-            {form.images.length > 0 && (
-              <div className="grid grid-cols-4 gap-2">
-                {newImagePreviews.map((preview, index) => (
-                  <div key={`${preview.file.name}-${index}`} className="relative">
-                    <img
-                      src={preview.url}
-                      alt={preview.file.name}
-                      className="h-16 w-full rounded border object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeNewImage(index)}
-                      className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-black text-white text-xs"
-                    >
-                      x
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button onClick={handleAddProduct} className="bg-primary text-white">
-              Add Product
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Product</DialogTitle>
-          </DialogHeader>
-
-          {selectedProductData && (
-            <div className="space-y-3">
-              {form.existingImages.length > 0 && (
-                <>
-                  <Label>Current Images</Label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {form.existingImages.map((image) => (
-                      <div key={image} className="relative">
-                        <img
-                          src={image}
-                          alt="Current product image"
-                          className="h-16 w-full rounded border object-cover"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeExistingImage(image)}
-                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-black text-white text-xs"
-                        >
-                          x
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-
+          <ScrollArea className="-mx-6 max-h-[70vh] px-6">
+            <div className="space-y-3 pb-1">
               <Label>Name</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
@@ -520,13 +401,13 @@ export default function AdminProducts() {
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
 
-              <Label>Ingredients</Label>
+              <Label>Ingredients (comma separated)</Label>
               <Input
                 value={form.ingredients}
                 onChange={(e) => setForm({ ...form, ingredients: e.target.value })}
               />
 
-              <Label>Add More Images</Label>
+              <Label>Images</Label>
               <Input
                 type="file"
                 accept="image/*"
@@ -559,6 +440,130 @@ export default function AdminProducts() {
                 </div>
               )}
             </div>
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button onClick={handleAddProduct} className="bg-primary text-white">
+              Add Product
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openEdit} onOpenChange={setOpenEdit}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Product</DialogTitle>
+          </DialogHeader>
+
+          {selectedProductData && (
+            <ScrollArea className="-mx-6 max-h-[70vh] px-6">
+              <div className="space-y-3 pb-1">
+                {form.existingImages.length > 0 && (
+                  <>
+                    <Label>Current Images</Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {form.existingImages.map((image) => (
+                        <div key={image} className="relative">
+                          <img
+                            src={image}
+                            alt="Current product image"
+                            className="h-16 w-full rounded border object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeExistingImage(image)}
+                            className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-black text-white text-xs"
+                          >
+                            x
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <Label>Name</Label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+
+                <Label>Category</Label>
+                <Select
+                  value={form.category}
+                  onValueChange={(value) => setForm({ ...form, category: value })}
+                >
+                  <SelectTrigger className="bg-white border border-input">
+                    <SelectValue placeholder="Select product category" />
+                  </SelectTrigger>
+
+                  <SelectContent className="bg-white border shadow-lg z-50">
+                    {PRODUCT_CATEGORIES.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        {c.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Label>Original Price(INR)</Label>
+                <Input
+                  type="number"
+                  value={form.originalPrice}
+                  onChange={(e) => setForm({ ...form, originalPrice: e.target.value })}
+                />
+
+                <Label>Discounted Price(INR)</Label>
+                <Input
+                  type="number"
+                  value={form.discountedPrice}
+                  onChange={(e) => setForm({ ...form, discountedPrice: e.target.value })}
+                />
+
+                <Label>Description</Label>
+                <Input
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                />
+
+                <Label>Ingredients</Label>
+                <Input
+                  value={form.ingredients}
+                  onChange={(e) => setForm({ ...form, ingredients: e.target.value })}
+                />
+
+                <Label>Add More Images</Label>
+                <Input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => {
+                    const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
+                    handleSelectImages(selectedFiles);
+                    e.currentTarget.value = "";
+                  }}
+                />
+
+                {form.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2">
+                    {newImagePreviews.map((preview, index) => (
+                      <div key={`${preview.file.name}-${index}`} className="relative">
+                        <img
+                          src={preview.url}
+                          alt={preview.file.name}
+                          className="h-16 w-full rounded border object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeNewImage(index)}
+                          className="absolute -top-2 -right-2 h-5 w-5 rounded-full bg-black text-white text-xs"
+                        >
+                          x
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           )}
 
           <DialogFooter>
