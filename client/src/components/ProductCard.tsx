@@ -90,11 +90,6 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
             <span className="text-2xl font-black">₹{discountedPrice}</span>
           </div>
 
-          {/* Shipping Offer */}
-          <div className="bg-primary text-primary-foreground text-center py-2 rounded-full text-xs font-bold">
-            FREE SHIPPING
-          </div>
-
           {/* Add to Cart */}
           <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-black text-base py-6 rounded-lg"
             onClick={(e) => {
