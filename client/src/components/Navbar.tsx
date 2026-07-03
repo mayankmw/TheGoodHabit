@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import confetti from "canvas-confetti";
 import {
   Menu,
   Search,
@@ -30,6 +31,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useCommonStore } from "@/store/useCommonStore";
 
 export const Navbar = () => {
+  const FREE_GIFT_THRESHOLD = 999;
   const [open, setOpen] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [showCoupons, setShowCoupons] = useState(false);
@@ -132,14 +134,78 @@ export const Navbar = () => {
 
   // --- seen coupons ref to avoid duplicate animations ---
   const seenCouponCodesRef = useRef(new Set());
-
-  // popper animation flag
-  const [showPoppers, setShowPoppers] = useState(false);
+  const hasReachedGiftMilestoneRef = useRef(false);
+  const offerConfettiCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const offerConfettiRef = useRef<ReturnType<typeof confetti.create> | null>(null);
 
   // cart count
   const cartCount = cart.reduce((acc, item) => acc + (item.quantity || 0), 0);
+  const hasReachedGiftMilestone = cartTotalBeforeDiscount >= FREE_GIFT_THRESHOLD;
 
   const fmt = (n) => `₹${Number(n || 0).toFixed(0)}`;
+
+  const triggerOfferPoppers = () => {
+    const fire = offerConfettiRef.current;
+    if (!fire) return;
+
+    const baseOptions = {
+      spread: 84,
+      startVelocity: 34,
+      gravity: 0.92,
+      ticks: 170,
+      scalar: 1,
+      zIndex: 0,
+      colors: ["#f97316", "#ec4899", "#22c55e", "#38bdf8", "#eab308", "#a855f7"],
+    } as const;
+
+    fire({
+      ...baseOptions,
+      particleCount: 48,
+      angle: 68,
+      origin: { x: 0.14, y: 0.02 },
+    });
+
+    fire({
+      ...baseOptions,
+      particleCount: 48,
+      angle: 112,
+      origin: { x: 0.86, y: 0.02 },
+    });
+
+    fire({
+      ...baseOptions,
+      particleCount: 30,
+      spread: 110,
+      startVelocity: 28,
+      scalar: 0.82,
+      origin: { x: 0.5, y: 0.02 },
+    });
+
+    window.setTimeout(() => {
+      const layeredFire = offerConfettiRef.current;
+      if (!layeredFire) return;
+
+      layeredFire({
+        ...baseOptions,
+        particleCount: 24,
+        spread: 88,
+        startVelocity: 26,
+        scalar: 0.88,
+        angle: 78,
+        origin: { x: 0.28, y: 0.01 },
+      });
+
+      layeredFire({
+        ...baseOptions,
+        particleCount: 24,
+        spread: 88,
+        startVelocity: 26,
+        scalar: 0.88,
+        angle: 102,
+        origin: { x: 0.72, y: 0.01 },
+      });
+    }, 140);
+  };
 
   const handleCheckout = async () => {
     try {
@@ -186,6 +252,26 @@ export const Navbar = () => {
   useEffect(() => {
     if (token) fetchMe();
   }, [token, fetchMe]);
+
+  useEffect(() => {
+    const canvas = offerConfettiCanvasRef.current;
+
+    if (!canvas) {
+      offerConfettiRef.current = null;
+      return;
+    }
+
+    offerConfettiRef.current = confetti.create(canvas, {
+      resize: true,
+      useWorker: true,
+    });
+
+    return () => {
+      offerConfettiRef.current?.reset();
+      offerConfettiRef.current = null;
+    };
+  }, [cartCount, cartOpen]);
+
   // ---------- initial loads ----------
   useEffect(() => {
     fetchRecommended();
@@ -237,17 +323,22 @@ export const Navbar = () => {
       }
     }
     if (newCodes.length > 0) {
-      // trigger popper animation
-      setShowPoppers(false);
-      requestAnimationFrame(() => {
-        setShowPoppers(true);
-        setTimeout(() => setShowPoppers(false), 1600);
-      });
+      triggerOfferPoppers();
 
       // quick console notification for now (replace with your toast)
       newCodes.forEach((c) => console.log("New coupon awarded:", c));
     }
   }, [cartCoupons, cartId]);
+
+  useEffect(() => {
+    if (!cartId) return;
+
+    if (hasReachedGiftMilestone && !hasReachedGiftMilestoneRef.current) {
+      triggerOfferPoppers();
+    }
+
+    hasReachedGiftMilestoneRef.current = hasReachedGiftMilestone;
+  }, [cartId, hasReachedGiftMilestone]);
 
   // ---------- wrappers to handle immediate awarded coupons returned by API ----------
   const handleAddToCart = async (productId) => {
@@ -259,8 +350,7 @@ export const Navbar = () => {
         // mark seen so effect won't double-animate
         res.awarded.forEach((code) => seenCouponCodesRef.current.add(code));
         // popper animate
-        setShowPoppers(true);
-        setTimeout(() => setShowPoppers(false), 1600);
+        triggerOfferPoppers();
         // also refresh full cart state
         await fetchCart();
         return;
@@ -280,8 +370,7 @@ export const Navbar = () => {
       // if updateQuantityStore returns awarded:
       if (res && res.awarded && res.awarded.length > 0) {
         res.awarded.forEach((code) => seenCouponCodesRef.current.add(code));
-        setShowPoppers(true);
-        setTimeout(() => setShowPoppers(false), 1600);
+        triggerOfferPoppers();
       }
       await fetchCart();
     } catch (e) {
@@ -308,8 +397,7 @@ export const Navbar = () => {
         // ensure newly applied codes are seen
         if (res.applied?.code) seenCouponCodesRef.current.add(res.applied.code);
         // trigger small animation
-        setShowPoppers(true);
-        setTimeout(() => setShowPoppers(false), 1200);
+        triggerOfferPoppers();
         // refresh full cart state
         await fetchCart();
         setShowCoupons(false);
@@ -496,9 +584,15 @@ export const Navbar = () => {
                     </div>
                   ) : (
                     // ---------- CART UI ----------
-                    <>
+                    <div className="relative flex h-full flex-col overflow-hidden">
+                      <canvas
+                        ref={offerConfettiCanvasRef}
+                        className="pointer-events-none absolute inset-0 z-20 h-full w-full"
+                        aria-hidden
+                      />
+
                       {/* header */}
-                      <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-4 flex justify-between items-center">
+                      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4 flex justify-between items-center">
                         <h2 className="text-xl font-bold flex items-center gap-2">
                           <ShoppingCart className="h-5 w-5" /> Your Cart
                         </h2>
@@ -508,57 +602,33 @@ export const Navbar = () => {
                       </div>
 
                       {/* content */}
-                      <div className="flex-1 overflow-y-auto px-4">
+                      <div className="relative z-10 flex-1 overflow-y-auto px-4">
                         {/* 🎁 Free Gift / progress + poppers */}
                         <div className="bg-secondary/10 rounded-xl p-4 mt-4 mb-6 relative overflow-hidden">
                           <p className="text-center text-sm font-semibold text-green-700">
-                            {cartTotalBeforeDiscount >= 999 ? <span>You have reached the free gift milestone 🎉</span> : <span>Get a free gift by adding items worth ₹999</span>}
+                            {hasReachedGiftMilestone ? <span>You have reached a offer milestone 🎉</span> : <span>Get a free gift by adding items worth ₹{FREE_GIFT_THRESHOLD}</span>}
                           </p>
-
-                          {/* poppers */}
-                          {showPoppers && (
-                            <div className="absolute inset-0 z-30 pointer-events-none flex items-start justify-center">
-                              <div className="w-full relative h-0">
-                                {Array.from({ length: 12 }).map((_, i) => {
-                                  const leftPct = 6 + (i * 8);
-                                  const delay = (i % 6) * 80;
-                                  return (
-                                    <div
-                                      key={i}
-                                      className="popper"
-                                      style={{
-                                        left: `${leftPct}%`,
-                                        animationDelay: `${delay}ms`,
-                                      }}
-                                    >
-                                      <div className="popper-inner">{i % 3 === 0 ? "🎉" : i % 3 === 1 ? "🎁" : "✨"}</div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
 
                           <div className="relative mt-3">
                             <div className="w-full bg-secondary/20 h-2 rounded-full overflow-hidden">
                               <div
                                 className="bg-secondary h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(100, Math.round((cartTotalBeforeDiscount / 999) * 100))}%` }}
+                                style={{ width: `${Math.min(100, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100))}%` }}
                               />
                             </div>
 
                             <div
                               className="absolute top-[-10px] bg-white border border-secondary rounded-full w-8 h-8 flex items-center justify-center text-secondary text-xs font-bold shadow transition-transform"
                               style={{
-                                right: `${Math.max(0, 100 - Math.min(100, Math.round((cartTotalBeforeDiscount / 999) * 100)))}%`,
-                                transform: `translateX(${Math.min(0, Math.round((cartTotalBeforeDiscount / 999) * 100) - 100)}%)`,
+                                right: `${Math.max(0, 100 - Math.min(100, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100)))}%`,
+                                transform: `translateX(${Math.min(0, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100) - 100)}%)`,
                               }}
                               aria-hidden
                             >
                               🎁
                             </div>
 
-                            <p className="text-xs text-right mt-2 text-green-700 font-medium">₹999 Free Gift</p>
+                            <p className="text-xs text-right mt-2 text-green-700 font-medium">₹{FREE_GIFT_THRESHOLD} Free Gift</p>
                           </div>
                         </div>
 
@@ -814,7 +884,7 @@ export const Navbar = () => {
                           />
                         </p>
                       </div>
-                    </>
+                    </div>
                   )}
                 </SheetContent>
               </Sheet>

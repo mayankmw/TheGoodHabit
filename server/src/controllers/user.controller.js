@@ -6,6 +6,21 @@ import { OAuth2Client } from "google-auth-library";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+const buildUserPayload = (user) => {
+  const payload = {
+    id: user.id,
+    email: user.email,
+    phone: user.phone,
+    name: user.name,
+  };
+
+  if (user.role === "admin") {
+    payload.isAdmin = true;
+  }
+
+  return payload;
+};
+
 export const googleLogin = async (req, res) => {
   try {
     const { credential } = req.body;
@@ -165,20 +180,9 @@ export const me = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
-    const payload = {
-      id: user.id,
-      email: user.email,
-      phone: user.phone,
-      name: user.name,
-    };
-
-    if (user.role === "admin") {
-      payload.isAdmin = true;
-    }
-
     return res.json({
       success: true,
-      user: payload
+      user: buildUserPayload(user)
     });
 
   } catch (err) {
@@ -190,4 +194,45 @@ export const me = async (req, res) => {
   }
 };
 
+export const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const name = String(req.body?.name || "").trim();
+
+    if (!name) {
+      return res.status(400).json({
+        success: false,
+        message: "Name is required",
+      });
+    }
+
+    await db.query("UPDATE users SET name = ? WHERE id = ?", [name, userId]);
+
+    const [users] = await db.query(
+      "SELECT id, email, phone, name, role FROM users WHERE id = ?",
+      [userId]
+    );
+
+    const user = users[0];
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: "Profile updated successfully",
+      user: buildUserPayload(user),
+    });
+  } catch (err) {
+    console.error("UPDATE PROFILE API ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
 

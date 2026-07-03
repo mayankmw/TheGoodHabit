@@ -209,6 +209,8 @@ function AddressForm({
 export const Profile = () => {
   const user = useAuthStore((s) => s.user);
   const fetchMe = useAuthStore((s) => s.fetchMe);
+  const updateProfile = useAuthStore((s) => s.updateProfile);
+  const authLoading = useAuthStore((s) => s.loading);
   const logout = useAuthStore((s) => s.logout);
 
   const {
@@ -227,11 +229,33 @@ export const Profile = () => {
   const [draft, setDraft] = useState<AddressDraft | null>(null);
   const [touchedFields, setTouchedFields] = useState<Partial<Record<AddressField, boolean>>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
 
   const navigate = useNavigate();
 
   const validationErrors = validateAddressDraft(draft);
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const trimmedName = user?.name?.trim() || "";
+  const normalizedNameDraft = nameDraft.trim();
+  const hasName = Boolean(trimmedName);
+  const hasAddress = addresses.length > 0;
+
+  const heroHeading = hasName && hasAddress
+    ? `${trimmedName}, your profile is ready.`
+    : hasName
+      ? `${trimmedName}, add your address to complete your profile.`
+      : hasAddress
+        ? "Add your name to complete your profile."
+        : "Complete your profile with your name and address.";
+
+  const heroDescription = hasName && hasAddress
+    ? "Manage your account details, keep delivery addresses updated, and jump straight into your latest orders from one clean space."
+    : hasName
+      ? "Your account is almost set. Add a delivery address so checkout feels fast and future orders go to the right place."
+      : hasAddress
+        ? "Your delivery details are saved. Add your name so your profile and future orders feel complete."
+        : "Add your name and at least one delivery address so your account is ready for smooth checkout and order tracking.";
 
   const resetAddressFormState = () => {
     setDraft(null);
@@ -270,6 +294,33 @@ export const Profile = () => {
 
     load();
   }, [fetchAddresses, fetchMe]);
+
+  useEffect(() => {
+    if (!isEditingName) {
+      setNameDraft(user?.name || "");
+    }
+  }, [isEditingName, user?.name]);
+
+  const handleSaveName = async () => {
+    if (!normalizedNameDraft) {
+      toast.error("Name is required");
+      return;
+    }
+
+    const res = await updateProfile({ name: normalizedNameDraft });
+
+    if (res?.success) {
+      toast.success(res.message);
+      setIsEditingName(false);
+    } else {
+      toast.error(res?.message || "Failed to update profile");
+    }
+  };
+
+  const handleCancelNameEdit = () => {
+    setNameDraft(user?.name || "");
+    setIsEditingName(false);
+  };
 
   const handleAddAddress = async () => {
     if (!draft) return;
@@ -388,10 +439,10 @@ export const Profile = () => {
                 NoshBOB Account
               </div>
               <h1 className="mt-4 text-3xl font-black tracking-tight text-foreground md:text-5xl">
-                {user?.name ? `${user.name}, your profile is ready.` : "Your profile is ready."}
+                {heroHeading}
               </h1>
               <p className="mt-3 max-w-xl text-sm text-muted-foreground md:text-base">
-                Manage your account details, keep delivery addresses updated, and jump straight into your latest orders from one clean space.
+                {heroDescription}
               </p>
             </div>
 
@@ -436,9 +487,54 @@ export const Profile = () => {
                   <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
                     Account Overview
                   </p>
-                  <h2 className="text-2xl font-bold text-primary">
-                    {user?.name || "Good Habit User"}
-                  </h2>
+                  {isEditingName ? (
+                    <div className="mt-2 space-y-3">
+                      <Input
+                        value={nameDraft}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        placeholder="Enter your name"
+                        className="h-11 max-w-sm"
+                        autoFocus
+                      />
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          className="rounded-full"
+                          onClick={handleSaveName}
+                          disabled={!normalizedNameDraft || authLoading}
+                        >
+                          Save Name
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={handleCancelNameEdit}
+                          disabled={authLoading}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <h2 className="text-2xl font-bold text-primary">
+                        {trimmedName || "Add your name"}
+                      </h2>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => {
+                          setNameDraft(user?.name || "");
+                          setIsEditingName(true);
+                        }}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        {trimmedName ? "Edit Name" : "Add Name"}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -464,14 +560,6 @@ export const Profile = () => {
                         Delivery locations ready for checkout
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      className="rounded-full border-primary/20 bg-background/85 text-primary hover:bg-primary/5"
-                      onClick={openCreateDialog}
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Address
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -583,13 +671,13 @@ export const Profile = () => {
                       </div>
                     </div>
 
-                    <div className="mt-5 space-y-2 text-sm text-foreground/85">
-                      <p>{address.addressLine1}</p>
-                      {address.addressLine2 && <p>{address.addressLine2}</p>}
-                      <p>
+                    <div className="mt-5 space-y-2 text-sm text-foreground/85 [overflow-wrap:anywhere]">
+                      <p className="break-words">{address.addressLine1}</p>
+                      {address.addressLine2 && <p className="break-words">{address.addressLine2}</p>}
+                      <p className="break-words">
                         {address.city}, {address.state} - {address.postalCode}
                       </p>
-                      <p className="text-muted-foreground">{address.country}</p>
+                      <p className="break-words text-muted-foreground">{address.country}</p>
                     </div>
 
                     <div className="mt-6 flex gap-3 md:hidden">

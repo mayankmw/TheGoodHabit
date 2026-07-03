@@ -9,7 +9,7 @@ interface Address {
   state: string;
   postalCode: string;
   country: string;
-  isPrimary: number;
+  isPrimary: boolean;
 }
 
 type AddressResponse = {
@@ -41,6 +41,14 @@ interface AddressState {
   setPrimaryAddress: (id: number) => Promise<AddressResponse | null>;
 }
 
+const normalizeAddress = (address: Address | (Omit<Address, "isPrimary"> & { isPrimary: number | boolean })): Address => ({
+  ...address,
+  isPrimary: Boolean(address.isPrimary),
+});
+
+const normalizeAddresses = (addresses?: Array<Address | (Omit<Address, "isPrimary"> & { isPrimary: number | boolean })>) =>
+  (addresses || []).map(normalizeAddress);
+
 export const useAddressStore = create<AddressState>((set, get) => ({
   addresses: [],
   loading: false,
@@ -53,7 +61,7 @@ export const useAddressStore = create<AddressState>((set, get) => ({
       const { data } = await api.post("/address/list");
 
       set({
-        addresses: data.addresses || [],
+        addresses: normalizeAddresses(data.addresses),
         loading: false,
       });
 
@@ -138,8 +146,15 @@ export const useAddressStore = create<AddressState>((set, get) => ({
 
       const { data } = await api.post("/address/set-primary", { id });
 
-      await get().fetchAddresses();
-      set({ loading: false });
+      if (data.addresses) {
+        set({
+          addresses: normalizeAddresses(data.addresses),
+          loading: false,
+        });
+      } else {
+        await get().fetchAddresses();
+        set({ loading: false });
+      }
 
       return data;
     } catch (err: unknown) {

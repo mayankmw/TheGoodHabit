@@ -19,6 +19,7 @@ interface AuthState {
   verifyOtp: (email: string, code: string) => Promise<any>;
   logout: (callback?: () => void) => void;
   fetchMe: () => Promise<User | null>;
+  updateProfile: (payload: { name: string }) => Promise<any>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -104,6 +105,25 @@ verifyOtp: async (email, code) => {
       set({ user: null, token: null });
       localStorage.removeItem("token");
       return null;
+    }
+  },
+
+  updateProfile: async (payload) => {
+    try {
+      set({ loading: true });
+
+      const { data } = await api.post("/user/update-profile", payload);
+
+      if (data.success) {
+        set({ user: data.user, loading: false });
+      } else {
+        set({ loading: false });
+      }
+
+      return data;
+    } catch (error: any) {
+      set({ loading: false });
+      return error.response?.data;
     }
   },
 }));

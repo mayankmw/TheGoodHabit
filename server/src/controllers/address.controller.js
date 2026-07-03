@@ -31,6 +31,30 @@ const getAddressValidationError = ({
   return null;
 };
 
+const getAddressesForUser = async (connectionOrDb, userId) => {
+  await promoteFallbackPrimary(connectionOrDb, userId);
+
+  const [addresses] = await connectionOrDb.query(
+    `SELECT 
+       id,
+       addressLine1,
+       addressLine2,
+       city,
+       state,
+       postalCode,
+       country,
+       isPrimary,
+       createdAt,
+       updatedAt
+     FROM addresses
+     WHERE userId = ?
+     ORDER BY isPrimary DESC, createdAt DESC, id DESC`,
+    [userId]
+  );
+
+  return addresses;
+};
+
 const promoteFallbackPrimary = async (connectionOrDb, userId, excludeId = null) => {
   const primaryParams = [userId];
   let primarySql = `
@@ -263,26 +287,7 @@ export const deleteAddress = async (req, res) => {
 export const getAddresses = async (req, res) => {
   try {
     const userId = req.user.id;
-
-    await promoteFallbackPrimary(db, userId);
-
-    const [addresses] = await db.query(
-      `SELECT 
-         id,
-         addressLine1,
-         addressLine2,
-         city,
-         state,
-         postalCode,
-         country,
-         isPrimary,
-         createdAt,
-         updatedAt
-       FROM addresses
-       WHERE userId = ?
-       ORDER BY isPrimary DESC, createdAt DESC, id DESC`,
-      [userId]
-    );
+    const addresses = await getAddressesForUser(db, userId);
 
     return res.json({
       success: true,
@@ -347,9 +352,12 @@ export const setPrimaryAddress = async (req, res) => {
 
     await connection.commit();
 
+    const addresses = await getAddressesForUser(connection, userId);
+
     return res.json({
       success: true,
       message: "Primary address updated successfully",
+      addresses,
     });
   } catch (err) {
     await connection.rollback();
