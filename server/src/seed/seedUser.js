@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { db } from "../config/db.js";
 
 export const seedDefaultUser = async () => {
-  const email = "wadhwa.mayankreal9149@gmail.com";
+  const email = "mayankwadhwahp7@gmail.com";
   const password = "mayank@123";
 
   try {

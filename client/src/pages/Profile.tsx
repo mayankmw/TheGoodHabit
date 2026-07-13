@@ -21,9 +21,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+import {
+  CountrySelect,
+  StateSelect,
+  CitySelect,
+} from "react-country-state-city";
+
 import { useAuthStore } from "@/store/useAuthStore";
 import { useAddressStore } from "@/store/useAddressStore";
 
@@ -31,10 +45,17 @@ type AddressDraft = {
   id?: number;
   addressLine: string;
   addressLine2: string;
-  city: string;
-  state: string;
-  pincode: string;
+
   country: string;
+  countryId?: number;
+
+  state: string;
+  stateId?: number;
+
+  city: string;
+  cityId?: number;
+
+  pincode: string;
 };
 
 type AddressField = keyof AddressDraft;
@@ -51,6 +72,8 @@ const emptyAddressDraft = (): AddressDraft => ({
 });
 
 const PINCODE_REGEX = /^\d{6}$/;
+
+const COUNTRIES = ["India"];
 
 const sanitizeAddressDraft = (draft: AddressDraft): AddressDraft => ({
   ...draft,
@@ -161,47 +184,89 @@ function AddressForm({
         ) : null}
       </div>
 
-      <div className="space-y-2">
-        <Label>City</Label>
-        <Input
-          value={draft.city}
-          onChange={(e) => onChange({ ...draft, city: e.target.value })}
-          onBlur={() => onFieldBlur("city")}
-          placeholder="New Delhi"
-          className={inputClassName("city")}
-        />
-        {showFieldError("city") ? (
-          <p className="text-sm text-destructive">{errors.city}</p>
-        ) : null}
-      </div>
+<div className="space-y-2">
+  <Label>Country</Label>
 
-      <div className="space-y-2">
-        <Label>State</Label>
-        <Input
-          value={draft.state}
-          onChange={(e) => onChange({ ...draft, state: e.target.value })}
-          onBlur={() => onFieldBlur("state")}
-          placeholder="Delhi"
-          className={inputClassName("state")}
-        />
-        {showFieldError("state") ? (
-          <p className="text-sm text-destructive">{errors.state}</p>
-        ) : null}
-      </div>
+  <CountrySelect
+    placeHolder="Select Country"
+    value={draft.countryId}
+    onChange={(country) => {
+      onChange({
+        ...draft,
+        country: country.name,
+        countryId: country.id,
 
-      <div className="space-y-2">
-        <Label>Country</Label>
-        <Input
-          value={draft.country}
-          onChange={(e) => onChange({ ...draft, country: e.target.value })}
-          onBlur={() => onFieldBlur("country")}
-          placeholder="India"
-          className={inputClassName("country")}
-        />
-        {showFieldError("country") ? (
-          <p className="text-sm text-destructive">{errors.country}</p>
-        ) : null}
-      </div>
+        state: "",
+        stateId: undefined,
+        city: "",
+        cityId: undefined,
+      });
+
+      onFieldBlur("country");
+    }}
+  />
+
+  {showFieldError("country") && (
+    <p className="text-sm text-destructive">
+      {errors.country}
+    </p>
+  )}
+</div>
+
+<div className="space-y-2">
+  <Label>State</Label>
+
+  <StateSelect
+    countryid={draft.countryId}
+    placeHolder="Select State"
+    value={draft.stateId}
+    onChange={(state) => {
+      onChange({
+        ...draft,
+        state: state.name,
+        stateId: state.id,
+
+        city: "",
+        cityId: undefined,
+      });
+
+      onFieldBlur("state");
+    }}
+  />
+
+  {showFieldError("state") && (
+    <p className="text-sm text-destructive">
+      {errors.state}
+    </p>
+  )}
+</div>
+
+<div className="space-y-2">
+  <Label>City</Label>
+
+  <CitySelect
+    countryid={draft.countryId}
+    stateid={draft.stateId}
+    placeHolder="Select City"
+    value={draft.cityId}
+    onChange={(city) => {
+      onChange({
+        ...draft,
+        city: city.name,
+        cityId: city.id,
+      });
+
+      onFieldBlur("city");
+    }}
+  />
+
+  {showFieldError("city") && (
+    <p className="text-sm text-destructive">
+      {errors.city}
+    </p>
+  )}
+</div>
+
     </div>
   );
 }
@@ -456,7 +521,7 @@ export const Profile = () => {
               </Button>
               <Button
                 variant="outline"
-                className="rounded-full border-primary/20 bg-background/80 text-primary hover:bg-primary/5"
+                className="rounded-full border-primary/20 bg-background/80 text-primary"
                 onClick={() => navigate("/track-order")}
               >
                 <Truck className="mr-2 h-4 w-4" />
@@ -464,7 +529,7 @@ export const Profile = () => {
               </Button>
               <Button
                 variant="outline"
-                className="rounded-full border-border bg-background/80 text-foreground hover:bg-muted"
+                className="rounded-full border-border bg-background/80 text-foreground"
                 onClick={() => {
                   logout(() => navigate("/signin"));
                 }}
