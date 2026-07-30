@@ -211,6 +211,16 @@ CREATE TABLE orders (
 
   userId INT UNSIGNED NOT NULL,
 
+  -- delivery address: FK for traceability + a snapshot, since the address
+  -- book entry can be edited/deleted after the order is placed
+  addressId INT UNSIGNED NULL,
+  shippingAddressLine1 VARCHAR(255) NULL,
+  shippingAddressLine2 VARCHAR(255) NULL,
+  shippingCity VARCHAR(255) NULL,
+  shippingState VARCHAR(255) NULL,
+  shippingPostalCode VARCHAR(100) NULL,
+  shippingCountry VARCHAR(100) NULL,
+
   totalPrice FLOAT NOT NULL,
   discountedPrice FLOAT,
 
@@ -236,7 +246,11 @@ CREATE TABLE orders (
 
   FOREIGN KEY (userId)
   REFERENCES users(id)
-  ON DELETE CASCADE
+  ON DELETE CASCADE,
+
+  FOREIGN KEY (addressId)
+  REFERENCES addresses(id)
+  ON DELETE SET NULL
 
 );
 

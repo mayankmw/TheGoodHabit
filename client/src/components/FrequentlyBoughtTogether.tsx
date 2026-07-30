@@ -55,8 +55,13 @@ export const FrequentlyBoughtTogether = ({
   );
   const saved = Math.max(totalOriginal - totalDiscounted, 0);
 
-  const handleAddSingle = async (productId: string | number) => {
-    await addToCart(productId);
+  const handleAddSingle = async (product: BundleProduct) => {
+    await addToCart(product.id, {
+      name: product.name,
+      image: product.image,
+      originalPrice: product.originalPrice,
+      discountedPrice: product.discountedPrice,
+    });
     setOpenSearch(false);
     setOpenCart(true);
   };
@@ -65,7 +70,12 @@ export const FrequentlyBoughtTogether = ({
     try {
       setAddingAll(true);
       for (const item of bundleItems) {
-        await addToCart(item.id);
+        await addToCart(item.id, {
+          name: item.name,
+          image: item.image,
+          originalPrice: item.originalPrice,
+          discountedPrice: item.discountedPrice,
+        });
       }
       setOpenSearch(false);
       setOpenCart(true);
@@ -101,7 +111,7 @@ export const FrequentlyBoughtTogether = ({
                   )}
                   <Button
                     className="mt-3 w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold"
-                    onClick={() => handleAddSingle(product.id)}
+                    onClick={() => handleAddSingle(product)}
                   >
                     ADD TO CART
                   </Button>

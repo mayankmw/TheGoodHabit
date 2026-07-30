@@ -86,9 +86,35 @@ async function getCartTotalsWithCoupons(cartId) {
   };
 }
 
+// Resolves which address an order should ship to: the one the client asked
+// for (validated as belonging to this user), falling back to their primary
+// address, falling back to their most recent one.
+const resolveOrderAddress = async (userId, requestedAddressId) => {
+  if (requestedAddressId) {
+    const [rows] = await db.query(
+      "SELECT * FROM addresses WHERE id = ? AND userId = ? LIMIT 1",
+      [requestedAddressId, userId]
+    );
+    if (rows.length) return rows[0];
+  }
+
+  const [primaryRows] = await db.query(
+    "SELECT * FROM addresses WHERE userId = ? AND isPrimary = 1 LIMIT 1",
+    [userId]
+  );
+  if (primaryRows.length) return primaryRows[0];
+
+  const [recentRows] = await db.query(
+    "SELECT * FROM addresses WHERE userId = ? ORDER BY createdAt DESC, id DESC LIMIT 1",
+    [userId]
+  );
+  return recentRows[0] || null;
+};
+
 export const createRazorpayOrder = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { addressId } = req.body;
 
     // Get user's cart
     const [cartRows] = await db.query(
@@ -103,6 +129,14 @@ export const createRazorpayOrder = async (req, res) => {
       });
 
     const cartId = cartRows[0].id;
+
+    const address = await resolveOrderAddress(userId, addressId);
+    if (!address) {
+      return res.status(400).json({
+        success: false,
+        message: "Please add a delivery address before checkout",
+      });
+    }
 
     // Compute total
     const { subtotal, discount, payable, appliedCoupons } =
@@ -120,11 +154,29 @@ export const createRazorpayOrder = async (req, res) => {
       receipt: `order_${Date.now()}`
     });
 
-    // 1️⃣ Create ORDER
+    // 1️⃣ Create ORDER (address is snapshotted — the address book entry can
+    // change or be deleted after this order is placed)
     const [orderResult] = await db.query(
-      `INSERT INTO orders (userId, totalPrice, discountedPrice, status, appliedCoupons)
-      VALUES (?, ?, ?, 'pending', ?)`,
-      [userId, subtotal, payable, JSON.stringify(appliedCoupons)]
+      `INSERT INTO orders (
+         userId, addressId,
+         shippingAddressLine1, shippingAddressLine2, shippingCity,
+         shippingState, shippingPostalCode, shippingCountry,
+         totalPrice, discountedPrice, status, appliedCoupons
+       )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      [
+        userId,
+        address.id,
+        address.addressLine1,
+        address.addressLine2,
+        address.city,
+        address.state,
+        address.postalCode,
+        address.country,
+        subtotal,
+        payable,
+        JSON.stringify(appliedCoupons),
+      ]
     );
 
     const appOrderId = orderResult.insertId;

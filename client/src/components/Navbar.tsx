@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import confetti from "canvas-confetti";
+import { toast } from "sonner";
 import {
   Menu,
   Search,
@@ -20,11 +21,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ProductCardMini } from "@/components/ProductCardMini";
+import { CartAddressSelector } from "@/components/CartAddressSelector";
 import { useNavigate } from "react-router-dom";
 import { useProductStore } from "@/store/useProductStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
 import { usePaymentStore } from "@/store/UsePaymentStore";
+import { useAddressStore } from "@/store/useAddressStore";
 import Lottie from "lottie-react";
 import orderSuccessAnim from "@/assets/animations/orders-success.json";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -72,6 +75,8 @@ export const Navbar = () => {
   const createOrder = usePaymentStore((s) => s.createOrder);
   const verifyPayment = usePaymentStore((s) => s.verifyPayment);
   const resetPayment = usePaymentStore((s) => s.reset);
+
+  const selectedAddressId = useAddressStore((s) => s.selectedAddressId);
 
   const user = useAuthStore((s) => s.user);
   const token = useAuthStore((s) => s.token);
@@ -209,6 +214,22 @@ export const Navbar = () => {
 
   const handleCheckout = async () => {
     try {
+      // Checkout needs a signed-in (server-side) cart — send guests to sign
+      // in first instead of letting the order-create call fail silently.
+      if (!token) {
+        setOpenCart(false);
+        toast.info("Please sign in to checkout");
+        navigate("/signin");
+        return;
+      }
+
+      // Needs a delivery address too — keep the cart open so they can use
+      // the address picker's "Add" button right there.
+      if (!selectedAddressId) {
+        toast.error("Please add a delivery address before checkout");
+        return;
+      }
+
       // ✅ 1. Close cart FIRST
       setOpenCart(false);
 
@@ -216,8 +237,15 @@ export const Navbar = () => {
       // await new Promise((r) => setTimeout(r, 150));
 
       // ✅ 2. Create order
-      const order = await createOrder();
-      if (!order) return;
+      const order = await createOrder(selectedAddressId);
+      if (!order) {
+        const err = usePaymentStore.getState().error;
+        const message =
+          (err && typeof err === "object" && "message" in err && err.message) ||
+          "Unable to start checkout. Please try again.";
+        toast.error(message);
+        return;
+      }
 
       const options = {
         key: order.razorpayKey,
@@ -277,9 +305,10 @@ export const Navbar = () => {
     fetchRecommended();
   }, [fetchRecommended]);
 
-  // fetch cart once on mount if token
+  // fetch cart on mount (and whenever auth state changes) — fetchCart
+  // itself reads the guest cart from localStorage when there's no token
   useEffect(() => {
-    if (token) fetchCart();
+    fetchCart();
   }, [token, fetchCart]);
 
   // refetch when cart sidebar opens
@@ -341,10 +370,15 @@ export const Navbar = () => {
   }, [cartId, hasReachedGiftMilestone]);
 
   // ---------- wrappers to handle immediate awarded coupons returned by API ----------
-  const handleAddToCart = async (productId) => {
+  const handleAddToCart = async (product) => {
     try {
       // storeAddToCart should ideally return response with `awarded` array (see server design).
-      const res = await storeAddToCart(productId);
+      const res = await storeAddToCart(product.id, {
+        name: product.name,
+        image: product.image,
+        originalPrice: product.originalPrice,
+        discountedPrice: product.discountedPrice,
+      });
       // if storeAddToCart returns awarded coupons directly:
       if (res && res.awarded && res.awarded.length > 0) {
         // mark seen so effect won't double-animate
@@ -603,8 +637,11 @@ export const Navbar = () => {
 
                       {/* content */}
                       <div className="relative z-10 flex-1 overflow-y-auto px-4">
+                        {/* 📍 Delivery address */}
+                        <CartAddressSelector />
+
                         {/* 🎁 Free Gift / progress + poppers */}
-                        <div className="bg-secondary/10 rounded-xl p-4 mt-4 mb-6 relative overflow-hidden">
+                        <div className="bg-secondary/10 rounded-xl p-4 mb-6 relative overflow-hidden">
                           <p className="text-center text-sm font-semibold text-green-700">
                             {hasReachedGiftMilestone ? <span>You have reached a offer milestone 🎉</span> : <span>Get a free gift by adding items worth ₹{FREE_GIFT_THRESHOLD}</span>}
                           </p>
@@ -832,7 +869,7 @@ export const Navbar = () => {
                                 <div className="absolute top-2 left-2 bg-green-500 text-white text-[10px] font-bold rounded px-1.5 py-0.5">10% OFF</div>
                                 <img src={item.image} alt={item.name} className="w-full h-24 object-cover rounded-md mb-1" />
                                 <p className="text-xs font-semibold line-clamp-2">{item.name}</p>
-                                <Button size="sm" className="w-full mt-2" onClick={() => handleAddToCart(item.id)}>Add</Button>
+                                <Button size="sm" className="w-full mt-2" onClick={() => handleAddToCart(item)}>Add</Button>
                               </div>
                             ))}
                           </div>

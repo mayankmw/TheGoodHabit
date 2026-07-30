@@ -263,7 +263,12 @@ export const Product = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                addToCart(product.id);
+                addToCart(product.id, {
+                  name: product.name,
+                  image: product.image,
+                  originalPrice: product.originalPrice,
+                  discountedPrice: product.discountedPrice,
+                });
                 setOpenSearch(false);
                 setOpenCart(true);
               }}

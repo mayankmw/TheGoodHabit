@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import api from "@/lib/api";
+import { useCartStore } from "@/store/useCartStore";
 
 interface User {
   id?: number;
@@ -36,6 +37,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (data.success) {
         localStorage.setItem("token", data.token);
         set({ token: data.token, user: data.user });
+        // don't block login on this — cart merges in the background
+        useCartStore.getState().mergeGuestCartIntoServer();
       }
 
       set({ loading: false });
@@ -67,6 +70,8 @@ verifyOtp: async (email, code) => {
     if (data.success) {
       localStorage.setItem("token", data.token);
       set({ token: data.token, user: data.user });
+      // don't block login on this — cart merges in the background
+      useCartStore.getState().mergeGuestCartIntoServer();
     }
 
     set({ loading: false });

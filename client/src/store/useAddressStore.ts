@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import api from "@/lib/api";
 
-interface Address {
+export interface Address {
   id: number;
   addressLine1: string;
   addressLine2?: string | null;
@@ -34,6 +34,11 @@ interface AddressState {
   loading: boolean;
   error: AddressResponse | string | null;
 
+  // Which address is currently chosen for delivery (e.g. in the cart).
+  // Not persisted — each session defaults back to the primary address.
+  selectedAddressId: number | null;
+  setSelectedAddressId: (id: number | null) => void;
+
   fetchAddresses: () => Promise<AddressResponse | null>;
   createAddress: (payload: AddressPayload) => Promise<AddressResponse | null>;
   updateAddress: (payload: AddressUpdatePayload) => Promise<AddressResponse | null>;
@@ -53,6 +58,9 @@ export const useAddressStore = create<AddressState>((set, get) => ({
   addresses: [],
   loading: false,
   error: null,
+
+  selectedAddressId: null,
+  setSelectedAddressId: (id) => set({ selectedAddressId: id }),
 
   fetchAddresses: async () => {
     try {
@@ -127,6 +135,11 @@ export const useAddressStore = create<AddressState>((set, get) => ({
 
       await get().fetchAddresses();
       set({ loading: false });
+
+      // deleted address can't stay selected — let it re-default to primary
+      if (get().selectedAddressId === id) {
+        set({ selectedAddressId: null });
+      }
 
       return data;
     } catch (err: unknown) {

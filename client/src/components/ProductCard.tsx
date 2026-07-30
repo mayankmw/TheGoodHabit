@@ -95,9 +95,9 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              addToCart(id);
+              addToCart(id, { name, image, originalPrice, discountedPrice });
               setOpenSearch(false);
-              setOpenCart(true); 
+              setOpenCart(true);
             }}>
             ADD TO CART
           </Button>

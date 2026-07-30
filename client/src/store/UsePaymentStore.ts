@@ -9,7 +9,7 @@ interface PaymentState {
   appOrderId: number | null;
   amount: number;
 
-  createOrder: () => Promise<any>;
+  createOrder: (addressId?: number | null) => Promise<any>;
   verifyPayment: (paymentData: any) => Promise<any>;
   reset: () => void;
 }
@@ -23,12 +23,12 @@ export const usePaymentStore = create<PaymentState>((set, get) => ({
   amount: 0,
 
   // 1️⃣ CREATE ORDER (server + Razorpay)
-  createOrder: async () => {
+  createOrder: async (addressId) => {
     try {
       set({ loading: true, error: null });
 
       // call backend
-      const { data } = await api.post("/orders/create");
+      const { data } = await api.post("/orders/create", { addressId });
 
       set({
         razorpayOrderId: data.orderId,
