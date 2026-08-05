@@ -1,8 +1,13 @@
 import { useEffect } from "react";
-import { MapPin, Package } from "lucide-react";
+import { CreditCard, MapPin, Package } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  formatPaymentMethod,
+  paymentStatusBadgeClass,
+  paymentStatusLabel,
+} from "@/lib/payment";
 
 const statusBadge = (status: string) => {
   if (status === "delivered")
@@ -149,26 +154,54 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
             </span>
           </div>
 
-          {order.shippingAddressLine1 && (
-            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs">
-              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {order.shippingAddressLine1 && (
+              <div className="flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+                <div>
+                  <p className="font-semibold uppercase tracking-wide text-muted-foreground">
+                    Delivered to
+                  </p>
+                  <p className="mt-0.5 text-foreground/85">
+                    {[
+                      order.shippingAddressLine1,
+                      order.shippingAddressLine2,
+                      `${order.shippingCity}, ${order.shippingState} - ${order.shippingPostalCode}`,
+                      order.shippingCountry,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs">
+              <CreditCard className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
               <div>
                 <p className="font-semibold uppercase tracking-wide text-muted-foreground">
-                  Delivered to
+                  Payment
                 </p>
-                <p className="mt-0.5 text-foreground/85">
-                  {[
-                    order.shippingAddressLine1,
-                    order.shippingAddressLine2,
-                    `${order.shippingCity}, ${order.shippingState} - ${order.shippingPostalCode}`,
-                    order.shippingCountry,
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
-                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2">
+                  <span className="text-foreground/85">
+                    {formatPaymentMethod(order.paymentMethod, order.paymentDetails)}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${paymentStatusBadgeClass(
+                      order.paymentStatus
+                    )}`}
+                  >
+                    {paymentStatusLabel(order.paymentStatus)}
+                  </span>
+                </div>
+                {order.razorpayPaymentId && (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Payment ID: {order.razorpayPaymentId}
+                  </p>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           <div className="mt-4 rounded-xl border bg-slate-50/60 p-3">
           {order.items?.map((i, idx) => (

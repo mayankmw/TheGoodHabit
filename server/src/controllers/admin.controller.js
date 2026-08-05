@@ -19,6 +19,17 @@ const parseJsonArray = (value) => {
   }
 };
 
+const parseJsonObject = (value) => {
+  if (value && typeof value === "object") return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const toCleanStringArray = (value) =>
   (Array.isArray(value) ? value : [])
     .map((item) => (typeof item === "string" ? item.trim() : ""))
@@ -576,13 +587,23 @@ export const fetchOrderById = async (req, res) => {
   try {
     const [[order]] = await db.query(
       `
-      SELECT 
+      SELECT
         o.*,
         u.name,
         u.email,
-        u.phone
+        u.phone,
+        p.method AS paymentMethod,
+        p.status AS paymentStatus,
+        p.details AS paymentDetails,
+        p.razorpayOrderId,
+        p.razorpayPaymentId,
+        p.amount AS paymentAmount,
+        p.currency AS paymentCurrency,
+        p.email AS paymentEmail,
+        p.contact AS paymentContact
       FROM orders o
       JOIN users u ON u.id = o.userId
+      LEFT JOIN payments p ON p.orderId = o.id
       WHERE o.id = ?
       `,
       [id]
@@ -591,6 +612,8 @@ export const fetchOrderById = async (req, res) => {
     if (!order) {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
+
+    order.paymentDetails = parseJsonObject(order.paymentDetails);
 
     const [items] = await db.query(
       `

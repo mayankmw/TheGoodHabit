@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import api from "@/lib/api";
+import type { PaymentDetails } from "@/lib/payment";
 
 interface OrderItem {
   productId: number;
@@ -25,6 +26,12 @@ interface Order {
   shippingState: string | null;
   shippingPostalCode: string | null;
   shippingCountry: string | null;
+
+  // payment snapshot — null status/method means it never got past "created"
+  paymentMethod: string | null;
+  paymentStatus: string | null;
+  paymentDetails: PaymentDetails;
+  razorpayPaymentId: string | null;
 }
 
 interface OrderState {

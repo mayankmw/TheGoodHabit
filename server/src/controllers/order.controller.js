@@ -16,6 +16,17 @@ const parseJsonArray = (value) => {
   }
 };
 
+const parseJsonObject = (value) => {
+  if (value && typeof value === "object") return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+};
+
 const resolvePrimaryImage = (value) => {
   const asArray = parseJsonArray(value)
     .map((item) => (typeof item === "string" ? item.trim() : ""))
@@ -245,14 +256,61 @@ export const verifyRazorpayPayment = async (req, res) => {
       });
     }
 
-    // 1️⃣ Update Payments
+    // 1️⃣ Update Payments — pull the full payment object from Razorpay so we
+    // capture how it was actually paid (method + card/upi/bank/wallet info,
+    // Razorpay's fee/tax), not just the id/signature the checkout handler
+    // hands back. A hiccup fetching this shouldn't block the order itself,
+    // since the signature above is what actually proves the payment is real.
+    let method = null;
+    let payerEmail = null;
+    let payerContact = null;
+    let details = null;
+
+    try {
+      const payment = await razorpay.payments.fetch(razorpay_payment_id);
+
+      method = payment.method || null;
+      payerEmail = payment.email || null;
+      payerContact = payment.contact || null;
+      details = JSON.stringify({
+        card: payment.card
+          ? {
+              network: payment.card.network,
+              last4: payment.card.last4,
+              type: payment.card.type,
+              issuer: payment.card.issuer,
+            }
+          : null,
+        bank: payment.bank || null,
+        wallet: payment.wallet || null,
+        vpa: payment.vpa || null,
+        international: Boolean(payment.international),
+        fee: payment.fee != null ? payment.fee / 100 : null,
+        tax: payment.tax != null ? payment.tax / 100 : null,
+      });
+    } catch (fetchErr) {
+      console.error("Fetch Razorpay payment details error:", fetchErr);
+    }
+
     await db.query(
-      `UPDATE payments 
+      `UPDATE payments
        SET razorpayPaymentId = ?,
            razorpaySignature = ?,
-           status = 'paid'
+           status = 'paid',
+           method = ?,
+           email = ?,
+           contact = ?,
+           details = ?
        WHERE razorpayOrderId = ?`,
-      [razorpay_payment_id, razorpay_signature, razorpay_order_id]
+      [
+        razorpay_payment_id,
+        razorpay_signature,
+        method,
+        payerEmail,
+        payerContact,
+        details,
+        razorpay_order_id,
+      ]
     );
 
     // 2️⃣ Update Order => processing now
@@ -326,28 +384,35 @@ export const getOrders = async (req, res) => {
 
     // ---------- ORDERS QUERY ----------
     let ordersQuery = `
-      SELECT id, totalPrice, discountedPrice, status, createdAt,
-             shippingAddressLine1, shippingAddressLine2, shippingCity,
-             shippingState, shippingPostalCode, shippingCountry
-      FROM orders
-      WHERE userId = ?
+      SELECT o.id, o.totalPrice, o.discountedPrice, o.status, o.createdAt,
+             o.shippingAddressLine1, o.shippingAddressLine2, o.shippingCity,
+             o.shippingState, o.shippingPostalCode, o.shippingCountry,
+             p.method AS paymentMethod, p.status AS paymentStatus,
+             p.details AS paymentDetails, p.razorpayPaymentId
+      FROM orders o
+      LEFT JOIN payments p ON p.orderId = o.id
+      WHERE o.userId = ?
     `;
 
     let orderParams = [userId];
 
     if (status && status !== "all") {
-      ordersQuery += ` AND status = ?`;
+      ordersQuery += ` AND o.status = ?`;
       orderParams.push(status);
     }
 
     ordersQuery += `
-      ORDER BY createdAt DESC
+      ORDER BY o.createdAt DESC
       LIMIT ? OFFSET ?
     `;
 
     orderParams.push(Number(limit), Number(offset));
 
     const [orders] = await db.query(ordersQuery, orderParams);
+
+    for (const order of orders) {
+      order.paymentDetails = parseJsonObject(order.paymentDetails);
+    }
 
     // ---------- FETCH ITEMS ----------
     for (let order of orders) {

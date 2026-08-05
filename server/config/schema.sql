@@ -316,6 +316,10 @@ CREATE TABLE payments (
   email VARCHAR(255),
   contact VARCHAR(20),
 
+  -- method-specific info from Razorpay: card {network,last4,type,issuer},
+  -- bank, wallet, vpa, fee, tax, international — whatever applies to `method`
+  details JSON NULL,
+
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 

@@ -18,7 +18,12 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { MapPin } from "lucide-react";
+import { CreditCard, MapPin } from "lucide-react";
+import {
+  formatPaymentMethod,
+  paymentStatusBadgeClass,
+  paymentStatusLabel,
+} from "@/lib/payment";
 
 type ShippingAddressLike = {
   shippingAddressLine1?: string | null;
@@ -281,6 +286,47 @@ export default function AdminOrders() {
                   </p>
                 </div>
               )}
+
+              <div className="rounded-lg border bg-amber-50/60 p-3 text-sm">
+                <p className="flex items-center gap-1.5 font-semibold text-gray-700">
+                  <CreditCard className="h-4 w-4 text-primary" /> Payment
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="text-gray-600">
+                    {formatPaymentMethod(selectedOrder.paymentMethod, selectedOrder.paymentDetails)}
+                  </span>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ${paymentStatusBadgeClass(
+                      selectedOrder.paymentStatus
+                    )}`}
+                  >
+                    {paymentStatusLabel(selectedOrder.paymentStatus)}
+                  </span>
+                </div>
+                <div className="mt-2 space-y-0.5 text-xs text-gray-500">
+                  {selectedOrder.paymentAmount != null && (
+                    <p>
+                      Amount: ₹{(selectedOrder.paymentAmount / 100).toFixed(2)}{" "}
+                      {selectedOrder.paymentCurrency || "INR"}
+                    </p>
+                  )}
+                  {selectedOrder.paymentDetails?.fee != null && (
+                    <p>
+                      Razorpay fee: ₹{Number(selectedOrder.paymentDetails.fee).toFixed(2)}
+                      {selectedOrder.paymentDetails?.tax != null &&
+                        ` (incl. ₹${Number(selectedOrder.paymentDetails.tax).toFixed(2)} tax)`}
+                    </p>
+                  )}
+                  {selectedOrder.paymentEmail && <p>Payer email: {selectedOrder.paymentEmail}</p>}
+                  {selectedOrder.paymentContact && <p>Payer contact: {selectedOrder.paymentContact}</p>}
+                  {selectedOrder.razorpayPaymentId && (
+                    <p>Payment ID: {selectedOrder.razorpayPaymentId}</p>
+                  )}
+                  {selectedOrder.razorpayOrderId && (
+                    <p>Razorpay Order ID: {selectedOrder.razorpayOrderId}</p>
+                  )}
+                </div>
+              </div>
 
               <div className="border-t pt-3">
                 <Label>Items</Label>
