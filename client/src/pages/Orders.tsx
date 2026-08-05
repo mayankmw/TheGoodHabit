@@ -172,6 +172,9 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
                       .filter(Boolean)
                       .join(", ")}
                   </p>
+                  {order.shippingPhone && (
+                    <p className="mt-1 text-foreground/85">📞 {order.shippingPhone}</p>
+                  )}
                 </div>
               </div>
             )}

@@ -391,6 +391,9 @@ export const Profile = () => {
                         {address.city}, {address.state} - {address.postalCode}
                       </p>
                       <p className="break-words text-muted-foreground">{address.country}</p>
+                      {address.phone && (
+                        <p className="break-words text-muted-foreground">📞 {address.phone}</p>
+                      )}
                     </div>
 
                     <div className="mt-6 flex gap-3 md:hidden">

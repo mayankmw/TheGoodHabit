@@ -22,6 +22,7 @@ interface Order {
   // address selection existed
   shippingAddressLine1: string | null;
   shippingAddressLine2: string | null;
+  shippingPhone: string | null;
   shippingCity: string | null;
   shippingState: string | null;
   shippingPostalCode: string | null;

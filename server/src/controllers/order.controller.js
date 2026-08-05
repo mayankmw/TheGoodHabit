@@ -170,16 +170,17 @@ export const createRazorpayOrder = async (req, res) => {
     const [orderResult] = await db.query(
       `INSERT INTO orders (
          userId, addressId,
-         shippingAddressLine1, shippingAddressLine2, shippingCity,
+         shippingAddressLine1, shippingAddressLine2, shippingPhone, shippingCity,
          shippingState, shippingPostalCode, shippingCountry,
          totalPrice, discountedPrice, status, appliedCoupons
        )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [
         userId,
         address.id,
         address.addressLine1,
         address.addressLine2,
+        address.phone,
         address.city,
         address.state,
         address.postalCode,
@@ -385,8 +386,8 @@ export const getOrders = async (req, res) => {
     // ---------- ORDERS QUERY ----------
     let ordersQuery = `
       SELECT o.id, o.totalPrice, o.discountedPrice, o.status, o.createdAt,
-             o.shippingAddressLine1, o.shippingAddressLine2, o.shippingCity,
-             o.shippingState, o.shippingPostalCode, o.shippingCountry,
+             o.shippingAddressLine1, o.shippingAddressLine2, o.shippingPhone,
+             o.shippingCity, o.shippingState, o.shippingPostalCode, o.shippingCountry,
              p.method AS paymentMethod, p.status AS paymentStatus,
              p.details AS paymentDetails, p.razorpayPaymentId
       FROM orders o

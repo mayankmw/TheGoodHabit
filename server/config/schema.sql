@@ -61,6 +61,7 @@ CREATE TABLE addresses (
 
   addressLine1 VARCHAR(255) NOT NULL,
   addressLine2 VARCHAR(255),
+  phone VARCHAR(20),
 
   city VARCHAR(255) NOT NULL,
   state VARCHAR(255) NOT NULL,
@@ -216,6 +217,7 @@ CREATE TABLE orders (
   addressId INT UNSIGNED NULL,
   shippingAddressLine1 VARCHAR(255) NULL,
   shippingAddressLine2 VARCHAR(255) NULL,
+  shippingPhone VARCHAR(20) NULL,
   shippingCity VARCHAR(255) NULL,
   shippingState VARCHAR(255) NULL,
   shippingPostalCode VARCHAR(100) NULL,

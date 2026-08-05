@@ -1,10 +1,14 @@
 import { db } from "../config/db.js";
 
 const PINCODE_REGEX = /^\d{6}$/;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
 
 const normalizeAddressPayload = (payload = {}) => ({
   addressLine1: String(payload.addressLine1 || "").trim(),
   addressLine2: String(payload.addressLine2 || "").trim(),
+  phone: String(payload.phone || "")
+    .replace(/\D/g, "")
+    .slice(0, 10),
   city: String(payload.city || "").trim(),
   state: String(payload.state || "").trim(),
   postalCode: String(payload.postalCode || "")
@@ -15,13 +19,18 @@ const normalizeAddressPayload = (payload = {}) => ({
 
 const getAddressValidationError = ({
   addressLine1,
+  phone,
   city,
   state,
   postalCode,
   country,
 }) => {
-  if (!addressLine1 || !city || !state || !postalCode || !country) {
-    return "Address line 1, city, state, country, and pincode are required";
+  if (!addressLine1 || !phone || !city || !state || !postalCode || !country) {
+    return "Address line 1, mobile number, city, state, country, and pincode are required";
+  }
+
+  if (!PHONE_REGEX.test(phone)) {
+    return "Enter a valid 10-digit mobile number";
   }
 
   if (!PINCODE_REGEX.test(postalCode)) {
@@ -35,10 +44,11 @@ const getAddressesForUser = async (connectionOrDb, userId) => {
   await promoteFallbackPrimary(connectionOrDb, userId);
 
   const [addresses] = await connectionOrDb.query(
-    `SELECT 
+    `SELECT
        id,
        addressLine1,
        addressLine2,
+       phone,
        city,
        state,
        postalCode,
@@ -110,6 +120,7 @@ export const createAddress = async (req, res) => {
     const {
       addressLine1,
       addressLine2,
+      phone,
       city,
       state,
       postalCode,
@@ -118,6 +129,7 @@ export const createAddress = async (req, res) => {
 
     const validationError = getAddressValidationError({
       addressLine1,
+      phone,
       city,
       state,
       postalCode,
@@ -145,12 +157,13 @@ export const createAddress = async (req, res) => {
       Number(addressStats?.primaryCount || 0) === 0;
 
     const [result] = await db.query(
-      `INSERT INTO addresses 
-       (addressLine1, addressLine2, city, state, postalCode, country, isPrimary, userId) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO addresses
+       (addressLine1, addressLine2, phone, city, state, postalCode, country, isPrimary, userId)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         addressLine1,
         addressLine2 || null,
+        phone,
         city,
         state,
         postalCode,
@@ -178,6 +191,7 @@ export const updateAddress = async (req, res) => {
     const {
       addressLine1,
       addressLine2,
+      phone,
       city,
       state,
       postalCode,
@@ -193,6 +207,7 @@ export const updateAddress = async (req, res) => {
 
     const validationError = getAddressValidationError({
       addressLine1,
+      phone,
       city,
       state,
       postalCode,
@@ -219,12 +234,13 @@ export const updateAddress = async (req, res) => {
     }
 
     await db.query(
-      `UPDATE addresses 
-       SET addressLine1=?, addressLine2=?, city=?, state=?, postalCode=?, country=? 
+      `UPDATE addresses
+       SET addressLine1=?, addressLine2=?, phone=?, city=?, state=?, postalCode=?, country=?
        WHERE id = ?`,
       [
         addressLine1,
         addressLine2 || null,
+        phone,
         city,
         state,
         postalCode,

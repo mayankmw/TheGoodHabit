@@ -284,6 +284,9 @@ export default function AdminOrders() {
                   <p className="mt-1 text-gray-600">
                     {formatShippingAddress(selectedOrder)}
                   </p>
+                  {selectedOrder.shippingPhone && (
+                    <p className="mt-1 text-gray-600">📞 {selectedOrder.shippingPhone}</p>
+                  )}
                 </div>
               )}
 
@@ -376,6 +379,9 @@ export default function AdminOrders() {
                 <p className="mt-1 text-gray-600">
                   {formatShippingAddress(selectedOrder)}
                 </p>
+                {selectedOrder.shippingPhone && (
+                  <p className="mt-1 text-gray-600">📞 {selectedOrder.shippingPhone}</p>
+                )}
               </div>
             )}
 

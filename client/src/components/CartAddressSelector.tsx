@@ -111,6 +111,9 @@ export const CartAddressSelector = () => {
                 <span className="block text-muted-foreground">
                   {address.city}, {address.state} - {address.postalCode}, {address.country}
                 </span>
+                {address.phone && (
+                  <span className="block text-muted-foreground">📞 {address.phone}</span>
+                )}
               </span>
             </label>
           ))}

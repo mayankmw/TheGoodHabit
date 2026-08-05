@@ -24,6 +24,7 @@ export type AddressDraft = {
   id?: number;
   addressLine: string;
   addressLine2: string;
+  phone: string;
 
   country: string;
   countryId?: number;
@@ -44,6 +45,7 @@ export type AddressErrors = Partial<Record<Exclude<AddressField, "id" | "address
 export const emptyAddressDraft = (): AddressDraft => ({
   addressLine: "",
   addressLine2: "",
+  phone: "",
   city: "",
   state: "",
   pincode: "",
@@ -54,6 +56,7 @@ const addressToDraft = (address: Address): AddressDraft => ({
   id: address.id,
   addressLine: address.addressLine1,
   addressLine2: address.addressLine2 || "",
+  phone: address.phone || "",
   city: address.city,
   state: address.state,
   pincode: address.postalCode,
@@ -61,11 +64,13 @@ const addressToDraft = (address: Address): AddressDraft => ({
 });
 
 const PINCODE_REGEX = /^\d{6}$/;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
 
 export const sanitizeAddressDraft = (draft: AddressDraft): AddressDraft => ({
   ...draft,
   addressLine: draft.addressLine.trim(),
   addressLine2: draft.addressLine2.trim(),
+  phone: draft.phone.replace(/\D/g, "").slice(0, 10),
   city: draft.city.trim(),
   state: draft.state.trim(),
   pincode: draft.pincode.replace(/\D/g, "").slice(0, 6),
@@ -80,6 +85,12 @@ export const validateAddressDraft = (draft: AddressDraft | null): AddressErrors 
 
   if (!normalized.addressLine) {
     errors.addressLine = "Address line 1 is required";
+  }
+
+  if (!normalized.phone) {
+    errors.phone = "Mobile number is required";
+  } else if (!PHONE_REGEX.test(normalized.phone)) {
+    errors.phone = "Enter a valid 10-digit mobile number";
   }
 
   if (!normalized.city) {
@@ -102,6 +113,8 @@ export const validateAddressDraft = (draft: AddressDraft | null): AddressErrors 
 
   return errors;
 };
+
+const RequiredMark = () => <span className="text-destructive"> *</span>;
 
 export function AddressForm({
   draft,
@@ -127,7 +140,7 @@ export function AddressForm({
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="space-y-2 md:col-span-2">
-        <Label>Address Line 1</Label>
+        <Label>Address Line 1<RequiredMark /></Label>
         <Input
           value={draft.addressLine}
           onChange={(e) => onChange({ ...draft, addressLine: e.target.value })}
@@ -151,7 +164,28 @@ export function AddressForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Pincode</Label>
+        <Label>Mobile Number<RequiredMark /></Label>
+        <Input
+          value={draft.phone}
+          onChange={(e) =>
+            onChange({
+              ...draft,
+              phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+            })
+          }
+          onBlur={() => onFieldBlur("phone")}
+          placeholder="9876543210"
+          inputMode="numeric"
+          maxLength={10}
+          className={inputClassName("phone")}
+        />
+        {showFieldError("phone") ? (
+          <p className="text-sm text-destructive">{errors.phone}</p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Pincode<RequiredMark /></Label>
         <Input
           value={draft.pincode}
           onChange={(e) =>
@@ -172,7 +206,7 @@ export function AddressForm({
       </div>
 
       <div className="space-y-2">
-        <Label>Country</Label>
+        <Label>Country<RequiredMark /></Label>
 
         <CountrySelect
           placeHolder="Select Country"
@@ -201,7 +235,7 @@ export function AddressForm({
       </div>
 
       <div className="space-y-2">
-        <Label>State</Label>
+        <Label>State<RequiredMark /></Label>
 
         <StateSelect
           countryid={draft.countryId}
@@ -229,7 +263,7 @@ export function AddressForm({
       </div>
 
       <div className="space-y-2">
-        <Label>City</Label>
+        <Label>City<RequiredMark /></Label>
 
         <CitySelect
           countryid={draft.countryId}
@@ -260,6 +294,7 @@ export function AddressForm({
 const allFieldsTouched: Partial<Record<AddressField, boolean>> = {
   addressLine: true,
   addressLine2: true,
+  phone: true,
   city: true,
   state: true,
   pincode: true,
@@ -320,6 +355,7 @@ export function AddressDialog({
     const payload = {
       addressLine1: normalized.addressLine,
       addressLine2: normalized.addressLine2 || null,
+      phone: normalized.phone,
       city: normalized.city,
       state: normalized.state,
       postalCode: normalized.pincode,
@@ -348,6 +384,10 @@ export function AddressDialog({
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit Address" : "Add New Address"}</DialogTitle>
         </DialogHeader>
+
+        <p className="-mt-2 text-xs text-muted-foreground">
+          Fields marked with <span className="text-destructive">*</span> are required.
+        </p>
 
         <AddressForm
           draft={draft}
