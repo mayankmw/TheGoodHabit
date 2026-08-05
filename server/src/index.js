@@ -58,7 +58,6 @@ app.get("/", async (req, res) => {
 });
 
 
-
 // Routes
 app.use("/user", userRoutes);
 app.use("/products", productRoutes);

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Package } from "lucide-react";
+import { MapPin, Package } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -148,6 +148,27 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
               {order.status}
             </span>
           </div>
+
+          {order.shippingAddressLine1 && (
+            <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs">
+              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+              <div>
+                <p className="font-semibold uppercase tracking-wide text-muted-foreground">
+                  Delivered to
+                </p>
+                <p className="mt-0.5 text-foreground/85">
+                  {[
+                    order.shippingAddressLine1,
+                    order.shippingAddressLine2,
+                    `${order.shippingCity}, ${order.shippingState} - ${order.shippingPostalCode}`,
+                    order.shippingCountry,
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="mt-4 rounded-xl border bg-slate-50/60 p-3">
           {order.items?.map((i, idx) => (

@@ -18,6 +18,28 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { MapPin } from "lucide-react";
+
+type ShippingAddressLike = {
+  shippingAddressLine1?: string | null;
+  shippingAddressLine2?: string | null;
+  shippingCity?: string | null;
+  shippingState?: string | null;
+  shippingPostalCode?: string | null;
+  shippingCountry?: string | null;
+};
+
+const formatShippingAddress = (order: ShippingAddressLike | null | undefined) =>
+  [
+    order?.shippingAddressLine1,
+    order?.shippingAddressLine2,
+    order?.shippingCity && order?.shippingState
+      ? `${order.shippingCity}, ${order.shippingState} - ${order.shippingPostalCode || ""}`
+      : null,
+    order?.shippingCountry,
+  ]
+    .filter(Boolean)
+    .join(", ");
 
 const ORDER_STATUSES = [
   { label: "Pending", value: "pending" },
@@ -249,6 +271,17 @@ export default function AdminOrders() {
                 </span>
               </div>
 
+              {selectedOrder.shippingAddressLine1 && (
+                <div className="rounded-lg border bg-amber-50/60 p-3 text-sm">
+                  <p className="flex items-center gap-1.5 font-semibold text-gray-700">
+                    <MapPin className="h-4 w-4 text-primary" /> Delivery Address
+                  </p>
+                  <p className="mt-1 text-gray-600">
+                    {formatShippingAddress(selectedOrder)}
+                  </p>
+                </div>
+              )}
+
               <div className="border-t pt-3">
                 <Label>Items</Label>
                 <div className="space-y-2 mt-2">
@@ -289,6 +322,17 @@ export default function AdminOrders() {
           </DialogHeader>
 
           <div className="space-y-3">
+            {selectedOrder?.shippingAddressLine1 && (
+              <div className="rounded-lg border bg-amber-50/60 p-3 text-sm">
+                <p className="flex items-center gap-1.5 font-semibold text-gray-700">
+                  <MapPin className="h-4 w-4 text-primary" /> Ship To
+                </p>
+                <p className="mt-1 text-gray-600">
+                  {formatShippingAddress(selectedOrder)}
+                </p>
+              </div>
+            )}
+
             <Label>Status</Label>
             <Select
               value={form.status}

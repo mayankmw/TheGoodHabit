@@ -326,7 +326,9 @@ export const getOrders = async (req, res) => {
 
     // ---------- ORDERS QUERY ----------
     let ordersQuery = `
-      SELECT id, totalPrice, discountedPrice, status, createdAt
+      SELECT id, totalPrice, discountedPrice, status, createdAt,
+             shippingAddressLine1, shippingAddressLine2, shippingCity,
+             shippingState, shippingPostalCode, shippingCountry
       FROM orders
       WHERE userId = ?
     `;

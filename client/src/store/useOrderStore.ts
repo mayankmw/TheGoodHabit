@@ -12,9 +12,19 @@ interface OrderItem {
 interface Order {
   id: number;
   totalPrice: number;
+  discountedPrice: number;
   status: string;
   createdAt: string;
   items: OrderItem[];
+
+  // delivery address snapshot at order time — null on orders placed before
+  // address selection existed
+  shippingAddressLine1: string | null;
+  shippingAddressLine2: string | null;
+  shippingCity: string | null;
+  shippingState: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string | null;
 }
 
 interface OrderState {
