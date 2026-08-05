@@ -16,9 +16,24 @@ import {
   CountrySelect,
   StateSelect,
   CitySelect,
+  GetCountries,
+  GetState,
+  GetCity,
 } from "react-country-state-city";
 
 import { useAddressStore, type Address } from "@/store/useAddressStore";
+
+// react-country-state-city's components extend InputHTMLAttributes AND
+// redeclare `defaultValue` as a full Country/State/City object, so its
+// declared prop type is the near-unsatisfiable intersection
+// `(string | number | readonly string[]) & Country`. The actual bundled
+// implementation (node_modules/.../dist/esm/index.js) is looser than that —
+// it happily accepts a plain numeric id and looks the option up itself.
+// `castDropdownValue` routes around the bad typing via `never` (assignable
+// to anything). `value` is NOT a real prop on these components — it falls
+// through to the underlying <input> and is immediately overwritten by the
+// component's own computed value, so passing it is a silent no-op.
+const castDropdownValue = (id: number | undefined) => id as unknown as never;
 
 export type AddressDraft = {
   id?: number;
@@ -210,7 +225,7 @@ export function AddressForm({
 
         <CountrySelect
           placeHolder="Select Country"
-          value={draft.countryId}
+          defaultValue={castDropdownValue(draft.countryId)}
           onChange={(country) => {
             onChange({
               ...draft,
@@ -240,7 +255,7 @@ export function AddressForm({
         <StateSelect
           countryid={draft.countryId}
           placeHolder="Select State"
-          value={draft.stateId}
+          defaultValue={castDropdownValue(draft.stateId)}
           onChange={(state) => {
             onChange({
               ...draft,
@@ -269,7 +284,7 @@ export function AddressForm({
           countryid={draft.countryId}
           stateid={draft.stateId}
           placeHolder="Select City"
-          value={draft.cityId}
+          defaultValue={castDropdownValue(draft.cityId)}
           onChange={(city) => {
             onChange({
               ...draft,
@@ -333,6 +348,46 @@ export function AddressDialog({
     setDraft(mode === "edit" && initialAddress ? addressToDraft(initialAddress) : emptyAddressDraft());
     setTouchedFields({});
     setSubmitAttempted(false);
+  }, [open, mode, initialAddress]);
+
+  // The address book only stores country/state/city as plain names (the
+  // `addresses` table has no id columns), but CountrySelect/StateSelect/
+  // CitySelect are id-driven — without resolving ids here, editing an
+  // address opens with all three selects empty and State/City can't even
+  // populate their options since they need the country/state id to look up.
+  useEffect(() => {
+    if (!open || mode !== "edit" || !initialAddress) return;
+    let cancelled = false;
+
+    const resolveIds = async () => {
+      const savedCountry = (initialAddress.country || "").trim().toLowerCase();
+      const savedState = (initialAddress.state || "").trim().toLowerCase();
+      const savedCity = (initialAddress.city || "").trim().toLowerCase();
+
+      const countries = await GetCountries();
+      if (cancelled) return;
+      const country = countries.find((c) => c.name.trim().toLowerCase() === savedCountry);
+      if (!country) return;
+      setDraft((prev) => (prev ? { ...prev, countryId: country.id } : prev));
+
+      const states = await GetState(country.id);
+      if (cancelled) return;
+      const state = states.find((s) => s.name.trim().toLowerCase() === savedState);
+      if (!state) return;
+      setDraft((prev) => (prev ? { ...prev, stateId: state.id } : prev));
+
+      const cities = await GetCity(country.id, state.id);
+      if (cancelled) return;
+      const city = cities.find((c) => c.name.trim().toLowerCase() === savedCity);
+      if (!city) return;
+      setDraft((prev) => (prev ? { ...prev, cityId: city.id } : prev));
+    };
+
+    resolveIds();
+
+    return () => {
+      cancelled = true;
+    };
   }, [open, mode, initialAddress]);
 
   const errors = validateAddressDraft(draft);
