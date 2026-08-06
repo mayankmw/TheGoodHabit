@@ -17,6 +17,9 @@ import {
   HeartHandshake,
   PackageSearch,
   Boxes,
+  Minus,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -596,7 +599,7 @@ export const Navbar = () => {
                   </Button>
                 </SheetTrigger>
 
-                <SheetContent side="right" className="w-96 bg-background text-foreground flex flex-col h-full shadow-2xl !p-0 [&>button.absolute]:hidden">
+                <SheetContent side="right" className="w-full max-w-[28rem] sm:max-w-[28rem] bg-background text-foreground flex flex-col h-full shadow-2xl !p-0 [&>button.absolute]:hidden">
                   {cartCount === 0 ? (
                     // ---------- EMPTY CART VIEW ----------
                     <div className="flex flex-col items-center justify-center flex-1 px-6 text-center">
@@ -626,8 +629,8 @@ export const Navbar = () => {
                       />
 
                       {/* header */}
-                      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-4 flex justify-between items-center">
-                        <h2 className="text-xl font-bold flex items-center gap-2">
+                      <div className="sticky top-0 z-30 bg-background border-b border-border px-4 py-3 flex justify-between items-center">
+                        <h2 className="text-lg font-bold flex items-center gap-2">
                           <ShoppingCart className="h-5 w-5" /> Your Cart
                         </h2>
                         <button onClick={() => setOpenCart(false)} className="text-muted-foreground hover:text-foreground transition">
@@ -636,26 +639,26 @@ export const Navbar = () => {
                       </div>
 
                       {/* content */}
-                      <div className="relative z-10 flex-1 overflow-y-auto px-4">
+                      <div className="relative z-10 flex-1 overflow-y-auto px-4 py-3">
                         {/* 📍 Delivery address */}
                         <CartAddressSelector />
 
                         {/* 🎁 Free Gift / progress + poppers */}
-                        <div className="bg-secondary/10 rounded-xl p-4 mb-6 relative overflow-hidden">
-                          <p className="text-center text-sm font-semibold text-green-700">
+                        <div className="bg-secondary/10 rounded-xl p-3 mb-4 relative overflow-hidden">
+                          <p className="text-center text-xs font-semibold text-green-700">
                             {hasReachedGiftMilestone ? <span>You have reached a offer milestone 🎉</span> : <span>Get a free gift by adding items worth ₹{FREE_GIFT_THRESHOLD}</span>}
                           </p>
 
-                          <div className="relative mt-3">
-                            <div className="w-full bg-secondary/20 h-2 rounded-full overflow-hidden">
+                          <div className="relative mt-2">
+                            <div className="w-full bg-secondary/20 h-1.5 rounded-full overflow-hidden">
                               <div
-                                className="bg-secondary h-2 rounded-full transition-all duration-500"
+                                className="bg-secondary h-1.5 rounded-full transition-all duration-500"
                                 style={{ width: `${Math.min(100, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100))}%` }}
                               />
                             </div>
 
                             <div
-                              className="absolute top-[-10px] bg-white border border-secondary rounded-full w-8 h-8 flex items-center justify-center text-secondary text-xs font-bold shadow transition-transform"
+                              className="absolute top-[-9px] bg-white border border-secondary rounded-full w-7 h-7 flex items-center justify-center text-secondary text-xs font-bold shadow transition-transform"
                               style={{
                                 right: `${Math.max(0, 100 - Math.min(100, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100)))}%`,
                                 transform: `translateX(${Math.min(0, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100) - 100)}%)`,
@@ -665,34 +668,48 @@ export const Navbar = () => {
                               🎁
                             </div>
 
-                            <p className="text-xs text-right mt-2 text-green-700 font-medium">₹{FREE_GIFT_THRESHOLD} Free Gift</p>
+                            <p className="text-xs text-right mt-1.5 text-green-700 font-medium">₹{FREE_GIFT_THRESHOLD} Free Gift</p>
                           </div>
                         </div>
 
                         {/* cart items */}
-                        <div className="space-y-4">
+                        <div className="space-y-2.5">
                           {cart.map((item) => (
-                            <div className="flex gap-3 border rounded-xl p-3" key={item.cartItemId}>
-                              <img src={item.image} className="w-20 h-20 rounded-lg" alt={item.name} />
-                              <div className="flex-1">
-                                <div>
-                                  <h3 className="text-sm font-semibold">{item.name}</h3>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <p className="text-muted-foreground line-through text-xs">₹{item.originalPrice}</p>
-                                    <p className="text-sm font-bold">₹{item.discountedPrice}</p>
-                                  </div>
+                            <div className="flex gap-2.5 border rounded-lg p-2.5" key={item.cartItemId}>
+                              <img src={item.image} className="w-14 h-14 shrink-0 rounded-md object-cover" alt={item.name} />
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-sm font-semibold line-clamp-1">{item.name}</h3>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className="text-muted-foreground line-through text-xs">₹{item.originalPrice}</p>
+                                  <p className="text-sm font-bold">₹{item.discountedPrice}</p>
                                 </div>
 
-                                <div className="flex justify-between items-center mt-2">
-                                  <div className="flex items-center gap-2 border rounded-md px-2">
-                                    <button onClick={() => handleUpdateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}>–</button>
-                                    <span>{item.quantity}</span>
-                                    <button onClick={() => handleUpdateQuantity(item.cartItemId, item.quantity + 1)}>+</button>
+                                <div className="flex justify-between items-center mt-1.5">
+                                  <div className="flex items-center gap-2 border rounded-full px-1.5 py-0.5">
+                                    <button
+                                      onClick={() => handleUpdateQuantity(item.cartItemId, Math.max(1, item.quantity - 1))}
+                                      className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted"
+                                      aria-label="Decrease quantity"
+                                    >
+                                      <Minus className="h-3 w-3" />
+                                    </button>
+                                    <span className="w-4 text-center text-xs font-medium">{item.quantity}</span>
+                                    <button
+                                      onClick={() => handleUpdateQuantity(item.cartItemId, item.quantity + 1)}
+                                      className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted"
+                                      aria-label="Increase quantity"
+                                    >
+                                      <Plus className="h-3 w-3" />
+                                    </button>
                                   </div>
 
-                                  <Button variant="ghost" className="text-xs text-destructive" onClick={() => handleRemoveFromCart(item.cartItemId)}>
-                                    Remove
-                                  </Button>
+                                  <button
+                                    onClick={() => handleRemoveFromCart(item.cartItemId)}
+                                    className="p-1 text-muted-foreground hover:text-destructive"
+                                    aria-label="Remove item"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
                                 </div>
                               </div>
                             </div>
@@ -700,8 +717,8 @@ export const Navbar = () => {
                         </div>
 
                         {/* coupons panel */}
-                        <div className="mt-6 border border-border/40 rounded-xl p-4">
-                          <div className="flex items-center justify-between mb-3">
+                        <div className="mt-4 border border-border/40 rounded-xl p-3">
+                          <div className="flex items-center justify-between mb-2">
                             <h4 className="font-semibold text-sm">Coupons</h4>
                             {!showCoupons ? (
                               <div className="flex items-center gap-3">
@@ -861,8 +878,8 @@ export const Navbar = () => {
                         </div>
 
                         {/* special offers */}
-                        <div className="mt-6 mb-4">
-                          <h4 className="font-semibold text-sm mb-3">Special Offers For You</h4>
+                        <div className="mt-4 mb-3">
+                          <h4 className="font-semibold text-sm mb-2">YOU MAY ALSO LIKE</h4>
                           <div className="flex gap-3 overflow-x-auto pb-2">
                             {recommended.map((item, index) => (
                               <div key={index} className="min-w-[120px] border border-border/50 rounded-lg p-2 relative">
@@ -877,10 +894,10 @@ export const Navbar = () => {
                       </div>
 
                       {/* checkout footer */}
-                      <div className="sticky bottom-0 border-t border-border bg-background px-4 py-5 rounded-t-xl shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
+                      <div className="sticky bottom-0 border-t border-border bg-background px-4 py-3 rounded-t-xl shadow-[0_-4px_12px_rgba(0,0,0,0.06)]">
 
                         {/* SUMMARY */}
-                        <div className="space-y-2 text-sm">
+                        <div className="space-y-1.5 text-sm">
 
                           {/* Subtotal */}
                           <div className="flex justify-between text-muted-foreground">
@@ -905,14 +922,14 @@ export const Navbar = () => {
 
                         {/* CHECKOUT BUTTON */}
                         <Button
-                          className="mt-4 w-full bg-primary text-white hover:bg-primary/90 rounded-full font-bold py-3"
+                          className="mt-3 w-full bg-primary text-white hover:bg-primary/90 rounded-full font-bold py-3"
                           onClick={handleCheckout}
                         >
                           Checkout
                         </Button>
 
                         {/* Razorpay footer */}
-                        <p className="text-[10px] text-center text-muted-foreground mt-3 flex items-center justify-center gap-1">
+                        <p className="text-[10px] text-center text-muted-foreground mt-2 flex items-center justify-center gap-1">
                           🔒 Secured by
                           <img
                             src="/images/logo/razorpay-icon.svg"
