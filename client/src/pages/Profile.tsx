@@ -11,7 +11,7 @@ import {
   Truck,
   UserRound,
 } from "lucide-react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +23,6 @@ import { useAddressStore, type Address } from "@/store/useAddressStore";
 
 export const Profile = () => {
   const user = useAuthStore((s) => s.user);
-  const token = useAuthStore((s) => s.token);
   const fetchMe = useAuthStore((s) => s.fetchMe);
   const updateProfile = useAuthStore((s) => s.updateProfile);
   const authLoading = useAuthStore((s) => s.loading);
@@ -68,13 +67,6 @@ export const Profile = () => {
         : "Add your name and at least one delivery address so your account is ready for smooth checkout and order tracking.";
 
   useEffect(() => {
-    if (!token) {
-      // no point calling auth-protected endpoints when we're about to
-      // redirect to /signin anyway
-      setPageLoading(false);
-      return;
-    }
-
     const load = async () => {
       try {
         await fetchMe();
@@ -85,7 +77,7 @@ export const Profile = () => {
     };
 
     load();
-  }, [fetchAddresses, fetchMe, token]);
+  }, [fetchAddresses, fetchMe]);
 
   useEffect(() => {
     if (!isEditingName) {
@@ -142,12 +134,6 @@ export const Profile = () => {
     setEditingAddress(address);
     setOpenEdit(true);
   };
-
-  if (!token) {
-    // logged out (or never logged in) — don't render any profile content,
-    // just hand off to sign in
-    return <Navigate to="/signin" replace />;
-  }
 
   if (pageLoading) {
     return (

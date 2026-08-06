@@ -5,11 +5,17 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, Film, Users } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export const AdminNavbar = () => {
   const [open, setOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   const navigate = useNavigate();
+  const logout = useAuthStore((s) => s.logout);
+
+  const handleLogout = () => {
+    logout(() => navigate("/signin"));
+  };
 
   const { assets, fetchAssets, loadingAssets } = useCommonStore();
   const logoImage = assets?.logo?.[0]?.image || "/images/logo/logo.png";
@@ -151,7 +157,10 @@ export const AdminNavbar = () => {
 
                 <button
                   className="flex items-center gap-3 text-lg py-2 text-red-400 hover:text-red-500"
-                  onClick={() => navigate("/")}
+                  onClick={() => {
+                    setOpen(false);
+                    handleLogout();
+                  }}
                 >
                   <LogOut size={18} />
                   Exit Admin
@@ -175,7 +184,7 @@ export const AdminNavbar = () => {
           {/* RIGHT EMPTY (to balance layout visually) */}
           <div className="w-8" />
           <div className="flex items-center gap-0.2 sm:gap-2">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/")} className="text-primary-foreground hover:bg-primary/80">
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-primary-foreground hover:bg-primary/80">
               <LogOut className="h-6 w-6 cursor-pointer" />
             </Button>
 

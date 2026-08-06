@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import { useAuthStore } from "@/store/useAuthStore";
+import { RequireAuth } from "@/components/RequireAuth";
+import { RequireAdmin } from "@/components/RequireAdmin";
 import { Layout } from "@/components/Layout";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -35,12 +37,6 @@ import AdminReels from "./pages/AdminReels";
 
 const queryClient = new QueryClient();
 
-// A plain `localStorage.getItem("token") ? ... : ...` baked directly into a
-// route's `element` only gets evaluated once, when App first renders — App
-// never re-renders on its own, so that ternary would stay frozen forever
-// after (e.g. still redirecting away from /signin post-logout, since App
-// mounted with a token present). Reading it via the store hook here instead
-// makes this re-evaluate whenever the token actually changes.
 const SignInRoute = () => {
   const token = useAuthStore((s) => s.token);
   return token ? <Navigate to="/profile" replace /> : <SignIn />;
@@ -53,40 +49,41 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          {/* Layout routes (have navbar, top offers, footer, etc.) */}
           <Route element={<Layout />}>
             <Route path="/" element={<Index />} />
             <Route path="/our-story" element={<OurStory />} />
             <Route path="/products/:id" element={<Product />} />
-            <Route path="/track-order" element={<TrackOrder />} />
             <Route path="/blogs" element={<Blogs />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/bulk-order" element={<BulkOrder />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/orders" element={<Orders />} />
             <Route path="/terms-and-conditions" element={<Terms />} />
             <Route path="/privacy-policy" element={<Privacy />} />
             <Route path="/signin" element={<SignInRoute />} />
+
+            <Route element={<RequireAuth />}>
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/orders" element={<Orders />} />
+              <Route path="/track-order" element={<TrackOrder />} />
+            </Route>
           </Route>
 
           <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminDashboard />} />
-            <Route path="products" element={<AdminProducts />} />
-            <Route path="orders" element={<AdminOrders />} />
-            <Route path="assets" element={<AdminAssets />} />
-            <Route path="coupons" element={<AdminCoupons />} />
-            <Route path="sliders" element={<AdminSliders />} />
-            <Route path="story" element={<AdminStory />} />
-            <Route path="socials" element={<AdminSocials />} />
-            <Route path="contacts" element={<AdminContacts />} />
-            <Route path="newsletters" element={<AdminNewsletter />} />
-            <Route path="newsletters/subscribers" element={<AdminNewsletterSubscribers />} />
-            <Route path="reels" element={<AdminReels />} />
+            <Route element={<RequireAdmin />}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="products" element={<AdminProducts />} />
+              <Route path="orders" element={<AdminOrders />} />
+              <Route path="assets" element={<AdminAssets />} />
+              <Route path="coupons" element={<AdminCoupons />} />
+              <Route path="sliders" element={<AdminSliders />} />
+              <Route path="story" element={<AdminStory />} />
+              <Route path="socials" element={<AdminSocials />} />
+              <Route path="contacts" element={<AdminContacts />} />
+              <Route path="newsletters" element={<AdminNewsletter />} />
+              <Route path="newsletters/subscribers" element={<AdminNewsletterSubscribers />} />
+              <Route path="reels" element={<AdminReels />} />
+            </Route>
           </Route>
 
-          {/* Standalone routes (no layout) */}
-
-          {/* Catch-all */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
