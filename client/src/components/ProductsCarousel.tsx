@@ -45,10 +45,6 @@ export const ProductsCarousel = () => {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: 1,
-    breakpoints: {
-      "(min-width: 768px)": { slidesToScroll: 2 },
-      "(min-width: 1024px)": { slidesToScroll: 4 },
-    },
   });
 
   const [canScrollPrev, setCanScrollPrev] = useState(false);
@@ -89,21 +85,21 @@ export const ProductsCarousel = () => {
 
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={scrollPrev}
               disabled={!canScrollPrev}
-              className="rounded-full border-2 disabled:opacity-30"
+              className="rounded-full bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary disabled:opacity-30"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
 
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={scrollNext}
               disabled={!canScrollNext}
-              className="rounded-full border-2 disabled:opacity-30"
+              className="rounded-full bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary disabled:opacity-30"
             >
               <ChevronRight className="h-5 w-5" />
             </Button>
