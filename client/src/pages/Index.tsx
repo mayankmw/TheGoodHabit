@@ -1,6 +1,7 @@
 import { BannerSlider } from "@/components/BannerSlider";
 import { ProductsCarousel } from "@/components/ProductsCarousel";
 import { FaqSection } from "@/components/FaqSection";
+import { PhotoSlider } from "@/components/PhotoSlider";
 import { ReelsCarousel } from "@/components/ReelsCarousel";
 import HeroImage from "@/components/HeroImage";
 import { useCommonStore } from "@/store/useCommonStore";
@@ -25,6 +26,8 @@ const Index = () => {
       )}
 
       <FaqSection />
+
+      <PhotoSlider />
 
       <ReelsCarousel />
 
