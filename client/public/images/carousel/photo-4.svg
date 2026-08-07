@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000">
+  <rect width="800" height="1000" fill="#fef3c7"/>
+  <g fill="none" stroke="#b45309" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.5">
+    <rect x="260" y="420" width="280" height="200" rx="20"/>
+    <circle cx="400" cy="520" r="55"/>
+    <rect x="330" y="380" width="60" height="40" rx="8"/>
+  </g>
+  <text x="400" y="700" text-anchor="middle" font-family="Poppins, sans-serif" font-size="34" font-weight="700" fill="#78350f">Add photo 4</text>
+</svg>

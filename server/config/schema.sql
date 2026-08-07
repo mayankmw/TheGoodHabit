@@ -361,7 +361,7 @@ CREATE TABLE assets (
 
   id INT AUTO_INCREMENT PRIMARY KEY,
 
-  type ENUM('logo','banner','hero'),
+  type ENUM('logo','banner','hero','imagesCarousel'),
 
   image VARCHAR(255),
 

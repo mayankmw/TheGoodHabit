@@ -69,6 +69,7 @@ export default function AdminAssets() {
   const logo = assets.find(a => a.type === "logo");
   const banners = assets.filter(a => a.type === "banner");
   const heroes = assets.filter(a => a.type === "hero");
+  const carouselImages = assets.filter(a => a.type === "imagesCarousel");
 
   if (loadingAssets) {
     return (
@@ -81,10 +82,11 @@ export default function AdminAssets() {
       <h1 className="text-3xl font-bold">Assets</h1>
 
       <Tabs defaultValue="logo">
-        <TabsList className="grid grid-cols-3 w-full">
+        <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="logo">Logo</TabsTrigger>
           <TabsTrigger value="banner">Banners</TabsTrigger>
           <TabsTrigger value="hero">Hero Images</TabsTrigger>
+          <TabsTrigger value="imagesCarousel">Images Carousel</TabsTrigger>
         </TabsList>
 
         {/* ================= LOGO ================= */}
@@ -132,6 +134,38 @@ export default function AdminAssets() {
 
                   {/* Always-visible edit */}
                   <EditButton onClick={() => openEdit(hero)} />
+                </div>
+              ))}
+          </div>
+        </TabsContent>
+
+        {/* ================= IMAGES CAROUSEL ================= */}
+        <TabsContent value="imagesCarousel">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-8">
+            {carouselImages
+              .slice()
+              .sort((a, b) => a.position - b.position)
+              .map(item => (
+                <div key={item.id} className="relative w-full max-w-[220px]">
+                  <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border bg-muted">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={`Images carousel photo ${item.position}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+                        No image uploaded
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="absolute top-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    Position {item.position}
+                  </span>
+
+                  <EditButton onClick={() => openEdit(item)} />
                 </div>
               ))}
           </div>

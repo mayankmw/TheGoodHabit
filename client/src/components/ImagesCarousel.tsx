@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useCommonStore } from "@/store/useCommonStore";
 
-const PHOTOS = [
-  "/images/gallery/image-1.webp",
-  "/images/gallery/image-2.webp",
-  "/images/gallery/image-3.webp",
-  "/images/gallery/image-4.webp",
-  "/images/gallery/image-5.webp",
-];
+export const ImagesCarousel = () => {
+  const { assets } = useCommonStore();
 
-export const PhotoSlider = () => {
+  const images = (assets?.imagesCarousel || [])
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((a) => a.image)
+    .filter((image): image is string => Boolean(image));
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     slidesToScroll: 1,
@@ -48,6 +49,8 @@ export const PhotoSlider = () => {
     };
   }, [emblaApi, onSelect]);
 
+  if (!images.length) return null;
+
   return (
     <section className="bg-background py-12">
       <div className="container mx-auto px-4">
@@ -57,7 +60,7 @@ export const PhotoSlider = () => {
 
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex gap-5">
-            {PHOTOS.map((src, i) => (
+            {images.map((src, i) => (
               <div
                 key={src}
                 className="flex-[0_0_75%] sm:flex-[0_0_45%] lg:flex-[0_0_23%]"
@@ -116,4 +119,4 @@ export const PhotoSlider = () => {
   );
 };
 
-export default PhotoSlider;
+export default ImagesCarousel;

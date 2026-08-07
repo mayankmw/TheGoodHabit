@@ -27,7 +27,7 @@ export const getAssets = async (req, res) => {
         });
         return acc;
       },
-      { logo: [], banner: [], hero: [] }
+      { logo: [], banner: [], hero: [], imagesCarousel: [] }
     );
 
     res.json({

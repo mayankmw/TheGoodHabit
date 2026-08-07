@@ -34,6 +34,31 @@ export const seedDefaultAssets = async () => {
         position: 3,
         image: "default-hero-3.png",
       },
+      {
+        type: "imagesCarousel",
+        position: 1,
+        image: "default-images-carousel-1.webp",
+      },
+      {
+        type: "imagesCarousel",
+        position: 2,
+        image: "default-images-carousel-2.webp",
+      },
+      {
+        type: "imagesCarousel",
+        position: 3,
+        image: "default-images-carousel-3.webp",
+      },
+      {
+        type: "imagesCarousel",
+        position: 4,
+        image: "default-images-carousel-4.webp",
+      },
+      {
+        type: "imagesCarousel",
+        position: 5,
+        image: "default-images-carousel-5.webp",
+      },
     ];
 
     for (const asset of defaults) {

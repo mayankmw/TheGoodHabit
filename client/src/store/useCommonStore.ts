@@ -12,6 +12,7 @@ interface AssetsState {
   logo: AssetItem[];
   banner: AssetItem[];
   hero: AssetItem[];
+  imagesCarousel: AssetItem[];
 }
 
 interface SliderState {
