@@ -28,6 +28,26 @@ import {
   IMAGES_CAROUSEL_FALLBACKS,
 } from "@/lib/assetFallbacks";
 
+/* ================= SUGGESTED SIZES ================= */
+// Based on the dimensions of the images this app ships/renders with today —
+// logo.png (457×116), the default banners (16:9), hero-1 (1600×500),
+// hero-2/3 (1920×1200), and the images-carousel slides (rendered at 4:5).
+const SUGGESTED_SIZES: Record<string, string | ((position: number) => string)> = {
+  logo: "460 × 120px, transparent PNG (~4:1)",
+  banner: "1920 × 1080px (16:9)",
+  hero: (position) =>
+    position === 1
+      ? "1600 × 500px, wide strip (~3.2:1)"
+      : "1920 × 1200px (8:5)" + (position === 3 ? " — shown on the product page" : ""),
+  imagesCarousel: "800 × 1000px, portrait (4:5)",
+};
+
+function getSuggestedSize(type?: string, position?: number) {
+  const entry = type ? SUGGESTED_SIZES[type] : undefined;
+  if (!entry) return null;
+  return typeof entry === "function" ? entry(position ?? 0) : entry;
+}
+
 /* ================= PAGE ================= */
 export default function AdminAssets() {
   const [preview, setPreview] = useState<string | null>(null);
@@ -235,6 +255,11 @@ export default function AdminAssets() {
                   />
                 </div>
 
+                {getSuggestedSize(selected.type, selected.position) && (
+                  <p className="text-xs text-muted-foreground">
+                    Suggested size: {getSuggestedSize(selected.type, selected.position)}
+                  </p>
+                )}
 
                 {preview && (
                   <p className="text-xs text-muted-foreground">
