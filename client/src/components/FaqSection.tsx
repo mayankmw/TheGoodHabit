@@ -114,7 +114,7 @@ export const FaqSection = () => {
             </h2>
 
             <motion.img
-              src="/images/elements/dates.png"
+              src="/images/faq/faq.jpeg"
               alt="Dates"
               className="mt-6 h-48 w-48 md:h-64 md:w-64 lg:h-80 lg:w-80"
               animate={{ y: [0, -8, 0], rotate: [0, 4, 0, -4, 0] }}
