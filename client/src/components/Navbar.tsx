@@ -47,6 +47,11 @@ export const Navbar = () => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [searchPage, setSearchPage] = useState(1);
+  const [hasMoreResults, setHasMoreResults] = useState(false);
+  const [loadingMoreResults, setLoadingMoreResults] = useState(false);
+  const searchSentinelRef = useRef<HTMLDivElement | null>(null);
+  const searchResultsContainerRef = useRef<HTMLDivElement | null>(null);
 
   const { assets, fetchAssets, loadingAssets } = useCommonStore();
   const logoImage =
@@ -326,13 +331,17 @@ export const Navbar = () => {
       if (query.trim().length === 0) {
         setResults([]);
         setSearching(false);
+        setHasMoreResults(false);
+        setSearchPage(1);
         return;
       }
       setSearching(true);
       try {
-        const res = await searchProducts(query);
+        const res = await searchProducts(query, 1);
         if (res && res.success && res.products) {
           setResults(res.products);
+          setSearchPage(1);
+          setHasMoreResults(Boolean(res.hasMore));
         }
       } catch (e) {
         console.warn("search error", e);
@@ -343,6 +352,44 @@ export const Navbar = () => {
 
     return () => clearTimeout(delay);
   }, [query, searchProducts]);
+
+  // ---------- load next page of search results ----------
+  const loadMoreResults = async () => {
+    if (loadingMoreResults || !hasMoreResults || query.trim().length === 0) return;
+
+    setLoadingMoreResults(true);
+    try {
+      const nextPage = searchPage + 1;
+      const res = await searchProducts(query, nextPage);
+      if (res && res.success && res.products) {
+        setResults((prev) => [...prev, ...res.products]);
+        setSearchPage(nextPage);
+        setHasMoreResults(Boolean(res.hasMore));
+      }
+    } catch (e) {
+      console.warn("load more search results error", e);
+    } finally {
+      setLoadingMoreResults(false);
+    }
+  };
+
+  // ---------- infinite scroll: fetch next page when the sentinel enters view ----------
+  useEffect(() => {
+    if (!openSearch || query.trim().length === 0) return;
+    const sentinel = searchSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMoreResults();
+      },
+      { root: searchResultsContainerRef.current, rootMargin: "100px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openSearch, query, results, hasMoreResults]);
 
   // ---------- detect newly awarded coupons and animate once per coupon code ----------
   useEffect(() => {
@@ -960,19 +1007,27 @@ export const Navbar = () => {
               <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Type to search products..." className="w-[90%] md:w-[60%] border border-border rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
 
-            <div className="mt-8 pb-6 text-center">
-              <h3 className="font-semibold mb-6 text-base md:text-md text-muted-foreground uppercase tracking-wide">
-                {query.length > 0 ? "Search Results" : "Or Select From Our Recommended Products"}
-              </h3>
+            <h3 className="mt-8 mb-6 text-center font-semibold text-base md:text-md text-muted-foreground uppercase tracking-wide">
+              {query.length > 0 ? "Search Results" : "Or Select From Our Recommended Products"}
+            </h3>
 
+            <div ref={searchResultsContainerRef} className="max-h-[50vh] overflow-y-auto pb-6 text-center">
               {searching && <p className="text-sm text-muted-foreground">Searching...</p>}
 
               {query.length > 0 && !searching && results.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
-                  {results.map((product) => (
-                    <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
-                  ))}
-                </div>
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
+                    {results.map((product) => (
+                      <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                    ))}
+                  </div>
+
+                  {/* infinite-scroll trigger + loading state */}
+                  <div ref={searchSentinelRef} className="h-1" />
+                  {loadingMoreResults && (
+                    <p className="mt-6 text-sm text-muted-foreground">Loading more...</p>
+                  )}
+                </>
               )}
 
               {query.length > 0 && !searching && results.length === 0 && <p className="text-sm text-muted-foreground">No products found.</p>}

@@ -15,6 +15,15 @@ interface Product {
   ingredients: string[];
 }
 
+interface SearchProductsResult {
+  success: boolean;
+  products: Product[];
+  hasMore?: boolean;
+  total?: number;
+  page?: number;
+  message?: string;
+}
+
 interface ProductState {
   products: Product[];
   recommended: Product[];
@@ -27,7 +36,7 @@ interface ProductState {
   fetchSingleProduct: (id: string) => Promise<unknown>;
   fetchRecommended: () => Promise<unknown>;
   fetchFrequentlyBought: (id: string) => Promise<unknown>;
-  searchProducts: (query: string) => Promise<unknown>;
+  searchProducts: (query: string, page?: number) => Promise<SearchProductsResult>;
 }
 
 const parseStringArray = (value: unknown): string[] => {
@@ -132,12 +141,12 @@ export const useProductStore = create<ProductState>((set) => ({
     }
   },
 
-  searchProducts: async (query: string) => {
-    const { data } = await api.post("/products", { search: query });
-    if (data.success) {
-      set({ products: (data.products || []).map((p: unknown) => normalizeProduct(p)) });
-    }
-    return data;
+  searchProducts: async (query: string, page = 1) => {
+    const { data } = await api.post("/products", { search: query, page, limit: 4 });
+    return {
+      ...data,
+      products: (data.products || []).map((p: unknown) => normalizeProduct(p)),
+    };
   },
 
   fetchSingleProduct: async (id: string) => {

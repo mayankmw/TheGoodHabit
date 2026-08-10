@@ -43,7 +43,7 @@ const formatProductRecord = (product) => {
 
 export const fetchProducts = async (req, res) => {
   try {
-    const { search, recommended } = req.body;
+    const { search, recommended, page, limit } = req.body;
 
     // ⭐ RECOMMENDED (TOP 4 RATED)
     if (recommended) {
@@ -59,16 +59,43 @@ export const fetchProducts = async (req, res) => {
       });
     }
 
+    const isSearch = Boolean(search && search.trim().length > 0);
+
     let sql = "SELECT * FROM products";
-    let params = [];
+    let countSql = "SELECT COUNT(*) AS total FROM products";
+    const params = [];
 
     // 🔍 SEARCH
-    if (search && search.trim().length > 0) {
+    if (isSearch) {
       sql += " WHERE name LIKE ?";
+      countSql += " WHERE name LIKE ?";
       params.push(`%${search}%`);
     }
 
     sql += " ORDER BY createdAt DESC";
+
+    // Only paginate the search flow (navbar search) — every other caller
+    // (product carousels, bulk order, admin lists) expects the full list.
+    if (isSearch) {
+      const pageSize = Math.min(Math.max(Number(limit) || 12, 1), 60);
+      const pageNum = Math.max(Number(page) || 1, 1);
+      const offset = (pageNum - 1) * pageSize;
+
+      sql += " LIMIT ? OFFSET ?";
+
+      const [products] = await db.query(sql, [...params, pageSize, offset]);
+      const [[{ total }]] = await db.query(countSql, params);
+      const formatted = products.map((p) => formatProductRecord(p));
+
+      return res.json({
+        success: true,
+        count: formatted.length,
+        total,
+        page: pageNum,
+        hasMore: offset + formatted.length < total,
+        products: formatted,
+      });
+    }
 
     const [products] = await db.query(sql, params);
 
