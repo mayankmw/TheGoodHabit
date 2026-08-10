@@ -9,6 +9,7 @@ import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
 import { useCommonStore } from "@/store/useCommonStore";
 import HeroImage from "@/components/HeroImage";
+import { HERO_FALLBACKS } from "@/lib/assetFallbacks";
 
 export const Product = () => {
   const { id } = useParams();
@@ -28,7 +29,7 @@ export const Product = () => {
 
   const { assets } = useCommonStore();
 
-  const hero3 = assets?.hero?.find(h => h.position === 3);
+  const hero3Image = assets?.hero?.find(h => h.position === 3)?.image || HERO_FALLBACKS[2];
 
   useEffect(() => {
     if (!id) return;
@@ -315,14 +316,12 @@ export const Product = () => {
       />
 
       {/* ✅ Hero 3 (Product Page Banner) */}
-      {hero3?.image && (
-        <div >
-          <HeroImage
-            src={hero3.image}
-            alt="Product Page Hero Image"
-          />
-        </div>
-      )}
+      <div>
+        <HeroImage
+          src={hero3Image}
+          alt="Product Page Hero Image"
+        />
+      </div>
     </section>
   );
 };

@@ -4,8 +4,8 @@ import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface BannerItem {
-  id: number;
+export interface BannerItem {
+  id?: number;
   image: string | null;
   position: number;
 }

@@ -1,6 +1,6 @@
 // components/AdminBannerSlider.tsx
 import { Pencil } from "lucide-react";
-import { BannerSlider } from "./BannerSlider";
+import { BannerSlider, type BannerItem } from "./BannerSlider";
 import { useState } from "react";
 
 export const AdminBannerSlider = ({

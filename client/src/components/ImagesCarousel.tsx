@@ -2,15 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
+import { IMAGES_CAROUSEL_FALLBACKS } from "@/lib/assetFallbacks";
 
 export const ImagesCarousel = () => {
   const { assets } = useCommonStore();
 
-  const images = (assets?.imagesCarousel || [])
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .map((a) => a.image)
-    .filter((image): image is string => Boolean(image));
+  const imageByPosition = new Map(
+    (assets?.imagesCarousel || []).map((a) => [a.position, a.image])
+  );
+
+  const images = IMAGES_CAROUSEL_FALLBACKS.map(
+    (fallback, i) => imageByPosition.get(i + 1) || fallback
+  );
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -49,8 +52,6 @@ export const ImagesCarousel = () => {
     };
   }, [emblaApi, onSelect]);
 
-  if (!images.length) return null;
-
   return (
     <section className="bg-background py-12">
       <div className="container mx-auto px-4">
@@ -62,7 +63,7 @@ export const ImagesCarousel = () => {
           <div className="flex gap-5">
             {images.map((src, i) => (
               <div
-                key={src}
+                key={i}
                 className="flex-[0_0_75%] sm:flex-[0_0_45%] lg:flex-[0_0_23%]"
               >
                 <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-muted">

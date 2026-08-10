@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 460 120">
+  <!-- Background -->
+  <rect width="460" height="110" rx="12" fill="#fef9c3"/>
+
+  <!-- Centered Content -->
+  <g transform="translate(230,60)">
+    <!-- Camera Icon -->
+    <g
+      fill="none"
+      stroke="#a16207"
+      stroke-width="4"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      opacity="0.55"
+      transform="translate(-26,-28)"
+    >
+      <rect x="0" y="0" width="52" height="38" rx="7"/>
+      <circle cx="26" cy="19" r="11"/>
+      <rect x="12" y="-10" width="14" height="9" rx="2"/>
+    </g>
+
+    <!-- Text -->
+    <text
+      x="0"
+      y="36"
+      text-anchor="middle"
+      font-family="Poppins, sans-serif"
+      font-size="20"
+      font-weight="700"
+      fill="#854d0e"
+    >
+      Add Logo
+    </text>
+  </g>
+</svg>

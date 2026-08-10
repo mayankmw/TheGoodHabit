@@ -720,41 +720,68 @@ export const getAllAssets = async (req, res) => {
 
 export const updateAsset = async (req, res) => {
   try {
-    const { id, position } = req.body;
+    const { id, type, position } = req.body;
     const imageFile = req.file?.filename || null;
 
-    if (!id) {
+    if (!id && !(type && position)) {
       return res.status(400).json({
         success: false,
-        message: "Asset ID is required"
+        message: "Asset ID (or type + position) is required"
       });
     }
 
+    if (id) {
+      const [[existing]] = await db.query(
+        `SELECT id FROM assets WHERE id = ?`,
+        [id]
+      );
+
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          message: "Asset not found"
+        });
+      }
+
+      await db.query(
+        `
+        UPDATE assets SET
+          image = COALESCE(?, image),
+          position = COALESCE(?, position)
+        WHERE id = ?
+        `,
+        [imageFile, position, id]
+      );
+
+      return res.json({
+        success: true,
+        message: "Asset updated successfully"
+      });
+    }
+
+    // No id yet — this slot (e.g. an images-carousel position) hasn't been
+    // seeded/created in the DB. Upsert by (type, position) so the admin can
+    // still upload an image the first time.
     const [[existing]] = await db.query(
-      `SELECT id FROM assets WHERE id = ?`,
-      [id]
+      `SELECT id FROM assets WHERE type = ? AND position = ?`,
+      [type, position]
     );
 
-    if (!existing) {
-      return res.status(404).json({
-        success: false,
-        message: "Asset not found"
-      });
+    if (existing) {
+      await db.query(
+        `UPDATE assets SET image = COALESCE(?, image) WHERE id = ?`,
+        [imageFile, existing.id]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO assets (type, image, position) VALUES (?, ?, ?)`,
+        [type, imageFile, position]
+      );
     }
-
-    await db.query(
-      `
-      UPDATE assets SET
-        image = COALESCE(?, image),
-        position = COALESCE(?, position)
-      WHERE id = ?
-      `,
-      [imageFile, position, id]
-    );
 
     res.json({
       success: true,
-      message: "Asset updated successfully"
+      message: "Asset saved successfully"
     });
   } catch (err) {
     console.error("Update Asset Error:", err);

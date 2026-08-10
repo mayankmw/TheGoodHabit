@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#ffe4e6"/>
+  <g fill="none" stroke="#be123c" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" opacity="0.5">
+    <rect x="700" y="380" width="200" height="140" rx="16"/>
+    <circle cx="800" cy="455" r="40"/>
+    <rect x="748" y="348" width="42" height="28" rx="6"/>
+  </g>
+  <text x="800" y="600" text-anchor="middle" font-family="Poppins, sans-serif" font-size="34" font-weight="700" fill="#881337">Add banner 2</text>
+</svg>

@@ -35,6 +35,7 @@ import Lottie from "lottie-react";
 import orderSuccessAnim from "@/assets/animations/orders-success.json";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useCommonStore } from "@/store/useCommonStore";
+import { LOGO_FALLBACK } from "@/lib/assetFallbacks";
 
 export const Navbar = () => {
   const FREE_GIFT_THRESHOLD = 999;
@@ -49,7 +50,7 @@ export const Navbar = () => {
 
   const { assets, fetchAssets, loadingAssets } = useCommonStore();
   const logoImage =
-  assets?.logo?.[0]?.image || "/images/logo/logo.png";
+  assets?.logo?.[0]?.image || LOGO_FALLBACK;
 
   // UI store
   const openSearch = useUIStore((s) => s.openSearch);

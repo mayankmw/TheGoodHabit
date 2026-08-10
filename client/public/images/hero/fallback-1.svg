@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 500">
+  <rect width="1600" height="500" fill="#e0f2fe"/>
+  <g fill="none" stroke="#0369a1" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.5">
+    <rect x="700" y="180" width="200" height="140" rx="16"/>
+    <circle cx="800" cy="255" r="38"/>
+    <rect x="748" y="150" width="42" height="28" rx="6"/>
+  </g>
+  <text x="800" y="390" text-anchor="middle" font-family="Poppins, sans-serif" font-size="28" font-weight="700" fill="#075985">Add hero image 1</text>
+</svg>

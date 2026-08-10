@@ -21,6 +21,12 @@ import { toast } from "sonner";
 import { BannerSlider } from "@/components/BannerSlider";
 import HeroImage from "@/components/HeroImage";
 import { AdminBannerSlider } from "@/components/AdminBannerSlider";
+import {
+  LOGO_FALLBACK,
+  BANNER_FALLBACKS,
+  HERO_FALLBACKS,
+  IMAGES_CAROUSEL_FALLBACKS,
+} from "@/lib/assetFallbacks";
 
 /* ================= PAGE ================= */
 export default function AdminAssets() {
@@ -55,6 +61,8 @@ export default function AdminAssets() {
 
     const res = await updateAsset({
       id: selected.id,
+      type: selected.id ? undefined : selected.type,
+      position: selected.position,
       image,
     });
 
@@ -92,26 +100,39 @@ export default function AdminAssets() {
         {/* ================= LOGO ================= */}
         <TabsContent value="logo">
           <div className="flex justify-center mt-10">
-            {logo && (
-              <div className="relative">
-                <img
-                  src={logo.image}
-                  alt="Logo"
-                  className="h-20 w-auto object-contain drop-shadow-md"
-                />
+            <div className="relative">
+              <img
+                src={logo?.image || LOGO_FALLBACK}
+                alt="Logo"
+                className="h-20 w-auto object-contain drop-shadow-md"
+              />
 
-                <EditButton onClick={() => openEdit(logo)} />
-              </div>
-            )}
+              {!logo?.image && (
+                <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                  Default
+                </span>
+              )}
+
+              <EditButton
+                onClick={() => openEdit(logo || { type: "logo", position: 0, image: null })}
+              />
+            </div>
           </div>
         </TabsContent>
 
         {/* ================= BANNERS ================= */}
         <TabsContent value="banner">
           <AdminBannerSlider
-            banners={banners
-              .slice()
-              .sort((a, b) => a.position - b.position)}
+            banners={(() => {
+              const byPosition = new Map(banners.map(b => [b.position, b]));
+              return BANNER_FALLBACKS.map((fallback, i) => {
+                const position = i + 1;
+                const item = byPosition.get(position);
+                return item
+                  ? { ...item, image: item.image || fallback }
+                  : { type: "banner", position, image: fallback };
+              });
+            })()}
             onEdit={openEdit}
           />
         </TabsContent>
@@ -119,55 +140,77 @@ export default function AdminAssets() {
         {/* ================= HERO ================= */}
         <TabsContent value="hero">
           <div className="space-y-12 mt-8">
-            {heroes
-              .slice()
-              .sort((a, b) => a.position - b.position)
-              .map(hero => (
-                <div key={hero.id} className="relative">
-                  <HeroImage src={hero.image} />
+            {(() => {
+              const byPosition = new Map(heroes.map(h => [h.position, h]));
 
-                  {/* Position badge */}
-                  <span className="absolute top-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    Position {hero.position}
-                    {hero.position === 3 && " (Product Page Hero Image)"}
-                  </span>
+              return HERO_FALLBACKS.map((fallback, i) => {
+                const position = i + 1;
+                const item = byPosition.get(position);
+                const slot = item || { type: "hero", position, image: null };
 
-                  {/* Always-visible edit */}
-                  <EditButton onClick={() => openEdit(hero)} />
-                </div>
-              ))}
+                return (
+                  <div key={position} className="relative">
+                    <HeroImage src={item?.image || fallback} />
+
+                    {/* Position badge */}
+                    <span className="absolute top-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      Position {position}
+                      {position === 3 && " (Product Page Hero Image)"}
+                    </span>
+
+                    {!item?.image && (
+                      <span className="absolute bottom-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        Default
+                      </span>
+                    )}
+
+                    {/* Always-visible edit */}
+                    <EditButton onClick={() => openEdit(slot)} />
+                  </div>
+                );
+              });
+            })()}
           </div>
         </TabsContent>
 
         {/* ================= IMAGES CAROUSEL ================= */}
         <TabsContent value="imagesCarousel">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mt-8">
-            {carouselImages
-              .slice()
-              .sort((a, b) => a.position - b.position)
-              .map(item => (
-                <div key={item.id} className="relative w-full max-w-[220px]">
-                  <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border bg-muted">
-                    {item.image ? (
+            {(() => {
+              const byPosition = new Map(
+                carouselImages.map(item => [item.position, item])
+              );
+
+              return [1, 2, 3, 4, 5].map(position => {
+                const item = byPosition.get(position);
+                const image = item?.image || IMAGES_CAROUSEL_FALLBACKS[position - 1];
+                const slot = item || { type: "imagesCarousel", position, image };
+
+                return (
+                  <div key={position} className="relative w-full max-w-[220px]">
+                    <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border bg-muted">
                       <img
-                        src={item.image}
-                        alt={`Images carousel photo ${item.position}`}
+                        src={image}
+                        alt={`Images carousel photo ${position}`}
                         className="h-full w-full object-cover"
                       />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-                        No image uploaded
-                      </div>
+                    </div>
+
+                    <span className="absolute top-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                      Position {position}
+                    </span>
+
+                    {!item?.image && (
+                      <span className="absolute bottom-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        Default
+                      </span>
                     )}
+
+                    <EditButton onClick={() => openEdit(slot)} />
                   </div>
-
-                  <span className="absolute top-3 left-3 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                    Position {item.position}
-                  </span>
-
-                  <EditButton onClick={() => openEdit(item)} />
-                </div>
-              ))}
+                );
+              });
+            })()}
           </div>
         </TabsContent>
       </Tabs>

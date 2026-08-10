@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, Film, Users } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { LOGO_FALLBACK } from "@/lib/assetFallbacks";
 
 export const AdminNavbar = () => {
   const [open, setOpen] = useState(false);
@@ -18,7 +19,7 @@ export const AdminNavbar = () => {
   };
 
   const { assets, fetchAssets, loadingAssets } = useCommonStore();
-  const logoImage = assets?.logo?.[0]?.image || "/images/logo/logo.png";
+  const logoImage = assets?.logo?.[0]?.image || LOGO_FALLBACK;
 
   const menuItems = [
     {
