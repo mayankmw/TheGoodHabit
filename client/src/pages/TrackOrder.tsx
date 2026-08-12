@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   CheckCircle2,
+  ExternalLink,
   Loader2,
   Package,
   Search,
@@ -291,14 +292,19 @@ export const TrackOrder = () => {
                 Paid: ₹{trackingData.summary.paid}
               </p>
               {trackingData.trackingUrl && (
-                <a
-                  href={trackingData.trackingUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex text-sm font-medium text-primary underline underline-offset-4"
+                <Button
+                  asChild
+                  className="mt-3 rounded-full bg-primary text-white hover:bg-primary/90 gap-1.5"
                 >
-                  Open courier tracking
-                </a>
+                  <a
+                    href={trackingData.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open Courier Tracking
+                  </a>
+                </Button>
               )}
             </div>
           </div>

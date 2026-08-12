@@ -28,6 +28,9 @@ interface Order {
   shippingState: string | null;
   shippingPostalCode: string | null;
   shippingCountry: string | null;
+  shippingPartner: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
 
   // payment snapshot — null status/method means it never got past "created"
   paymentMethod: string | null;

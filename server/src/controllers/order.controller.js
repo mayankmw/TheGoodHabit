@@ -388,6 +388,7 @@ export const getOrders = async (req, res) => {
       SELECT o.id, o.orderCode, o.totalPrice, o.discountedPrice, o.status, o.createdAt,
              o.shippingAddressLine1, o.shippingAddressLine2, o.shippingPhone,
              o.shippingCity, o.shippingState, o.shippingPostalCode, o.shippingCountry,
+             o.shippingPartner, o.trackingNumber, o.trackingUrl,
              p.method AS paymentMethod, p.status AS paymentStatus,
              p.details AS paymentDetails, p.razorpayPaymentId
       FROM orders o

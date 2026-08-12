@@ -18,7 +18,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { CreditCard, MapPin } from "lucide-react";
+import { CreditCard, MapPin, Truck } from "lucide-react";
 import {
   formatPaymentMethod,
   paymentStatusBadgeClass,
@@ -71,40 +71,29 @@ export default function AdminOrders() {
   {
     label: "Delhivery",
     value: "delhivery",
-    trackUrl: "https://www.delhivery.com/track/package/",
+    trackUrl: "https://www.delhivery.com/tracking",
   },
   {
     label: "Blue Dart",
     value: "bluedart",
-    trackUrl: "https://www.bluedart.com/tracking?awb=",
+    trackUrl: "https://www.bluedart.com/tracking",
   },
   {
     label: "DTDC",
     value: "dtdc",
     trackUrl:
-      "https://www.dtdc.com/tracking/tracking_results.asp?Ttype=awb&strCnno=",
-  },
-  {
-    label: "Ecom Express",
-    value: "ecom",
-    trackUrl: "https://ecomexpress.in/tracking/?awb=",
-  },
-  {
-    label: "India Post",
-    value: "indiapost",
-    trackUrl:
-      "https://www.indiapost.gov.in/_layouts/15/dop.portal.tracking/trackconsignment.aspx?trackid=",
+      "https://www.dtdc.com/track-your-shipment/",
   },
   {
     label: "Shadowfax",
     value: "shadowfax",
-    trackUrl: "https://tracking.shadowfax.in/track/",
+    trackUrl: "https://shadowfax.in/track",
   },
   {
     label: "XpressBees",
     value: "xpressbees",
     trackUrl:
-      "https://www.xpressbees.com/track-shipment.aspx?shipmentid=",
+      "https://www.xpressbees.com/shipment/tracking",
   },
 ];
 
@@ -263,11 +252,15 @@ export default function AdminOrders() {
                     variant="link"
                     onClick={async () => {
                       await fetchOrderById(o.id);
+                      // the list row `o` doesn't carry shipping fields —
+                      // read the freshly-fetched full order straight from
+                      // the store so they're not lost on re-edit.
+                      const order = useAdminStore.getState().selectedOrder;
                       setForm({
-                        status: o.status,
-                        shippingPartner: o.shippingPartner || "",
-                        trackingNumber: o.trackingNumber || "",
-                        trackingUrl: o.trackingUrl || "",
+                        status: order?.status ?? o.status,
+                        shippingPartner: order?.shippingPartner || "",
+                        trackingNumber: order?.trackingNumber || "",
+                        trackingUrl: order?.trackingUrl || "",
                       });
                       setOpenEdit(true);
                     }}
@@ -323,6 +316,42 @@ export default function AdminOrders() {
                   {selectedOrder.shippingPhone && (
                     <p className="mt-1 text-gray-600">📞 {selectedOrder.shippingPhone}</p>
                   )}
+                </div>
+              )}
+
+              {(selectedOrder.shippingPartner || selectedOrder.trackingNumber || selectedOrder.trackingUrl) && (
+                <div className="rounded-lg border bg-amber-50/60 p-3 text-sm">
+                  <p className="flex items-center gap-1.5 font-semibold text-gray-700">
+                    <Truck className="h-4 w-4 text-primary" /> Shipping
+                  </p>
+                  <div className="mt-1 space-y-0.5 text-gray-600">
+                    {selectedOrder.shippingPartner && (
+                      <p>
+                        Courier:{" "}
+                        {SHIPPING_PARTNERS.find((p) => p.value === selectedOrder.shippingPartner)?.label ||
+                          selectedOrder.shippingPartner}
+                      </p>
+                    )}
+                    {selectedOrder.trackingNumber && (
+                      <p>Tracking No: {selectedOrder.trackingNumber}</p>
+                    )}
+                    {selectedOrder.shippedAt && (
+                      <p>Shipped on {new Date(selectedOrder.shippedAt).toLocaleDateString()}</p>
+                    )}
+                    {selectedOrder.deliveredAt && (
+                      <p>Delivered on {new Date(selectedOrder.deliveredAt).toLocaleDateString()}</p>
+                    )}
+                    {selectedOrder.trackingUrl && (
+                      <a
+                        href={selectedOrder.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex font-medium text-primary underline underline-offset-4"
+                      >
+                        Open courier tracking
+                      </a>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -479,18 +508,9 @@ export default function AdminOrders() {
             <Input
             value={form.trackingNumber}
             onChange={(e) => {
-                const trackingNumber = e.target.value;
-
-                const partner = SHIPPING_PARTNERS.find(
-                (p) => p.value === form.shippingPartner
-                );
-
                 setForm({
                 ...form,
-                trackingNumber,
-                trackingUrl: partner
-                    ? `${partner.trackUrl}${trackingNumber}`
-                    : form.trackingUrl,
+                trackingNumber: e.target.value,
                 });
             }}
             placeholder="Enter AWB / Tracking Number"

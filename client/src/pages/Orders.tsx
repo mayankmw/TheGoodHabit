@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, MapPin, Package, Truck } from "lucide-react";
+import { CreditCard, ExternalLink, MapPin, Package, Truck } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";

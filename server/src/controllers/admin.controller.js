@@ -665,6 +665,10 @@ const ALLOWED_NEXT_ORDER_STATUSES = {
   cancelled: ["cancelled"],
 };
 
+// "" and undefined both mean "not provided" — treat them the same as NULL
+// so COALESCE below preserves the existing value instead of blanking it out.
+const nullifyEmpty = (value) => (value === undefined || value === "" ? null : value);
+
 export const updateOrder = async (req, res) => {
   const {
     id,
@@ -677,35 +681,50 @@ export const updateOrder = async (req, res) => {
   } = req.body;
 
   try {
-    if (status) {
-      const [[existing]] = await db.query(
-        `SELECT status, shippingPartner, trackingNumber FROM orders WHERE id = ?`,
-        [id]
-      );
+    const [[existing]] = await db.query(
+      `SELECT status, shippingPartner, trackingNumber, trackingUrl, shippedAt, deliveredAt FROM orders WHERE id = ?`,
+      [id]
+    );
 
-      if (
-        existing &&
-        status !== existing.status &&
-        !(ALLOWED_NEXT_ORDER_STATUSES[existing.status] || []).includes(status)
-      ) {
+    if (!existing) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (
+      status &&
+      status !== existing.status &&
+      !(ALLOWED_NEXT_ORDER_STATUSES[existing.status] || []).includes(status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot move from "${existing.status}" to "${status}" directly`
+      });
+    }
+
+    const safePartner = nullifyEmpty(shippingPartner);
+    const safeTrackingNumber = nullifyEmpty(trackingNumber);
+    const safeTrackingUrl = nullifyEmpty(trackingUrl);
+
+    if (status === "shipped") {
+      const effectivePartner = safePartner || existing.shippingPartner;
+      const effectiveTracking = safeTrackingNumber || existing.trackingNumber;
+
+      if (!effectivePartner || !effectiveTracking) {
         return res.status(400).json({
           success: false,
-          message: `Order cannot move from "${existing.status}" to "${status}" directly`
+          message: "Shipping partner and tracking number are required before marking an order as shipped"
         });
       }
-
-      if (status === "shipped") {
-        const effectivePartner = shippingPartner || existing?.shippingPartner;
-        const effectiveTracking = trackingNumber || existing?.trackingNumber;
-
-        if (!effectivePartner || !effectiveTracking) {
-          return res.status(400).json({
-            success: false,
-            message: "Shipping partner and tracking number are required before marking an order as shipped"
-          });
-        }
-      }
     }
+
+    // stamp shipped/delivered timestamps automatically the first time an
+    // order reaches that status — nothing client-side ever sends these.
+    const resolvedShippedAt =
+      nullifyEmpty(shippedAt) ||
+      (status === "shipped" && !existing.shippedAt ? new Date() : null);
+    const resolvedDeliveredAt =
+      nullifyEmpty(deliveredAt) ||
+      (status === "delivered" && !existing.deliveredAt ? new Date() : null);
 
     await db.query(
       `
@@ -719,12 +738,12 @@ export const updateOrder = async (req, res) => {
       WHERE id = ?
       `,
       [
-        status,
-        shippingPartner,
-        trackingNumber,
-        trackingUrl,
-        shippedAt,
-        deliveredAt,
+        nullifyEmpty(status),
+        safePartner,
+        safeTrackingNumber,
+        safeTrackingUrl,
+        resolvedShippedAt,
+        resolvedDeliveredAt,
         id
       ]
     );
