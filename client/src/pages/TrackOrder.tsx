@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Loader2,
+  Mail,
   Package,
   Search,
   Truck,
@@ -308,6 +309,22 @@ export const TrackOrder = () => {
               )}
             </div>
           </div>
+
+          {trackingData.status !== "cancelled" && trackingData.status !== "delivered" && (
+            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-800">
+              <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Need to cancel this order? Email{" "}
+                <a
+                  href={`mailto:support@noshbob.com?subject=Cancel Order ${trackingData.orderCode}`}
+                  className="font-semibold underline underline-offset-4"
+                >
+                  support@noshbob.com
+                </a>{" "}
+                with your order code ({trackingData.orderCode}) and we'll take care of it.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
