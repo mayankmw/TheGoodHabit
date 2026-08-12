@@ -48,11 +48,11 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
 
   
   return (
-    <Card className="group overflow-hidden border-2 border-border hover:border-primary transition-all duration-300 hover:shadow-xl">
+    <Card className="group overflow-hidden rounded-2xl border-2 border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-lift">
       <CardContent className="p-0">
         {/* Image */}
         <Link to={`/products/${id}`}>
-          <div className="relative aspect-square overflow-hidden bg-card">
+          <div className="relative aspect-square overflow-hidden bg-muted/40">
             <img
               src={image}
               alt={name}
@@ -60,7 +60,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
             />
 
             {/* Discount Badge */}
-            <div className="absolute top-4 right-4 bg-green-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+            <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-bold shadow-soft">
               -{discountPercent}% OFF
             </div>
           </div>
@@ -77,7 +77,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
 
           {/* Name */}
           <Link to={`/products/${id}`}>
-            <h3 className="font-black text-lg uppercase leading-tight min-h-[3rem] hover:text-primary transition">
+            <h3 className="font-bold text-lg leading-tight min-h-[3rem] hover:text-primary transition">
               {name}
             </h3>
           </Link>
@@ -91,7 +91,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
           </div>
 
           {/* Add to Cart */}
-          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-black text-base py-6 rounded-lg"
+          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-base py-6 rounded-full"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();

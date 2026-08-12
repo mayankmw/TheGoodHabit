@@ -39,7 +39,7 @@ export const TopOffers = () => {
   if (!offers.length) return null;
 
   return (
-    <div className="bg-foreground text-background py-2 overflow-hidden relative">
+    <div className="bg-foreground text-background py-2.5 overflow-hidden relative border-b border-secondary/30">
       <div
         ref={containerRef}
         className={`flex ${
@@ -52,7 +52,7 @@ export const TopOffers = () => {
         {slides.map((offer, index) => (
           <div
             key={index}
-            className="flex-shrink-0 w-full text-center text-sm md:text-base font-medium tracking-wide"
+            className="flex-shrink-0 w-full text-center text-sm md:text-base font-medium tracking-wide text-secondary"
           >
             {offer}
           </div>

@@ -18,6 +18,7 @@ export const AdminBannerSlider = ({
       <BannerSlider
         banners={banners}
         onSlideChange={setActiveIndex}
+        framed={false}
       />
 
       {/* Admin overlay */}

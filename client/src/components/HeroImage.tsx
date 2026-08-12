@@ -6,12 +6,12 @@ const HeroImage = ({
   maxW = "1200",
 }) => {
   return (
-    <section className="flex justify-center">
-      <div className={`max-w-[${maxW}px] w-full`}>
+    <section className="flex justify-center px-4 py-10">
+      <div className="w-full" style={{ maxWidth: `${maxW}px` }}>
         <img
           src={src}
           alt={alt}
-          className="w-full h-auto object-contain rounded-2xl select-none"
+          className="w-full h-auto object-contain rounded-2xl select-none shadow-soft"
           loading="lazy"
           draggable={false}
         />

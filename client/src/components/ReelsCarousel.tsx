@@ -62,26 +62,26 @@ export const ReelsCarousel = () => {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-3xl md:text-4xl font-black uppercase bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 bg-clip-text text-transparent tracking-wider">
+          <h2 className="heading-gradient font-display text-3xl md:text-4xl font-semibold tracking-wide">
             Mini Motions
           </h2>
 
           <div className="flex gap-2">
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={scrollPrev}
               disabled={!canScrollPrev}
-              className="rounded-full border-2"
+              className="rounded-full bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary disabled:opacity-30"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
             <Button
-              variant="outline"
+              variant="ghost"
               size="icon"
               onClick={scrollNext}
               disabled={!canScrollNext}
-              className="rounded-full border-2"
+              className="rounded-full bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary disabled:opacity-30"
             >
               <ChevronRight className="h-5 w-5" />
             </Button>

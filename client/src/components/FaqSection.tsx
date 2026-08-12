@@ -107,7 +107,7 @@ export const FaqSection = () => {
             <span className="inline-block -rotate-6 rounded-full border-2 border-dashed border-primary/60 bg-primary/10 px-4 py-1 text-xs font-bold tracking-wide text-primary">
               FAQ
             </span>
-            <h2 className="mt-3 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 bg-clip-text text-3xl font-black uppercase leading-tight tracking-wide text-transparent md:text-4xl">
+            <h2 className="heading-gradient font-display mt-3 text-3xl font-semibold leading-tight tracking-wide md:text-4xl">
               Got Questions?
               <br />
               We've Got Answers!

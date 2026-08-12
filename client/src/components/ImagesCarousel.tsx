@@ -55,7 +55,7 @@ export const ImagesCarousel = () => {
   return (
     <section className="bg-background py-12">
       <div className="container mx-auto px-4">
-        <h2 className="mb-8 inline-block text-3xl md:text-4xl font-black uppercase bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 bg-clip-text text-transparent tracking-wider">
+        <h2 className="heading-gradient font-display mb-8 inline-block text-3xl md:text-4xl font-semibold tracking-wide">
           We Fit in Every Moment
         </h2>
 

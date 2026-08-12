@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Fredoka:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -229,5 +229,21 @@ All colors MUST be HSL.
     text-decoration: underline;
     text-underline-offset: 2px;
     word-break: break-word;
+  }
+}
+
+@layer components {
+  /* Shared "hero" heading treatment — was copy-pasted inline in several
+     section headers; centralized so the gradient stays consistent. */
+  .heading-gradient {
+    @apply bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 bg-clip-text text-transparent;
+  }
+
+  .shadow-soft {
+    box-shadow: 0 2px 10px -2px hsl(var(--foreground) / 0.08), 0 8px 24px -8px hsl(var(--foreground) / 0.1);
+  }
+
+  .shadow-lift {
+    box-shadow: 0 12px 32px -12px hsl(var(--primary) / 0.35);
   }
 }

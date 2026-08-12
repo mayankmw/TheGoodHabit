@@ -535,7 +535,7 @@ export const Navbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-lg">
+      <nav className="sticky top-0 z-50 bg-primary text-primary-foreground shadow-md">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16 relative">
             {/* Left: Hamburger Menu */}
@@ -616,7 +616,7 @@ export const Navbar = () => {
                 <img
                     src={logoImage}
                     alt="Logo"
-                    className="h-20 w-25 object-contain drop-shadow-md"
+                    className="h-20 w-auto object-contain drop-shadow-md"
                     loading="eager"
                   />
               </a>

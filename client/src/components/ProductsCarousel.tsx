@@ -79,7 +79,7 @@ export const ProductsCarousel = () => {
     <section className="py-16 bg-background">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-3xl md:text-4xl font-black uppercase bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 bg-clip-text text-transparent tracking-wider">
+          <h2 className="heading-gradient font-display text-3xl md:text-4xl font-semibold tracking-wide">
             Our Products
           </h2>
 

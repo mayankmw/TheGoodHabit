@@ -6,6 +6,7 @@ import { ReelsCarousel } from "@/components/ReelsCarousel";
 import HeroImage from "@/components/HeroImage";
 import { useCommonStore } from "@/store/useCommonStore";
 import { BANNER_FALLBACKS, HERO_FALLBACKS } from "@/lib/assetFallbacks";
+import { Reveal } from "@/components/Reveal";
 
 const Index = () => {
   const { assets } = useCommonStore();
@@ -21,21 +22,33 @@ const Index = () => {
   }));
 
   return (
-    <main>
+    <div>
       <BannerSlider banners={banners} />
 
-      <ProductsCarousel />
+      <Reveal>
+        <ProductsCarousel />
+      </Reveal>
 
-      <HeroImage src={hero1Image} alt="Hero Image 1" />
+      <Reveal>
+        <HeroImage src={hero1Image} alt="Hero Image 1" />
+      </Reveal>
 
-      <FaqSection />
+      <Reveal>
+        <FaqSection />
+      </Reveal>
 
-      <ImagesCarousel />
+      <Reveal>
+        <ImagesCarousel />
+      </Reveal>
 
-      <ReelsCarousel />
+      <Reveal>
+        <ReelsCarousel />
+      </Reveal>
 
-      <HeroImage src={hero2Image} alt="Hero Image 2" />
-    </main>
+      <Reveal>
+        <HeroImage src={hero2Image} alt="Hero Image 2" />
+      </Reveal>
+    </div>
   );
 };
 
