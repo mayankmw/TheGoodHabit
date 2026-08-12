@@ -47,12 +47,24 @@ const formatShippingAddress = (order: ShippingAddressLike | null | undefined) =>
     .join(", ");
 
 const ORDER_STATUSES = [
-  { label: "Pending", value: "pending" },
   { label: "Processing", value: "processing" },
   { label: "Shipped", value: "shipped" },
   { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
 ];
+
+// "pending" isn't in ORDER_STATUSES (never manually settable — it's the
+// transient pre-payment state a new order starts in, set automatically) but
+// still needs an entry here so an order stuck in it can be moved forward.
+const ALLOWED_NEXT_STATUSES: Record<string, string[]> = {
+  pending: ["processing", "cancelled"],
+  processing: ["processing", "shipped", "cancelled"],
+  shipped: ["shipped", "delivered", "cancelled"],
+  delivered: ["delivered"],
+  cancelled: ["cancelled"],
+};
+
+const RequiredMark = () => <span className="text-destructive"> *</span>;
 
 export default function AdminOrders() {
     const SHIPPING_PARTNERS = [
@@ -121,7 +133,31 @@ export default function AdminOrders() {
     fetchOrders();
   }, []);
 
+  const currentStatus = selectedOrder?.status;
+  const availableStatuses = currentStatus
+    ? ORDER_STATUSES.filter((s) => (ALLOWED_NEXT_STATUSES[currentStatus] || []).includes(s.value))
+    : ORDER_STATUSES;
+
   const handleUpdateOrder = async () => {
+    if (
+      currentStatus &&
+      form.status !== currentStatus &&
+      !(ALLOWED_NEXT_STATUSES[currentStatus] || []).includes(form.status)
+    ) {
+      toast.error(`Order cannot move from "${currentStatus}" to "${form.status}" directly`);
+      return;
+    }
+
+    if (form.status === "shipped" && !form.shippingPartner.trim()) {
+      toast.error("Please select a shipping partner before marking as shipped");
+      return;
+    }
+
+    if (form.status === "shipped" && !form.trackingNumber.trim()) {
+      toast.error("Please enter a tracking number before marking as shipped");
+      return;
+    }
+
     const res = await updateOrder({
       id: selectedOrder.id,
       ...form,
@@ -396,7 +432,7 @@ export default function AdminOrders() {
                 <SelectValue placeholder="Select status" />
               </SelectTrigger>
               <SelectContent className="bg-white border shadow-lg z-50">
-                {ORDER_STATUSES.map((s) => (
+                {availableStatuses.map((s) => (
                   <SelectItem key={s.value} value={s.value}>
                     {s.label}
                   </SelectItem>
@@ -404,7 +440,10 @@ export default function AdminOrders() {
               </SelectContent>
             </Select>
 
-            <Label>Shipping Partner</Label>
+            <Label>
+              Shipping Partner
+              {form.status === "shipped" && <RequiredMark />}
+            </Label>
             <Select
             value={form.shippingPartner}
             onValueChange={(value) => {
@@ -433,7 +472,10 @@ export default function AdminOrders() {
             </Select>
 
 
-            <Label>Tracking Number</Label>
+            <Label>
+              Tracking Number
+              {form.status === "shipped" && <RequiredMark />}
+            </Label>
             <Input
             value={form.trackingNumber}
             onChange={(e) => {

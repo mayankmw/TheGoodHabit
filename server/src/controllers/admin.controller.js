@@ -654,6 +654,17 @@ export const fetchOrderById = async (req, res) => {
   }
 };
 
+// "pending" is set automatically when an order is created (pre-payment) and
+// is never a manually chosen target — it's included here only so an order
+// stuck in it can still be moved forward.
+const ALLOWED_NEXT_ORDER_STATUSES = {
+  pending: ["processing", "cancelled"],
+  processing: ["processing", "shipped", "cancelled"],
+  shipped: ["shipped", "delivered", "cancelled"],
+  delivered: ["delivered"],
+  cancelled: ["cancelled"],
+};
+
 export const updateOrder = async (req, res) => {
   const {
     id,
@@ -666,6 +677,36 @@ export const updateOrder = async (req, res) => {
   } = req.body;
 
   try {
+    if (status) {
+      const [[existing]] = await db.query(
+        `SELECT status, shippingPartner, trackingNumber FROM orders WHERE id = ?`,
+        [id]
+      );
+
+      if (
+        existing &&
+        status !== existing.status &&
+        !(ALLOWED_NEXT_ORDER_STATUSES[existing.status] || []).includes(status)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Order cannot move from "${existing.status}" to "${status}" directly`
+        });
+      }
+
+      if (status === "shipped") {
+        const effectivePartner = shippingPartner || existing?.shippingPartner;
+        const effectiveTracking = trackingNumber || existing?.trackingNumber;
+
+        if (!effectivePartner || !effectiveTracking) {
+          return res.status(400).json({
+            success: false,
+            message: "Shipping partner and tracking number are required before marking an order as shipped"
+          });
+        }
+      }
+    }
+
     await db.query(
       `
       UPDATE orders SET

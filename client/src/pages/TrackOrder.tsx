@@ -1,4 +1,5 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   CheckCircle2,
@@ -75,15 +76,14 @@ const formatDate = (value: string) =>
   });
 
 export const TrackOrder = () => {
-  const [orderId, setOrderId] = useState("");
+  const [searchParams] = useSearchParams();
+  const [orderId, setOrderId] = useState(() => searchParams.get("code") || "");
   const [trackingData, setTrackingData] = useState<TrackingResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
-  const handleTrackOrder = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const normalizedQuery = normalizeOrderCode(orderId);
+  const trackOrder = async (rawCode: string) => {
+    const normalizedQuery = normalizeOrderCode(rawCode);
 
     if (!normalizedQuery) {
       toast.error("Please enter an order code");
@@ -115,6 +115,20 @@ export const TrackOrder = () => {
       setLoading(false);
     }
   };
+
+  const handleTrackOrder = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    trackOrder(orderId);
+  };
+
+  // arriving via a "Track Order" link (e.g. from the Orders page) with
+  // ?code=... — prefill + auto-track once on landing, don't re-trigger on
+  // every render/param change.
+  useEffect(() => {
+    const code = searchParams.get("code");
+    if (code) trackOrder(code);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-16 px-4">

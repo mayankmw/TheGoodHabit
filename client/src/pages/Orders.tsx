@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { CreditCard, MapPin, Package } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { CreditCard, MapPin, Package, Truck } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,8 @@ export default function Orders() {
 }
 
 function OrdersList({ list, loading, loadMore, hasMore }) {
+  const navigate = useNavigate();
+
   if (loading && !list.length)
     return (
       <div className="mt-6 rounded-2xl border border-dashed bg-white/70 p-10 text-center text-muted-foreground">
@@ -137,7 +140,7 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
                 Order ID
               </p>
               <h3 className="font-semibold text-primary">
-                #{order.id}
+                {order.orderCode || `#${order.id}`}
               </h3>
 
               <p className="text-sm text-muted-foreground">
@@ -149,9 +152,23 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
               </p>
             </div>
 
-            <span className={`text-xs px-3 py-1.5 rounded-full capitalize font-medium ${statusBadge(order.status)}`}>
-              {order.status}
-            </span>
+            <div className="flex flex-col items-end gap-2">
+              <span className={`text-xs px-3 py-1.5 rounded-full capitalize font-medium ${statusBadge(order.status)}`}>
+                {order.status}
+              </span>
+
+              {order.orderCode && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full gap-1.5"
+                  onClick={() => navigate(`/track-order?code=${order.orderCode}`)}
+                >
+                  <Truck className="h-3.5 w-3.5" />
+                  Track Order
+                </Button>
+              )}
+            </div>
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

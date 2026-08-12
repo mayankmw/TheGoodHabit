@@ -12,6 +12,7 @@ interface OrderItem {
 
 interface Order {
   id: number;
+  orderCode: string;
   totalPrice: number;
   discountedPrice: number;
   status: string;

@@ -385,7 +385,7 @@ export const getOrders = async (req, res) => {
 
     // ---------- ORDERS QUERY ----------
     let ordersQuery = `
-      SELECT o.id, o.totalPrice, o.discountedPrice, o.status, o.createdAt,
+      SELECT o.id, o.orderCode, o.totalPrice, o.discountedPrice, o.status, o.createdAt,
              o.shippingAddressLine1, o.shippingAddressLine2, o.shippingPhone,
              o.shippingCity, o.shippingState, o.shippingPostalCode, o.shippingCountry,
              p.method AS paymentMethod, p.status AS paymentStatus,
