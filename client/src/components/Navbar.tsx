@@ -22,6 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { ProductCardMini } from "@/components/ProductCardMini";
 import { CartAddressSelector } from "@/components/CartAddressSelector";
@@ -53,7 +54,7 @@ export const Navbar = () => {
   const searchSentinelRef = useRef<HTMLDivElement | null>(null);
   const searchResultsContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const { assets, fetchAssets, loadingAssets } = useCommonStore();
+  const { assets, fetchAssets, assetsSettled } = useCommonStore();
   const logoImage =
   assets?.logo?.[0]?.image || LOGO_FALLBACK;
 
@@ -612,14 +613,18 @@ export const Navbar = () => {
 
             {/* Center: Logo */}
             <div className="absolute left-1/2 transform -translate-x-1/2">
-              <a href="/" className="block">
-                <img
-                    src={logoImage}
-                    alt="Logo"
-                    className="h-20 w-auto object-contain drop-shadow-md"
-                    loading="eager"
-                  />
-              </a>
+              {assetsSettled ? (
+                <a href="/" className="block">
+                  <img
+                      src={logoImage}
+                      alt="Logo"
+                      className="h-20 w-auto object-contain drop-shadow-md"
+                      loading="eager"
+                    />
+                </a>
+              ) : (
+                <Skeleton className="h-20 w-28 rounded-md bg-primary-foreground/20" />
+              )}
             </div>
 
             {/* Right: Icons */}

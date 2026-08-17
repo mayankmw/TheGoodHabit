@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, Film, Users } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -18,7 +19,7 @@ export const AdminNavbar = () => {
     logout(() => navigate("/signin"));
   };
 
-  const { assets, fetchAssets, loadingAssets } = useCommonStore();
+  const { assets, fetchAssets, assetsSettled } = useCommonStore();
   const logoImage = assets?.logo?.[0]?.image || LOGO_FALLBACK;
 
   const menuItems = [
@@ -172,14 +173,18 @@ export const AdminNavbar = () => {
 
           {/* CENTER LOGO */}
           <div className="absolute left-1/2 transform -translate-x-1/2">
-            <a href="/" className="block">
-              <img
-                src={logoImage}
-                alt="Logo"
-                className="h-20 w-25 object-contain drop-shadow-md"
-                loading="eager"
-              />
-            </a>
+            {assetsSettled ? (
+              <a href="/" className="block">
+                <img
+                  src={logoImage}
+                  alt="Logo"
+                  className="h-20 w-auto object-contain drop-shadow-md"
+                  loading="eager"
+                />
+              </a>
+            ) : (
+              <Skeleton className="h-20 w-28 rounded-md bg-primary-foreground/20" />
+            )}
           </div>
 
           {/* RIGHT EMPTY (to balance layout visually) */}

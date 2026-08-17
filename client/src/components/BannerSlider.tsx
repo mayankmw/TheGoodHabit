@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface BannerItem {
   id?: number;
@@ -13,6 +14,7 @@ export const BannerSlider = ({
   banners = [],
   onSlideChange,
   framed = true,
+  loading = false,
 }: {
   banners: BannerItem[];
   onSlideChange?: (index: number) => void;
@@ -20,6 +22,9 @@ export const BannerSlider = ({
    * site. Admin previews pass `false` to keep edge-to-edge sizing so their
    * own overlay controls stay aligned to the image. */
   framed?: boolean;
+  /** Show a skeleton instead of banners/fallbacks while the real assets
+   * are still being fetched. */
+  loading?: boolean;
 }) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true }, [
     Autoplay({ delay: 5000, stopOnInteraction: false }),
@@ -49,6 +54,15 @@ export const BannerSlider = ({
     emblaApi.on("select", onSelect);
     return () => emblaApi.off("select", onSelect);
   }, [emblaApi, onSelect]);
+
+  if (loading) {
+    const skeleton = <Skeleton className={`aspect-[21/9] w-full ${framed ? "rounded-3xl" : ""}`} />;
+    return framed ? (
+      <div className="container mx-auto px-4 pt-6">{skeleton}</div>
+    ) : (
+      skeleton
+    );
+  }
 
   if (!banners.length) return null;
 

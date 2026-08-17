@@ -27,7 +27,7 @@ export const Product = () => {
   const setOpenSearch = useUIStore((s) => s.setOpenSearch);
   const [selectedImage, setSelectedImage] = useState("");
 
-  const { assets } = useCommonStore();
+  const { assets, assetsSettled } = useCommonStore();
 
   const hero3Image = assets?.hero?.find(h => h.position === 3)?.image || HERO_FALLBACKS[2];
 
@@ -320,6 +320,7 @@ export const Product = () => {
         <HeroImage
           src={hero3Image}
           alt="Product Page Hero Image"
+          loading={!assetsSettled}
         />
       </div>
     </section>

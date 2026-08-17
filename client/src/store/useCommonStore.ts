@@ -48,6 +48,10 @@ interface ReelItem {
 interface CommonState {
   /* ---------- assets ---------- */
   loadingAssets: boolean;
+  // true once a fetch attempt has settled (success or failure) — lets
+  // consumers tell "still loading" apart from "loaded and confirmed empty",
+  // unlike `assets === null` which stays true forever on a failed fetch.
+  assetsSettled: boolean;
   assets: AssetsState | null;
   fetchAssets: () => Promise<void>;
 
@@ -88,6 +92,7 @@ interface CommonState {
 export const useCommonStore = create<CommonState>((set) => ({
   /* ================= ASSETS ================= */
   loadingAssets: false,
+  assetsSettled: false,
   assets: null,
 
   fetchAssets: async () => {
@@ -98,7 +103,7 @@ export const useCommonStore = create<CommonState>((set) => ({
     } catch (e) {
       console.error("Public assets fetch error", e);
     } finally {
-      set({ loadingAssets: false });
+      set({ loadingAssets: false, assetsSettled: true });
     }
   },
 

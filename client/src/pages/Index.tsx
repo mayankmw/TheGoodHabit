@@ -9,7 +9,7 @@ import { BANNER_FALLBACKS, HERO_FALLBACKS } from "@/lib/assetFallbacks";
 import { Reveal } from "@/components/Reveal";
 
 const Index = () => {
-  const { assets } = useCommonStore();
+  const { assets, assetsSettled } = useCommonStore();
 
   const hero1Image = assets?.hero?.find(h => h.position === 1)?.image || HERO_FALLBACKS[0];
   const hero2Image = assets?.hero?.find(h => h.position === 2)?.image || HERO_FALLBACKS[1];
@@ -23,14 +23,14 @@ const Index = () => {
 
   return (
     <div>
-      <BannerSlider banners={banners} />
+      <BannerSlider banners={banners} loading={!assetsSettled} />
 
       <Reveal>
         <ProductsCarousel />
       </Reveal>
 
       <Reveal>
-        <HeroImage src={hero1Image} alt="Hero Image 1" />
+        <HeroImage src={hero1Image} alt="Hero Image 1" loading={!assetsSettled} />
       </Reveal>
 
       <Reveal>
@@ -46,7 +46,7 @@ const Index = () => {
       </Reveal>
 
       <Reveal>
-        <HeroImage src={hero2Image} alt="Hero Image 2" />
+        <HeroImage src={hero2Image} alt="Hero Image 2" loading={!assetsSettled} />
       </Reveal>
     </div>
   );

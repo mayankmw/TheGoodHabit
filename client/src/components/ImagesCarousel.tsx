@@ -3,9 +3,10 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
 import { IMAGES_CAROUSEL_FALLBACKS } from "@/lib/assetFallbacks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const ImagesCarousel = () => {
-  const { assets } = useCommonStore();
+  const { assets, assetsSettled } = useCommonStore();
 
   const imageByPosition = new Map(
     (assets?.imagesCarousel || []).map((a) => [a.position, a.image])
@@ -59,62 +60,77 @@ export const ImagesCarousel = () => {
           We Fit in Every Moment
         </h2>
 
-        <div className="overflow-hidden" ref={emblaRef}>
-          <div className="flex gap-5">
-            {images.map((src, i) => (
+        {assetsSettled ? (
+          <>
+            <div className="overflow-hidden" ref={emblaRef}>
+              <div className="flex gap-5">
+                {images.map((src, i) => (
+                  <div
+                    key={i}
+                    className="flex-[0_0_75%] sm:flex-[0_0_45%] lg:flex-[0_0_23%]"
+                  >
+                    <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-muted">
+                      <img
+                        src={src}
+                        alt={`NoshBOB lifestyle photo ${i + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-8 flex items-center justify-center gap-3">
+              {canScrollPrev && (
+                <button
+                  type="button"
+                  aria-label="Previous slide"
+                  onClick={scrollPrev}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary transition-colors hover:bg-primary/25"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+              )}
+
+              <div className="flex items-center gap-2 rounded-full bg-primary-100 px-4 py-2">
+                {scrollSnaps.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    aria-label={`Go to slide ${i + 1}`}
+                    onClick={() => scrollTo(i)}
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      i === selectedIndex ? "w-6 bg-primary" : "w-2 bg-primary/40"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {canScrollNext && (
+                <button
+                  type="button"
+                  aria-label="Next slide"
+                  onClick={scrollNext}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary transition-colors hover:bg-primary/25"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="flex gap-5 overflow-hidden">
+            {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
                 className="flex-[0_0_75%] sm:flex-[0_0_45%] lg:flex-[0_0_23%]"
               >
-                <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-muted">
-                  <img
-                    src={src}
-                    alt={`NoshBOB lifestyle photo ${i + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
+                <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="mt-8 flex items-center justify-center gap-3">
-          {canScrollPrev && (
-            <button
-              type="button"
-              aria-label="Previous slide"
-              onClick={scrollPrev}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary transition-colors hover:bg-primary/25"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-          )}
-
-          <div className="flex items-center gap-2 rounded-full bg-primary-100 px-4 py-2">
-            {scrollSnaps.map((_, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label={`Go to slide ${i + 1}`}
-                onClick={() => scrollTo(i)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  i === selectedIndex ? "w-6 bg-primary" : "w-2 bg-primary/40"
-                }`}
-              />
-            ))}
-          </div>
-
-          {canScrollNext && (
-            <button
-              type="button"
-              aria-label="Next slide"
-              onClick={scrollNext}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15 text-primary transition-colors hover:bg-primary/25"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          )}
-        </div>
+        )}
       </div>
     </section>
   );

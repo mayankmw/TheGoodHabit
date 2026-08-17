@@ -30,7 +30,7 @@ const FAQS: Faq[] = [
   {
     question: "What ingredients are used in NoshBOB products?",
     answer:
-      "We use whole fruits, nuts, and grains with no artificial preservatives or flavors. Full ingredient lists are on every product page.",
+      "We use simple, real ingredients like Medjool dates, peanut butter, pistachio butter, cocoa powder, and sea salt. No artificial preservatives, no added flavours, and no unnecessary extras — just real ingredients in delicious combinations.",
     bg: "bg-purple-200",
     arrowBg: "bg-purple-400 text-purple-950",
     angle: 2.5,
@@ -38,7 +38,7 @@ const FAQS: Faq[] = [
   {
     question: "What does \"no added sugar\" mean?",
     answer:
-      "It means we never add refined or extra sugar during production — any sweetness comes naturally from the fruits and ingredients themselves.",
+      "It means we never add refined or extra sugar during production — any sweetness comes naturally from the Dates and ingredients themselves.",
     bg: "bg-pink-100",
     arrowBg: "bg-pink-300 text-pink-950",
     angle: -3,
