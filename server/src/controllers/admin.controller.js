@@ -398,12 +398,18 @@ export const createProduct = async (req, res) => {
       ingredients
     } = req.body;
 
-    if (!name || originalPrice === undefined) {
+    const parsedOriginalPrice = Number(originalPrice);
+    if (!name || originalPrice === undefined || originalPrice === "" || !Number.isFinite(parsedOriginalPrice)) {
       return res.status(400).json({
         success: false,
-        message: "Name and originalPrice are required"
+        message: "Name and a valid originalPrice are required"
       });
     }
+
+    const parsedDiscountedPrice = Number(discountedPrice);
+    const finalDiscountedPrice = discountedPrice === undefined || discountedPrice === "" || !Number.isFinite(parsedDiscountedPrice)
+      ? parsedOriginalPrice
+      : parsedDiscountedPrice;
 
     const parsedIngredients = parseIngredientsInput(ingredients ?? []);
 
@@ -431,8 +437,8 @@ export const createProduct = async (req, res) => {
         name,
         JSON.stringify(imageFiles),
         category || null,
-        originalPrice,
-        discountedPrice || originalPrice,
+        parsedOriginalPrice,
+        finalDiscountedPrice,
         description || null,
         JSON.stringify(parsedIngredients || []),
       ]
@@ -510,12 +516,26 @@ export const updateProduct = async (req, res) => {
       values.push(category || null);
     }
     if (originalPrice !== undefined) {
+      const parsedOriginalPrice = Number(originalPrice);
+      if (originalPrice === "" || !Number.isFinite(parsedOriginalPrice)) {
+        return res.status(400).json({
+          success: false,
+          message: "originalPrice must be a valid number"
+        });
+      }
       updates.push("originalPrice = ?");
-      values.push(originalPrice);
+      values.push(parsedOriginalPrice);
     }
     if (discountedPrice !== undefined) {
+      const parsedDiscountedPrice = Number(discountedPrice);
+      if (discountedPrice === "" || !Number.isFinite(parsedDiscountedPrice)) {
+        return res.status(400).json({
+          success: false,
+          message: "discountedPrice must be a valid number"
+        });
+      }
       updates.push("discountedPrice = ?");
-      values.push(discountedPrice);
+      values.push(parsedDiscountedPrice);
     }
     if (description !== undefined) {
       updates.push("description = ?");

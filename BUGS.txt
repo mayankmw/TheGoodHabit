@@ -1,0 +1,103 @@
+BUGS FOUND IN CURRENT SYSTEM
+Generated: 2026-09-08
+Ranked most severe first (verified against source, not just pattern-matched)
+
+=== PAYMENT / SECURITY (fix first) ===
+
+1. Order verification trusts client-supplied order ID
+   File: server/src/controllers/order.controller.js:318
+   verifyRazorpayPayment marks an order "processing" using the client-sent
+   appOrderId, never checking it matches the signature-verified
+   razorpay_order_id or belongs to the requesting user. An attacker with a
+   valid signature for their own cheap order can mark a different
+   (enumerable) order as paid.
+
+2. Cart IDOR - update/delete any user's cart item
+   File: server/src/controllers/cart.controller.js:231 (update), :268 (remove)
+   updateCartItem/removeCartItem act on cartItemId alone with no ownership
+   check (unlike removeCartCoupon in the same file, which does check). Any
+   logged-in user can modify or delete a stranger's cart item by guessing
+   sequential IDs.
+
+3. No idempotency on payment verification
+   File: server/src/controllers/order.controller.js:335
+   Calling /order/verify twice (retry/double-click) re-runs the order_items
+   insert loop, duplicating line items on an order that was only charged
+   once.
+
+4. Order items built from live cart, not the cart at charge time
+   File: server/src/controllers/order.controller.js:326
+   If the user edits their cart between createRazorpayOrder and completing
+   payment, the recorded order_items won't match what was actually charged.
+
+5. Admin product routes missing auth middleware
+   File: server/src/routes/admin.routes.js:55
+   GET /products and POST /product skip the auth+isAdmin middleware every
+   sibling admin route has - unauthenticated callers can read full product
+   rows.
+
+=== FUNCTIONAL BREAKAGE ===
+
+6. Story image upload never persists on fresh deploy
+   File: server/src/controllers/admin.controller.js:1304
+   updateStory does an UPDATE ... LIMIT 1 with no INSERT fallback, but
+   story_assets is never seeded - the update silently matches 0 rows and
+   returns success anyway.
+
+7. Reel video uploads always rejected
+   File: server/src/middlewares/imageUpload.js:12
+   The multer filter only allows image/* MIME types, but the same
+   middleware is reused for reel short_video/main_video fields - uploading
+   an actual video file is rejected.
+
+8. No error feedback on failed payment verification
+   File: client/src/components/Navbar.tsx:274
+   The Razorpay success handler only handles the truthy case; if
+   server-side verification throws, the charge succeeds but the customer
+   sees no confirmation and no error.
+
+9. OTP is reusable, not single-use
+   File: server/src/controllers/user.controller.js:111
+   verifyOtp never invalidates the matched row, so the same code can mint
+   fresh JWTs repeatedly within its validity window.
+
+10. Zero-price discount silently discarded
+    File: server/src/controllers/admin.controller.js:435
+    discountedPrice || originalPrice treats an intentional 0 as falsy,
+    charging full price for a product meant to be free.
+
+11. DB connection leak on reorder failure
+    File: server/src/controllers/admin.controller.js:1191 (also :1885)
+    conn.release() only runs on the success path; a bad ID or transient
+    error leaks a pooled connection, eventually exhausting the pool.
+
+12. Freshly-logged-in admin gets denied on /admin
+    File: server/src/controllers/user.controller.js:80 (also :158)
+    googleLogin/verifyOtp return the raw user row instead of
+    buildUserPayload(user), omitting isAdmin - the client's RequireAdmin
+    guard denies access until a manual refresh.
+
+13. Guest cart merge can duplicate items on partial failure
+    File: client/src/store/useCartStore.ts:422
+    localStorage is only cleared after all /cart/add calls succeed; a
+    mid-loop failure leaves already-sent items in localStorage to be
+    re-added (and duplicated) next time.
+
+14. Adding a deleted product silently vanishes from cart
+    File: server/src/controllers/cart.controller.js:197
+    addToCart never checks the product exists; the insert succeeds but
+    getCart's inner join drops it, so "successfully added" items never
+    show up.
+
+15. Unguarded res.success crashes sign-in on network errors
+    File: client/src/pages/SignIn.tsx:24
+    On a network-level failure (no HTTP response), the store returns
+    undefined, and res.success throws instead of showing an error toast.
+
+=== NOTED BUT NOT LISTED ABOVE (cleanup, not correctness bugs) ===
+
+- Duplicated parseJsonArray / image-URL-building / pagination logic across
+  controllers
+- N+1 queries in getOrders
+- Sequential awaits that could be Promise.all
+- Order-status vocabulary hand-duplicated across 4+ files

@@ -468,9 +468,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       if (data.success) get().fetchProducts();
       return data;
-    } catch (e) {
+    } catch (e: any) {
       console.log("Create product error", e);
-      return { success: false };
+      return (
+        e?.response?.data || {
+          success: false,
+          message: "Failed to add product",
+        }
+      );
     } finally {
       set({ savingProduct: false });
     }
@@ -488,9 +493,14 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
       if (data.success) get().fetchProducts();
       return data;
-    } catch (e) {
+    } catch (e: any) {
       console.log("Update product error", e);
-      return { success: false };
+      return (
+        e?.response?.data || {
+          success: false,
+          message: "Failed to update product",
+        }
+      );
     } finally {
       set({ savingProduct: false });
     }
