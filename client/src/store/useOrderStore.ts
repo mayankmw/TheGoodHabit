@@ -10,6 +10,20 @@ interface OrderItem {
   quantity: number;
 }
 
+export interface OrderReview {
+  productId: number;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ReviewDraft {
+  productId: number;
+  rating: number;
+  comment?: string;
+}
+
 interface Order {
   id: number;
   orderCode: string;
@@ -37,6 +51,11 @@ interface Order {
   paymentStatus: string | null;
   paymentDetails: PaymentDetails;
   razorpayPaymentId: string | null;
+
+  // review state — reviews is empty until the customer rates the order, and
+  // reviewPromptDismissed is their "Not now" on the delivered-order prompt
+  reviews: OrderReview[];
+  reviewPromptDismissed: boolean;
 }
 
 interface OrderState {
@@ -49,6 +68,8 @@ interface OrderState {
   fetchOrders: (reset?: boolean) => Promise<void>;
   loadMore: () => Promise<void>;
   changeStatus: (status: string) => Promise<void>;
+  submitReview: (orderId: number, reviews: ReviewDraft[]) => Promise<string | null>;
+  dismissReviewPrompt: (orderId: number) => Promise<void>;
 }
 
 export const useOrderStore = create<OrderState>((set, get) => ({
@@ -92,5 +113,44 @@ export const useOrderStore = create<OrderState>((set, get) => ({
   changeStatus: async (status) => {
     set({ status, page: 1, orders: [] });
     await get().fetchOrders(true);
+  },
+
+  // resolves to null on success, or the error message to surface
+  submitReview: async (orderId, reviews) => {
+    try {
+      const { data } = await api.post("/reviews/submit", { orderId, reviews });
+
+      if (!data?.success) return data?.message || "Could not save your review";
+
+      set((state) => ({
+        orders: state.orders.map((order) =>
+          order.id === orderId
+            ? { ...order, reviews: data.reviews || order.reviews }
+            : order
+        ),
+      }));
+
+      return null;
+    } catch (err) {
+      console.error("submitReview error", err);
+      return (
+        err?.response?.data?.message || "Could not save your review"
+      );
+    }
+  },
+
+  dismissReviewPrompt: async (orderId) => {
+    // hide it right away — a failed call only means it reappears on reload
+    set((state) => ({
+      orders: state.orders.map((order) =>
+        order.id === orderId ? { ...order, reviewPromptDismissed: true } : order
+      ),
+    }));
+
+    try {
+      await api.post("/reviews/dismiss", { orderId });
+    } catch (err) {
+      console.error("dismissReviewPrompt error", err);
+    }
   },
 }));

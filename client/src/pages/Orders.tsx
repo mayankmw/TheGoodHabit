@@ -4,6 +4,7 @@ import { CreditCard, ExternalLink, MapPin, Package, Truck } from "lucide-react";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { OrderReviewSection } from "@/components/OrderReviewSection";
 import {
   formatPaymentMethod,
   paymentStatusBadgeClass,
@@ -258,6 +259,8 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
               Paid: ₹{order.discountedPrice}
             </p>
           </div>
+
+          <OrderReviewSection order={order} />
 
         </div>
       ))}

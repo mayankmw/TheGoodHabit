@@ -9,6 +9,7 @@ import userRoutes from "./routes/user.routes.js";
 import productRoutes from "./routes/product.routes.js";
 import cartRoutes from "./routes/cart.routes.js";
 import orderRoutes from "./routes/order.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
 import contactRoutes from "./routes/contact.routes.js";
 import bulkOrderRoutes from "./routes/bulkOrder.routes.js";
 import addressRoutes from "./routes/address.routes.js";
@@ -19,6 +20,7 @@ import publicRoutes from "./routes/public.routes.js";
 // Seeds
 import { seedDefaultUser } from "./seed/seedUser.js";
 import { seedDefaultAssets } from "./seed/seedDefaultAssets.js";
+
 
 dotenv.config();
 
@@ -61,6 +63,7 @@ app.use("/user", userRoutes);
 app.use("/products", productRoutes);
 app.use("/cart", cartRoutes);
 app.use("/orders", orderRoutes);
+app.use("/reviews", reviewRoutes);
 app.use("/contact", contactRoutes);
 app.use("/bulk-order", bulkOrderRoutes);
 app.use("/address", addressRoutes);

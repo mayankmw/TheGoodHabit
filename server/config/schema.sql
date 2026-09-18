@@ -243,6 +243,9 @@ CREATE TABLE orders (
   shippedAt DATETIME,
   deliveredAt DATETIME,
 
+  -- set when the customer taps "Not now" on the delivered-order review prompt
+  reviewPromptDismissedAt DATETIME NULL,
+
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
@@ -284,6 +287,47 @@ CREATE TABLE order_items (
   ON DELETE CASCADE
 
 );
+
+
+
+-- =====================================================
+-- PRODUCT REVIEWS
+-- =====================================================
+
+CREATE TABLE product_reviews (
+
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  -- keyed to the order, not just the user: a rating only exists because that
+  -- order was delivered, and products.rating/products.reviews are recomputed
+  -- from these rows
+  orderId INT UNSIGNED NOT NULL,
+  -- no FK: products.id has drifted between environments (signed vs unsigned
+  -- BIGINT), so the review endpoint validates the product against the order
+  productId BIGINT NOT NULL,
+  userId INT UNSIGNED NOT NULL,
+
+  rating TINYINT UNSIGNED NOT NULL,
+  comment TEXT,
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uniq_review_order_product (orderId, productId),
+  KEY idx_review_product (productId),
+  KEY idx_review_user (userId),
+
+  CONSTRAINT chk_review_rating CHECK (rating BETWEEN 1 AND 5),
+
+  FOREIGN KEY (orderId)
+  REFERENCES orders(id)
+  ON DELETE CASCADE,
+
+  FOREIGN KEY (userId)
+  REFERENCES users(id)
+  ON DELETE CASCADE
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 

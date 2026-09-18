@@ -1,6 +1,7 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { db } from "../config/db.js";
+import { fetchOrderReviews } from "./review.controller.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -389,6 +390,7 @@ export const getOrders = async (req, res) => {
              o.shippingAddressLine1, o.shippingAddressLine2, o.shippingPhone,
              o.shippingCity, o.shippingState, o.shippingPostalCode, o.shippingCountry,
              o.shippingPartner, o.trackingNumber, o.trackingUrl,
+             o.deliveredAt, o.reviewPromptDismissedAt,
              p.method AS paymentMethod, p.status AS paymentStatus,
              p.details AS paymentDetails, p.razorpayPaymentId
       FROM orders o
@@ -414,6 +416,12 @@ export const getOrders = async (req, res) => {
 
     for (const order of orders) {
       order.paymentDetails = parseJsonObject(order.paymentDetails);
+
+      // review state travels with the order so the card can decide between
+      // showing the form, the "Review the purchase" button, or the review
+      order.reviews = await fetchOrderReviews(order.id);
+      order.reviewPromptDismissed = Boolean(order.reviewPromptDismissedAt);
+      delete order.reviewPromptDismissedAt;
     }
 
     // ---------- FETCH ITEMS ----------
