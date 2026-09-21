@@ -269,7 +269,7 @@ export const verifyRazorpayPayment = async (req, res) => {
     // order id and drive the status change, the order_items insert and the
     // confirmation email against that stranger's order.
     const [[ownedOrder]] = await db.query(
-      "SELECT id FROM orders WHERE id = ? AND userId = ? LIMIT 1",
+      "SELECT id, status FROM orders WHERE id = ? AND userId = ? LIMIT 1",
       [appOrderId, req.user.id]
     );
 
@@ -277,6 +277,16 @@ export const verifyRazorpayPayment = async (req, res) => {
       return res.status(403).json({
         success: false,
         message: "Order not found",
+      });
+    }
+
+    // 'processing' is allowed so a client retry still reaches the replay guard
+    // below and gets an idempotent answer. Anything further along means a fresh
+    // payment would re-run the item insert and decrement stock a second time.
+    if (!["pending", "processing"].includes(ownedOrder.status)) {
+      return res.status(409).json({
+        success: false,
+        message: "This order has already been processed",
       });
     }
 
@@ -365,11 +375,24 @@ export const verifyRazorpayPayment = async (req, res) => {
       // both saw "not paid", and with stock in play that quietly double-
       // decremented inventory.
       const [[lockedPayment]] = await connection.query(
-        "SELECT id, status FROM payments WHERE razorpayOrderId = ? FOR UPDATE",
+        "SELECT id, status, orderId FROM payments WHERE razorpayOrderId = ? FOR UPDATE",
         [razorpay_order_id]
       );
 
-      if (lockedPayment?.status === "paid") {
+      // Both razorpay_order_id and appOrderId arrive from the request body, and
+      // until this check nothing tied them together: the signature only proves
+      // "some Razorpay order of mine was paid", not "THIS order was paid". A
+      // customer could pay for a ₹99 order and pass the id of a ₹20,000 one.
+      // payments.orderId records the true pairing at creation time.
+      if (!lockedPayment || Number(lockedPayment.orderId) !== Number(appOrderId)) {
+        await connection.rollback();
+        return res.status(403).json({
+          success: false,
+          message: "This payment does not belong to that order",
+        });
+      }
+
+      if (lockedPayment.status === "paid") {
         await connection.commit();
         return res.json({ success: true, message: "Payment already verified" });
       }

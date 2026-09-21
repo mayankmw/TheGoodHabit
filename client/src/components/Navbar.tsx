@@ -430,6 +430,9 @@ export const Navbar = () => {
         image: product.image,
         originalPrice: product.originalPrice,
         discountedPrice: product.discountedPrice,
+        // omitting this stored the guest line as untracked, so the ceiling
+        // never applied to anything added from the drawer
+        stock: product.stock,
       });
       if (res && res.success === false) {
         toast.error(res.message || "Couldn't add to cart");

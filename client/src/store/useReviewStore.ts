@@ -109,7 +109,12 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         limit: PAGE_SIZE,
       });
 
-      if (get().productId !== productId) return;
+      // the flag must be cleared here too — returning early left the button
+      // stuck on "Loading..." for the rest of the session
+      if (get().productId !== productId) {
+        set({ loadingMore: false });
+        return;
+      }
 
       if (!data?.success) {
         set({ loadingMore: false });
@@ -126,7 +131,6 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       }));
     } catch (err) {
       console.error("loadMore reviews error", err);
-      if (get().productId !== productId) return;
       set({ loadingMore: false });
     }
   },

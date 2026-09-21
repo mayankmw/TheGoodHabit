@@ -76,6 +76,8 @@ const guestCartToCartResponse = (items: GuestCartEntry[]): CartResponse => {
     image: it.image,
     originalPrice: it.originalPrice,
     discountedPrice: it.discountedPrice,
+    // without this the drawer sees undefined and never caps a guest's "+"
+    stock: it.stock ?? null,
   }));
   const total = calcTotal(cartItems);
   return {
