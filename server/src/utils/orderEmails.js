@@ -1,28 +1,21 @@
-import sendEmail from "./sendEmail.js";
 import { db } from "../config/db.js";
+import {
+  safeSend,
+  renderEmail,
+  heading,
+  paragraph,
+  button,
+  panel,
+  divider,
+  itemsTable,
+  totalsTable,
+  addressBlock,
+  formatINR,
+  escapeHtml,
+  EMAIL_THEME,
+} from "./emailTemplates.js";
 
-// The API's own origin (UPLOADS_APP_URL) points at the server, so emailed
-// links need the storefront origin instead.
-const CLIENT_APP_URL = (process.env.CLIENT_APP_URL || "http://localhost:8080")
-  .replace(/\/+$/, "");
-
-/**
- * sendEmail throws on any SMTP fault. An order email must never take down the
- * request that triggered it — the payment is already captured and the status
- * change already written, so a mail failure is logged and swallowed.
- */
-const safeSend = async (to, subject, text, html) => {
-  if (!to || !String(to).trim()) {
-    console.error(`Order email skipped — no recipient (${subject})`);
-    return;
-  }
-
-  try {
-    await sendEmail(to, subject, text, html);
-  } catch (err) {
-    console.error(`Order email failed (${subject}):`, err.message);
-  }
-};
+const { CLIENT_APP_URL, MUTED } = EMAIL_THEME;
 
 // The recipient is resolved through orders.userId rather than req.user:
 // updateOrder's req.user is the admin, and verifyRazorpayPayment never
@@ -56,42 +49,19 @@ const loadOrderForEmail = async (orderId) => {
 
 const greetingName = (name) => (name && name.trim() ? name.trim() : "there");
 
-// line totals come from order_items.price (an INT) so the email agrees with
-// what the Orders page shows
-const itemLinesHtml = (items) =>
-  items
-    .map(
-      (i) =>
-        `<li>${i.name} × ${i.quantity} — ₹${Number(i.price) * Number(i.quantity)}</li>`
-    )
-    .join("");
 
 const itemLinesText = (items) =>
   items
-    .map((i) => `- ${i.name} x ${i.quantity} — INR ${Number(i.price) * Number(i.quantity)}`)
+    .map((i) => `- ${i.name} x ${i.quantity} — ${formatINR(Number(i.price) * Number(i.quantity))}`)
     .join("\n");
 
-const shell = (body) =>
-  `<div style="font-family: Arial, sans-serif; line-height:1.6;">${body}
-        <br />
-        <p>Best regards,</p>
-        <p><strong>NoshBOB Team</strong></p>
-      </div>`;
-
-// orders.totalPrice is the subtotal and orders.discountedPrice is what was
-// actually charged — the column names read backwards
-const totalsHtml = (order) => {
+const orderTotals = (order) => {
   const subtotal = Number(order.totalPrice || 0);
   const paid = Number(order.discountedPrice ?? order.totalPrice ?? 0);
-  const discount = Math.max(0, subtotal - paid);
-
-  return `
-        <p>
-          <strong>Subtotal:</strong> ₹${subtotal}<br />
-          ${discount > 0 ? `<strong>Discount:</strong> −₹${discount}<br />` : ""}
-          <strong>Paid:</strong> ₹${paid}
-        </p>`;
+  return { subtotal, paid, discount: Math.max(0, subtotal - paid) };
 };
+
+const orderCodeOf = (order) => order.orderCode || `#${order.id}`;
 
 export const sendOrderConfirmedEmail = async (orderId) => {
   try {
@@ -99,7 +69,8 @@ export const sendOrderConfirmedEmail = async (orderId) => {
     if (!order) return;
 
     const name = greetingName(order.customerName);
-    const code = order.orderCode || `#${order.id}`;
+    const code = orderCodeOf(order);
+    const totals = orderTotals(order);
     const trackUrl = `${CLIENT_APP_URL}/track-order?code=${order.orderCode || ""}`;
 
     const text = [
@@ -110,18 +81,35 @@ export const sendOrderConfirmedEmail = async (orderId) => {
       `Order: ${code}`,
       itemLinesText(order.items),
       ``,
-      `Paid: INR ${Number(order.discountedPrice ?? order.totalPrice ?? 0)}`,
+      `Subtotal: ${formatINR(totals.subtotal)}`,
+      totals.discount > 0 ? `Discount: -${formatINR(totals.discount)}` : null,
+      `Paid: ${formatINR(totals.paid)}`,
       ``,
       `Track your order: ${trackUrl}`,
-    ].join("\n");
+    ]
+      .filter((l) => l !== null)
+      .join("\n");
 
-    const html = shell(`
-        <p>Hi ${name},</p>
-        <p>Thanks for your order! We've received it and it's now being prepared.</p>
-        <p><strong>Order:</strong> ${code}</p>
-        <ul>${itemLinesHtml(order.items)}</ul>
-        ${totalsHtml(order)}
-        <p><a href="${trackUrl}">Track your order</a></p>`);
+    const html = renderEmail({
+      preheader: `Order ${code} is confirmed — ${formatINR(totals.paid)} paid`,
+      title: `Order ${code} confirmed`,
+      bodyHtml: [
+        heading("Thanks for your order!"),
+        paragraph(`Hi ${escapeHtml(name)}, we've received your order and it's being prepared now.`),
+        panel(
+          `<strong style="color:${MUTED};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Order number</strong><br /><span style="font-size:18px;font-weight:bold;">${escapeHtml(code)}</span>`
+        ),
+        itemsTable(order.items),
+        totalsTable(totals),
+        addressBlock("Delivering to", order),
+        button("Track your order", trackUrl),
+        divider(),
+        paragraph(
+          `We'll email you again the moment it ships.`,
+          MUTED
+        ),
+      ].join("\n"),
+    });
 
     await safeSend(order.customerEmail, `Order ${code} confirmed`, text, html);
   } catch (err) {
@@ -134,14 +122,14 @@ export const sendOrderShippedEmail = async (orderId, tracking = {}) => {
     const order = await loadOrderForEmail(orderId);
     if (!order) return;
 
-    // the caller passes the post-update values; the pre-update row would miss
-    // a tracking number set in the very same request
+    // the caller passes post-update values; the pre-update row would miss a
+    // tracking number set in the very same request
     const partner = tracking.shippingPartner || order.shippingPartner;
     const number = tracking.trackingNumber || order.trackingNumber;
     const url = tracking.trackingUrl || order.trackingUrl;
 
     const name = greetingName(order.customerName);
-    const code = order.orderCode || `#${order.id}`;
+    const code = orderCodeOf(order);
     const trackUrl = `${CLIENT_APP_URL}/track-order?code=${order.orderCode || ""}`;
 
     const text = [
@@ -149,22 +137,38 @@ export const sendOrderShippedEmail = async (orderId, tracking = {}) => {
       ``,
       `Good news — your order ${code} is on its way.`,
       ``,
-      partner ? `Courier: ${partner}` : "",
-      number ? `Tracking number: ${number}` : "",
-      url ? `Track with the courier: ${url}` : "",
+      partner ? `Courier: ${partner}` : null,
+      number ? `Tracking number: ${number}` : null,
+      url ? `Track with the courier: ${url}` : null,
+      ``,
+      `What's in the box:`,
+      itemLinesText(order.items),
       ``,
       `See your order: ${trackUrl}`,
     ]
-      .filter(Boolean)
+      .filter((l) => l !== null)
       .join("\n");
 
-    const html = shell(`
-        <p>Hi ${name},</p>
-        <p>Good news — your order <strong>${code}</strong> is on its way.</p>
-        ${partner ? `<p><strong>Courier:</strong> ${partner}</p>` : ""}
-        ${number ? `<p><strong>Tracking number:</strong> ${number}</p>` : ""}
-        ${url ? `<p><a href="${url}">Track with the courier</a></p>` : ""}
-        <p><a href="${trackUrl}">See your order</a></p>`);
+    const trackingRows = [
+      partner ? `<strong style="color:${MUTED};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Courier</strong><br />${escapeHtml(partner)}` : "",
+      number ? `<br /><br /><strong style="color:${MUTED};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Tracking number</strong><br /><span style="font-size:16px;font-weight:bold;">${escapeHtml(number)}</span>` : "",
+    ].join("");
+
+    const html = renderEmail({
+      preheader: `Order ${code} has shipped${partner ? ` with ${partner}` : ""}`,
+      title: `Order ${code} has shipped`,
+      bodyHtml: [
+        heading("Your order is on its way"),
+        paragraph(`Hi ${escapeHtml(name)}, order <strong>${escapeHtml(code)}</strong> has left our warehouse.`),
+        trackingRows ? panel(trackingRows) : "",
+        button("Track with the courier", url) || button("See your order", trackUrl),
+        divider(),
+        paragraph(`<strong>What's in the box</strong>`),
+        itemsTable(order.items),
+        addressBlock("Shipping to", order),
+        url ? paragraph(`<a href="${trackUrl}" style="color:${MUTED};">See it on your orders page</a>`, MUTED) : "",
+      ].join("\n"),
+    });
 
     await safeSend(order.customerEmail, `Order ${code} has shipped`, text, html);
   } catch (err) {
@@ -178,7 +182,7 @@ export const sendOrderDeliveredEmail = async (orderId) => {
     if (!order) return;
 
     const name = greetingName(order.customerName);
-    const code = order.orderCode || `#${order.id}`;
+    const code = orderCodeOf(order);
     // there is no per-order anchor on the orders page, so this is the target
     const ordersUrl = `${CLIENT_APP_URL}/orders`;
 
@@ -187,16 +191,28 @@ export const sendOrderDeliveredEmail = async (orderId) => {
       ``,
       `Your order ${code} has been delivered — we hope you love it.`,
       ``,
+      `What you received:`,
+      itemLinesText(order.items),
+      ``,
       `If you have a minute, a quick rating really helps other customers:`,
       ordersUrl,
     ].join("\n");
 
-    const html = shell(`
-        <p>Hi ${name},</p>
-        <p>Your order <strong>${code}</strong> has been delivered — we hope you love it.</p>
-        <ul>${itemLinesHtml(order.items)}</ul>
-        <p>If you have a minute, a quick rating really helps other customers.</p>
-        <p><a href="${ordersUrl}">Rate your purchase</a></p>`);
+    const html = renderEmail({
+      preheader: `Order ${code} delivered — tell us what you think`,
+      title: `How was your order ${code}?`,
+      bodyHtml: [
+        heading("Delivered — we hope you love it"),
+        paragraph(`Hi ${escapeHtml(name)}, your order <strong>${escapeHtml(code)}</strong> has arrived.`),
+        itemsTable(order.items),
+        divider(),
+        paragraph(`<strong>How did we do?</strong>`),
+        paragraph(
+          `A quick star rating takes about ten seconds and genuinely helps other customers choose.`
+        ),
+        button("Rate your purchase", ordersUrl),
+      ].join("\n"),
+    });
 
     await safeSend(order.customerEmail, `How was your order ${code}?`, text, html);
   } catch (err) {

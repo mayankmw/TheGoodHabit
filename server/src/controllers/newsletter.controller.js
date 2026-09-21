@@ -1,5 +1,12 @@
 import { db } from "../config/db.js";
-import sendEmail from "../utils/sendEmail.js";
+import {
+  safeSend,
+  renderEmail,
+  heading,
+  paragraph,
+  button,
+  EMAIL_THEME,
+} from "../utils/emailTemplates.js";
 
 const isValidEmail = (email = "") => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -44,17 +51,21 @@ export const subscribeNewsletter = async (req, res) => {
         [email]
       );
 
-      await sendEmail(
+      await safeSend(
         email,
         "Welcome back to NoshBOB Newsletter",
         "Your newsletter subscription has been reactivated successfully.",
-        `
-          <div style="font-family: Arial, sans-serif; line-height:1.6;">
-            <h2 style="margin:0 0 12px;">Welcome back!</h2>
-            <p>Your newsletter subscription has been reactivated.</p>
-            <p>You will now receive updates, offers, and new launches from NoshBOB.</p>
-          </div>
-        `
+        renderEmail({
+          preheader: "Your subscription is active again",
+          title: "Welcome back to NoshBOB",
+          bodyHtml: [
+            heading("Welcome back!"),
+            paragraph("Your newsletter subscription has been reactivated."),
+            paragraph("You'll get new launches, wellness tips and subscriber-only offers — a couple of times a month, never more."),
+            button("See what's new", EMAIL_THEME.CLIENT_APP_URL),
+          ].join("\n"),
+          footerNote: `Changed your mind? You can unsubscribe from the footer of <a href="${EMAIL_THEME.CLIENT_APP_URL}" style="color:${EMAIL_THEME.MUTED};text-decoration:underline;">our site</a> at any time.`,
+        })
       );
 
       return res.json({
@@ -69,17 +80,21 @@ export const subscribeNewsletter = async (req, res) => {
       [email]
     );
 
-    await sendEmail(
+    await safeSend(
       email,
       "You're subscribed to NoshBOB Newsletter",
       "Your newsletter subscription is confirmed.",
-      `
-        <div style="font-family: Arial, sans-serif; line-height:1.6;">
-          <h2 style="margin:0 0 12px;">Subscription confirmed</h2>
-          <p>Thank you for subscribing to NoshBOB newsletter.</p>
-          <p>You will receive product updates, wellness tips, and special offers.</p>
-        </div>
-      `
+      renderEmail({
+        preheader: "You're on the list — here's what to expect",
+        title: "Subscription confirmed",
+        bodyHtml: [
+          heading("You're on the list"),
+          paragraph("Thanks for subscribing to the NoshBOB newsletter."),
+          paragraph("You'll get product launches, wellness tips and subscriber-only offers — a couple of times a month, never more."),
+          button("Shop bestsellers", EMAIL_THEME.CLIENT_APP_URL),
+        ].join("\n"),
+        footerNote: `Changed your mind? You can unsubscribe from the footer of <a href="${EMAIL_THEME.CLIENT_APP_URL}" style="color:${EMAIL_THEME.MUTED};text-decoration:underline;">our site</a> at any time.`,
+      })
     );
 
     return res.json({
@@ -139,17 +154,24 @@ export const unsubscribeNewsletter = async (req, res) => {
       [email]
     );
 
-    await sendEmail(
+    await safeSend(
       email,
       "You've been unsubscribed from NoshBOB Newsletter",
-      "Your newsletter unsubscription is confirmed.",
-      `
-        <div style="font-family: Arial, sans-serif; line-height:1.6;">
-          <h2 style="margin:0 0 12px;">Unsubscribed successfully</h2>
-          <p>You have been unsubscribed from NoshBOB newsletter.</p>
-          <p>If this was accidental, you can subscribe again anytime from our website.</p>
-        </div>
-      `
+      "You have been unsubscribed from the NoshBOB newsletter.",
+      renderEmail({
+        preheader: "You won't hear from us again",
+        title: "You've been unsubscribed",
+        bodyHtml: [
+          heading("You've been unsubscribed"),
+          paragraph("You won't receive any more newsletters from us. Order and delivery emails are unaffected."),
+          // no promotional CTA here on purpose — a hard-sell goodbye invites
+          // spam complaints
+          paragraph(
+            `Changed your mind? You can resubscribe any time from <a href="${EMAIL_THEME.CLIENT_APP_URL}" style="color:${EMAIL_THEME.BRAND};">our site</a>.`,
+            EMAIL_THEME.MUTED
+          ),
+        ].join("\n"),
+      })
     );
 
     return res.json({

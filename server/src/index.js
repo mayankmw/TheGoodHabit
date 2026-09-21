@@ -20,6 +20,7 @@ import publicRoutes from "./routes/public.routes.js";
 // Seeds
 import { seedDefaultUser } from "./seed/seedUser.js";
 import { seedDefaultAssets } from "./seed/seedDefaultAssets.js";
+import { refreshEmailLogo } from "./utils/emailTemplates.js";
 
 
 dotenv.config();
@@ -77,6 +78,9 @@ app.listen(PORT, async () => {
   await connectDB();
   await seedDefaultUser();
   await seedDefaultAssets();
+
+  // emails render the logo the admin panel uploaded
+  await refreshEmailLogo();
 
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

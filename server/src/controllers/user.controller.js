@@ -1,7 +1,14 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../config/db.js";
-import sendEmail from "../utils/sendEmail.js";
+import {
+  safeSend,
+  renderEmail,
+  heading,
+  paragraph,
+  codeBlock,
+  EMAIL_THEME,
+} from "../utils/emailTemplates.js";
 import { OAuth2Client } from "google-auth-library";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -103,7 +110,27 @@ export const sendOtp = async (req, res) => {
     [email, code, expiresAt]
   );
 
-  await sendEmail(email, "Your Login OTP", `Your OTP: ${code}`);
+  const html = renderEmail({
+    preheader: `${code} is your NoshBOB login code`,
+    title: "Your NoshBOB login code",
+    bodyHtml: [
+      heading("Your login code"),
+      paragraph("Enter this code to sign in. It expires in 5 minutes."),
+      codeBlock(code),
+      paragraph(
+        "If you didn't request this, you can safely ignore this email — nobody can sign in without the code.",
+        EMAIL_THEME.MUTED
+      ),
+    ].join("\n"),
+  });
+
+  // never block sign-in on a mail fault: the OTP row is already written
+  await safeSend(
+    email,
+    "Your NoshBOB login code",
+    `Your NoshBOB login code is ${code}. It expires in 5 minutes.`,
+    html
+  );
 
   return res.json({ success: true, message: "OTP sent to your email." });
 };

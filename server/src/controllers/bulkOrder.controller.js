@@ -1,5 +1,10 @@
 import { db } from "../config/db.js";
-import sendEmail from "../utils/sendEmail.js";
+import {
+  safeSend,
+  renderInternalEmail,
+  escapeHtml,
+  EMAIL_THEME,
+} from "../utils/emailTemplates.js";
 
 const MIN_BULK_QUANTITY = 10;
 
@@ -133,21 +138,49 @@ export const submitBulkOrder = async (req, res) => {
       plainTextItems,
     ].join("\n");
 
-    const html = `
-      <div style="font-family: Arial, sans-serif;">
-        <h2>New Bulk Order Inquiry</h2>
-        <p><strong>Name:</strong> ${name.trim()}</p>
-        <p><strong>Email:</strong> ${email.trim()}</p>
-        <p><strong>Phone:</strong> ${phone.trim()}</p>
-        <p><strong>Address:</strong><br />${address.trim().replace(/\n/g, "<br />")}</p>
-        <h3>Selected Products</h3>
-        <ul>${selectedProductLines}</ul>
-      </div>
-    `;
+    const itemRows = normalizedItems
+      .map((item) => {
+        const product = productMap.get(item.productId);
+        return `<tr>
+          <td style="padding:8px 0;border-bottom:1px solid ${EMAIL_THEME.BORDER};font-family:${EMAIL_THEME.FONT};font-size:14px;color:${EMAIL_THEME.TEXT};">${escapeHtml(product?.name || `Product #${item.productId}`)}</td>
+          <td align="right" style="padding:8px 0;border-bottom:1px solid ${EMAIL_THEME.BORDER};font-family:${EMAIL_THEME.FONT};font-size:14px;font-weight:bold;color:${EMAIL_THEME.TEXT};">${item.quantity}</td>
+        </tr>`;
+      })
+      .join("");
 
-    await sendEmail(ownerEmail, subject, text, html);
+    const totalUnits = normalizedItems.reduce((sum, i) => sum + Number(i.quantity || 0), 0);
+
+    const html = renderInternalEmail({
+      title: "New bulk order enquiry",
+      rows: [
+        ["Name", escapeHtml(name.trim())],
+        ["Email", `<a href="mailto:${escapeHtml(email.trim())}" style="color:${EMAIL_THEME.BRAND};">${escapeHtml(email.trim())}</a>`],
+        ["Phone", escapeHtml(phone.trim())],
+        ["Address", escapeHtml(address.trim()).replace(/\n/g, "<br />")],
+      ],
+      // a real table rather than a <ul>: quantities line up and stay readable
+      // on mobile Gmail
+      bodyHtml: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:0 0 6px;font-family:${EMAIL_THEME.FONT};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:${EMAIL_THEME.MUTED};">Product</td>
+          <td align="right" style="padding:0 0 6px;font-family:${EMAIL_THEME.FONT};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:${EMAIL_THEME.MUTED};">Qty</td>
+        </tr>
+        ${itemRows}
+        <tr>
+          <td style="padding:10px 0 0;font-family:${EMAIL_THEME.FONT};font-size:14px;font-weight:bold;color:${EMAIL_THEME.TEXT};">Total units</td>
+          <td align="right" style="padding:10px 0 0;font-family:${EMAIL_THEME.FONT};font-size:14px;font-weight:bold;color:${EMAIL_THEME.TEXT};">${totalUnits}</td>
+        </tr>
+      </table>`,
+    });
+
+    // deliberately NOT sent here — see after the commit below
 
     await connection.commit();
+
+    // Sent only once the enquiry is durably committed. Awaiting sendEmail
+    // inside the transaction meant an SMTP blip rolled back an order the
+    // customer had successfully submitted.
+    await safeSend(ownerEmail, subject, text, html);
 
     return res.json({
       success: true,

@@ -5,6 +5,16 @@ import {
   sendOrderShippedEmail,
   sendOrderDeliveredEmail,
 } from "../utils/orderEmails.js";
+import {
+  refreshEmailLogo,
+  renderEmail,
+  renderNewsletterEmail,
+  heading,
+  paragraph,
+  button,
+  escapeHtml,
+  EMAIL_THEME,
+} from "../utils/emailTemplates.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -856,6 +866,9 @@ export const updateAsset = async (req, res) => {
         [imageFile, position, id]
       );
 
+      // a newly uploaded logo should reach emails without a restart
+      await refreshEmailLogo();
+
       return res.json({
         success: true,
         message: "Asset updated successfully"
@@ -881,6 +894,8 @@ export const updateAsset = async (req, res) => {
         [type, imageFile, position]
       );
     }
+
+    await refreshEmailLogo();
 
     res.json({
       success: true,
@@ -1526,17 +1541,19 @@ export const replyToContact = async (req, res) => {
     /* ================= SEND EMAIL ================= */
     const subject = "Re: Your message to NoshBOB";
 
-    const html = `
-      <div style="font-family: Arial, sans-serif;">
-        <p>Hi ${contact.name},</p>
-
-        <p>${reply.replace(/\n/g, "<br />")}</p>
-
-        <br />
-        <p>Best regards,</p>
-        <p><strong>NoshBOB Team</strong></p>
-      </div>
-    `;
+    const html = renderEmail({
+      preheader: "We've replied to your message",
+      title: subject,
+      bodyHtml: [
+        heading("We've got back to you"),
+        paragraph(`Hi ${escapeHtml(contact.name || "there")},`),
+        // the admin types plain text, so it is escaped and only newlines
+        // become markup
+        paragraph(escapeHtml(reply).replace(/\n/g, "<br />")),
+        button("Shop NoshBOB", EMAIL_THEME.CLIENT_APP_URL),
+        paragraph("Just reply to this email if you need anything else.", EMAIL_THEME.MUTED),
+      ].join("\n"),
+    });
 
     await sendEmail(contact.email, subject, reply, html);
 
@@ -1710,15 +1727,14 @@ export const sendNewsletter = async (req, res) => {
       });
     }
 
-    const html = `
-      <div style="font-family: Arial, sans-serif; line-height:1.55;">
-        ${content}
-        <br /><br />
-        <p style="font-size:12px;color:#999">
-          You received this email because you subscribed to NoshBOB.
-        </p>
-      </div>
-    `;
+    // `content` is the admin's own CKEditor HTML and is injected verbatim —
+    // escaping it here would show them their own tags as text.
+    const html = renderNewsletterEmail({
+      preheader: plainTextContent ? String(plainTextContent).slice(0, 120) : subject,
+      title: subject,
+      contentHtml: content,
+      unsubscribeUrl: EMAIL_THEME.CLIENT_APP_URL,
+    });
 
     /* ================= SEND EMAILS IN BATCHES ================= */
     let sentCount = 0;

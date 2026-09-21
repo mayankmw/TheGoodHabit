@@ -1,4 +1,9 @@
-import sendEmail from "../utils/sendEmail.js";
+import {
+  safeSend,
+  renderInternalEmail,
+  escapeHtml,
+  EMAIL_THEME,
+} from "../utils/emailTemplates.js";
 import { db } from "../config/db.js";
 
 export const sendContactMessage = async (req, res) => {
@@ -24,19 +29,20 @@ export const sendContactMessage = async (req, res) => {
     /* ================= SEND EMAIL ================= */
     const adminEmail = process.env.EMAIL_USER;
 
-    const subject = `📩 New Contact Message from ${name}`;
+    const subject = `New contact message from ${name}`;
 
-    const html = `
-      <div style="font-family: Arial, sans-serif;">
-        <h2>New Contact Form Submission</h2>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Message:</strong></p>
-        <p>${message.replace(/\n/g, "<br />")}</p>
-      </div>
-    `;
+    const html = renderInternalEmail({
+      title: "New contact form submission",
+      rows: [
+        ["Name", escapeHtml(name)],
+        ["Email", `<a href="mailto:${escapeHtml(email)}" style="color:${EMAIL_THEME.BRAND};">${escapeHtml(email)}</a>`],
+      ],
+      bodyHtml: `<div style="border-left:3px solid ${EMAIL_THEME.BORDER};padding:4px 0 4px 14px;font-family:${EMAIL_THEME.FONT};font-size:14px;line-height:1.7;color:${EMAIL_THEME.TEXT};white-space:pre-wrap;">${escapeHtml(message)}</div>`,
+    });
 
-    await sendEmail(adminEmail, subject, message, html);
+    // the message row is already committed, so a mail fault must not 500 and
+    // push the customer into resubmitting a duplicate
+    await safeSend(adminEmail, subject, message, html);
 
     return res.json({
       success: true,
