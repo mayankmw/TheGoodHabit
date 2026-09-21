@@ -54,8 +54,10 @@ router.post("/stats", auth, isAdmin, getStats);
 router.post("/trends/revenue", auth, isAdmin, getRevenueTrend);
 router.post("/trends/orders", auth, isAdmin, getOrdersTrend);
 
-router.get("/products", getProducts);
-router.post("/product", getProductById);
+// these two shipped without guards while every other admin route had both,
+// leaving the full catalogue readable without a token
+router.get("/products", auth, isAdmin, getProducts);
+router.post("/product", auth, isAdmin, getProductById);
 
 router.post(
   "/product/create",
