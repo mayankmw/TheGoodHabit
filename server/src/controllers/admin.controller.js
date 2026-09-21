@@ -5,6 +5,7 @@ import {
   sendOrderShippedEmail,
   sendOrderDeliveredEmail,
 } from "../utils/orderEmails.js";
+import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.js";
 import {
   refreshEmailLogo,
   renderEmail,
@@ -794,27 +795,6 @@ export const fetchOrderById = async (req, res) => {
 // "pending" is set automatically when an order is created (pre-payment) and
 // is never a manually chosen target — it's included here only so an order
 // stuck in it can still be moved forward.
-/**
- * Puts stock back when an order is cancelled. Untracked products are skipped,
- * so a cancellation can never turn an unlimited product into a counted one.
- */
-const restoreOrderStock = async (orderId) => {
-  const [items] = await db.query(
-    `SELECT oi.quantity, p.id AS productId
-     FROM order_items oi
-     JOIN products p ON p.id = oi.productId
-     WHERE oi.orderId = ?`,
-    [orderId]
-  );
-
-  for (const item of items) {
-    await db.query(
-      "UPDATE products SET stock = stock + ? WHERE id = ? AND stock IS NOT NULL",
-      [item.quantity, item.productId]
-    );
-  }
-};
-
 const ALLOWED_NEXT_ORDER_STATUSES = {
   pending: ["processing", "cancelled"],
   processing: ["processing", "shipped", "cancelled"],
@@ -882,6 +862,27 @@ export const updateOrder = async (req, res) => {
     const justDelivered = status === "delivered" && existing.status !== "delivered";
     const justCancelled = status === "cancelled" && existing.status !== "cancelled";
 
+    let cancellation = null;
+
+    if (justCancelled) {
+      try {
+        cancellation = await cancelOrderInternal({
+          orderId: id,
+          by: "admin",
+          reason: nullifyEmpty(req.body.cancelReason),
+        });
+
+        if (cancellation.error)
+          return res.status(cancellation.error.code).json({ success: false, message: cancellation.error.message });
+      } catch (err) {
+        console.error("Admin cancel refund error:", err);
+        return res.status(502).json({
+          success: false,
+          message: "Refund failed at the payment provider — the order was NOT cancelled. Try again in a moment.",
+        });
+      }
+    }
+
     // stamp shipped/delivered timestamps automatically the first time an
     // order reaches that status — nothing client-side ever sends these.
     const resolvedShippedAt =
@@ -913,9 +914,6 @@ export const updateOrder = async (req, res) => {
       ]
     );
 
-    // the goods are coming back, so the units do too
-    if (justCancelled) await restoreOrderStock(id);
-
     // fire and forget after the row is written; req.user here is the ADMIN,
     // so the recipient is resolved from orders.userId inside these helpers
     if (justShipped) {
@@ -928,7 +926,14 @@ export const updateOrder = async (req, res) => {
 
     if (justDelivered) sendOrderDeliveredEmail(id);
 
-    return res.json({ success: true, message: "Order updated successfully" });
+    // "Order updated" hides the part the admin actually needs to know about
+    const message = cancellation
+      ? cancellation.refund
+        ? `Order cancelled and ₹${cancellation.refund.amount / 100} refunded to the customer`
+        : "Order cancelled — no payment had been taken, nothing to refund"
+      : "Order updated successfully";
+
+    return res.json({ success: true, message });
   } catch (err) {
     console.error("Update Order Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
@@ -2132,6 +2137,34 @@ export const deleteReel = async (req, res) => {
   }
 };
 
+
+export const cancelOrderAsAdmin = async (req, res) => {
+  try {
+    const result = await cancelOrderInternal({
+      orderId: Number(req.body.id),
+      by: "admin",
+      reason: nullifyEmpty(req.body.reason),
+    });
+
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
+
+    return res.json({
+      success: true,
+      message: result.alreadyCancelled
+        ? "Refund completed for the cancelled order"
+        : result.refund
+        ? `Order cancelled and ₹${result.refund.amount / 100} refunded`
+        : "Order cancelled (no payment was taken)",
+    });
+  } catch (err) {
+    console.error("Admin Cancel Order Error:", err);
+    return res.status(502).json({
+      success: false,
+      message: "Refund failed at the payment provider — nothing has changed, try again",
+    });
+  }
+};
 
 /* ================= REVIEWS ================= */
 

@@ -219,3 +219,57 @@ export const sendOrderDeliveredEmail = async (orderId) => {
     console.error("Order delivered email error:", err.message);
   }
 };
+
+export const sendOrderCancelledEmail = async (orderId) => {
+  try {
+    const order = await loadOrderForEmail(orderId);
+    if (!order) return;
+
+    const [[payment]] = await db.query(
+      "SELECT status, refundAmount FROM payments WHERE orderId = ? LIMIT 1",
+      [orderId]
+    );
+
+    const name = greetingName(order.customerName);
+    const code = orderCodeOf(order);
+    const refunded = payment?.status === "refunded" ? Number(payment.refundAmount || 0) / 100 : 0;
+
+    const refundText = refunded
+      ? `A refund of ${formatINR(refunded)} is on its way to your original payment method. It usually shows up within 5–7 business days, depending on your bank.`
+      : `No payment was taken for this order, so there is nothing to refund.`;
+
+    const text = [
+      `Hi ${name},`,
+      ``,
+      `Your order ${code} has been cancelled.`,
+      ``,
+      refundText,
+      ``,
+      `Changed your mind? You can always order again: ${CLIENT_APP_URL}`,
+    ].join("\n");
+
+    const html = renderEmail({
+      preheader: refunded
+        ? `Order ${code} cancelled — ${formatINR(refunded)} refund on its way`
+        : `Order ${code} cancelled`,
+      title: `Order ${code} cancelled`,
+      bodyHtml: [
+        heading("Your order has been cancelled"),
+        paragraph(`Hi ${escapeHtml(name)}, order <strong>${escapeHtml(code)}</strong> is cancelled.`),
+        refunded
+          ? panel(
+              `<strong style="color:${MUTED};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Refund</strong><br /><span style="font-size:18px;font-weight:bold;">${formatINR(refunded)}</span><br /><span style="color:${MUTED};">Back on your original payment method within 5–7 business days</span>`
+            )
+          : paragraph(refundText, MUTED),
+        itemsTable(order.items),
+        divider(),
+        paragraph("Changed your mind? Everything's still here."),
+        button("Shop NoshBOB", CLIENT_APP_URL),
+      ].join("\n"),
+    });
+
+    await safeSend(order.customerEmail, `Order ${code} cancelled`, text, html);
+  } catch (err) {
+    console.error("Order cancelled email error:", err.message);
+  }
+};

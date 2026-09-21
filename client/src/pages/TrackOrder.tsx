@@ -12,6 +12,13 @@ import {
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import api from "@/lib/api";
 import { toast } from "sonner";
@@ -32,6 +39,8 @@ type TrackingStep = {
 };
 
 type TrackingResponse = {
+  cancelledAt?: string | null;
+  refund?: { amount: number; at: string } | null;
   orderCode: string;
   orderId: number;
   status: string;
@@ -81,6 +90,37 @@ export const TrackOrder = () => {
   const [searchParams] = useSearchParams();
   const [orderId, setOrderId] = useState(() => searchParams.get("code") || "");
   const [trackingData, setTrackingData] = useState<TrackingResponse | null>(null);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  const canCancel = trackingData && ["pending", "processing"].includes(trackingData.status);
+
+  const handleCancel = async () => {
+    if (!trackingData) return;
+    setCancelling(true);
+    try {
+      const { data } = await api.post("/orders/cancel", { orderId: trackingData.orderId });
+      if (!data?.success) {
+        toast.error(data?.message || "Couldn't cancel this order");
+        return;
+      }
+      toast.success(data.message || "Order cancelled");
+      // patch in place — the steps and totals are still correct, only the
+      // status and refund changed
+      setTrackingData({
+        ...trackingData,
+        status: "cancelled",
+        statusLabel: "Cancelled",
+        cancelledAt: new Date().toISOString(),
+        refund: data.refund ? { amount: data.refund.amount, at: new Date().toISOString() } : null,
+      });
+      setConfirmCancel(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Couldn't cancel this order");
+    } finally {
+      setCancelling(false);
+    }
+  };
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
@@ -175,6 +215,26 @@ export const TrackOrder = () => {
         </div>
       )}
 
+      <Dialog open={confirmCancel} onOpenChange={(open) => !open && !cancelling && setConfirmCancel(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Cancel this order?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            Order <strong>{trackingData?.orderCode}</strong> will be cancelled and any payment refunded
+            to your original payment method within 5–7 business days.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" disabled={cancelling} onClick={() => setConfirmCancel(false)}>
+              Keep order
+            </Button>
+            <Button variant="destructive" disabled={cancelling} onClick={handleCancel}>
+              {cancelling ? "Cancelling..." : "Yes, cancel it"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* 🚚 Tracking Info */}
       {trackingData && (
         <div className="mt-12 max-w-3xl mx-auto bg-white p-8 rounded-2xl shadow-lg border">
@@ -196,6 +256,17 @@ export const TrackOrder = () => {
               >
                 {trackingData.statusLabel}
               </span>
+              {canCancel && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 rounded-full gap-1.5 px-3 text-xs text-muted-foreground hover:text-red-600"
+                  onClick={() => setConfirmCancel(true)}
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  Cancel order
+                </Button>
+              )}
               {trackingData.trackingNumber && (
                 <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700">
                   Tracking No: {trackingData.trackingNumber}
@@ -218,7 +289,9 @@ export const TrackOrder = () => {
                 <div>
                   <p className="font-semibold">This order has been cancelled</p>
                   <p className="text-sm text-red-600/80">
-                    The order status is cancelled in the current system.
+                    {trackingData.refund
+                      ? `₹${trackingData.refund.amount} has been refunded to your original payment method — it usually shows up within 5–7 business days.`
+                      : "No payment was taken for this order, so there's nothing to refund."}
                   </p>
                 </div>
               </div>

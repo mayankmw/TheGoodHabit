@@ -1,15 +1,25 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, ExternalLink, MapPin, Package, Truck } from "lucide-react";
+import { CreditCard, ExternalLink, MapPin, Package, Truck, XCircle } from "lucide-react";
+import { toast } from "sonner";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { OrderReviewSection } from "@/components/OrderReviewSection";
 import {
   formatPaymentMethod,
   paymentStatusBadgeClass,
   paymentStatusLabel,
 } from "@/lib/payment";
+
+const CANCELLABLE = ["pending", "processing"];
 
 const statusBadge = (status: string) => {
   if (status === "delivered")
@@ -112,6 +122,24 @@ export default function Orders() {
 
 function OrdersList({ list, loading, loadMore, hasMore }) {
   const navigate = useNavigate();
+  const cancelOrder = useOrderStore((s) => s.cancelOrder);
+  const [toCancel, setToCancel] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+
+  const confirmCancel = async () => {
+    if (!toCancel) return;
+    setCancelling(true);
+    const res = await cancelOrder(toCancel.id);
+    setCancelling(false);
+
+    if (res.error) {
+      toast.error(res.error);
+      return;
+    }
+
+    toast.success(res.message || "Order cancelled");
+    setToCancel(null);
+  };
 
   if (loading && !list.length)
     return (
@@ -167,6 +195,18 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
                 >
                   <Truck className="h-3.5 w-3.5" />
                   Track Order
+                </Button>
+              )}
+
+              {CANCELLABLE.includes(order.status) && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full gap-1.5 text-muted-foreground hover:text-red-600"
+                  onClick={() => setToCancel(order)}
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  Cancel Order
                 </Button>
               )}
             </div>
@@ -258,6 +298,12 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
             <p className="text-lg font-bold text-primary">
               Paid: ₹{order.discountedPrice}
             </p>
+
+            {order.paymentStatus === "refunded" && (
+              <p className="text-sm font-medium text-green-700">
+                Refunded ₹{Math.round((order.refundAmount || 0) / 100)} — back on your original payment method in 5–7 business days
+              </p>
+            )}
           </div>
 
           <OrderReviewSection order={order} />
@@ -276,6 +322,28 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
           </Button>
         </div>
       )}
+
+      <Dialog open={Boolean(toCancel)} onOpenChange={(open) => !open && !cancelling && setToCancel(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-red-600">Cancel this order?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            Order <strong>{toCancel?.orderCode || `#${toCancel?.id}`}</strong> will be cancelled.
+            {toCancel?.paymentStatus === "paid"
+              ? ` Your ₹${toCancel?.discountedPrice} will be refunded to your original payment method within 5–7 business days.`
+              : " No payment was taken, so there's nothing to refund."}
+          </p>
+          <DialogFooter>
+            <Button variant="outline" disabled={cancelling} onClick={() => setToCancel(null)}>
+              Keep order
+            </Button>
+            <Button variant="destructive" disabled={cancelling} onClick={confirmCancel}>
+              {cancelling ? "Cancelling..." : "Yes, cancel it"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

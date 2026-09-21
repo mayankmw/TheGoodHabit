@@ -246,6 +246,11 @@ CREATE TABLE orders (
   shippedAt DATETIME,
   deliveredAt DATETIME,
 
+  -- who cancelled and why; the refund itself is recorded on payments
+  cancelledAt DATETIME NULL,
+  cancelledBy ENUM('customer','admin') NULL,
+  cancelReason VARCHAR(255) NULL,
+
   -- set when the customer taps "Not now" on the delivered-order review prompt
   reviewPromptDismissedAt DATETIME NULL,
 
@@ -358,8 +363,11 @@ CREATE TABLE payments (
   razorpayOrderId VARCHAR(255) NOT NULL,
   razorpayPaymentId VARCHAR(255),
   razorpaySignature VARCHAR(255),
+  razorpayRefundId VARCHAR(255) NULL,
 
   amount INT NOT NULL,
+  refundAmount INT NULL,
+  refundedAt DATETIME NULL,
 
   currency VARCHAR(10) DEFAULT 'INR',
 
@@ -382,6 +390,9 @@ CREATE TABLE payments (
 
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  -- verifyRazorpayPayment locks by this key with FOR UPDATE
+  UNIQUE KEY uniq_payments_razorpay_order (razorpayOrderId),
 
   FOREIGN KEY (orderId)
   REFERENCES orders(id)

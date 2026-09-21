@@ -14,6 +14,7 @@ import {
   fetchOrders,
   fetchOrderById,
   updateOrder,
+  cancelOrderAsAdmin,
   getAllAssets,
   updateAsset,
   getAllCoupons,
@@ -87,6 +88,7 @@ router.post(
 router.post("/orders", auth, isAdmin, fetchOrders);
 router.post("/order", auth, isAdmin, fetchOrderById);
 router.post("/order/update", auth, isAdmin, updateOrder);
+router.post("/order/cancel", auth, isAdmin, cancelOrderAsAdmin);
 
 router.post("/assets", auth, isAdmin, getAllAssets);
 

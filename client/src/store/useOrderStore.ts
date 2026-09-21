@@ -52,6 +52,12 @@ interface Order {
   paymentDetails: PaymentDetails;
   razorpayPaymentId: string | null;
 
+  // cancellation + refund — null until it happens
+  cancelledAt: string | null;
+  cancelledBy: "customer" | "admin" | null;
+  refundAmount: number | null; // paise
+  refundedAt: string | null;
+
   // review state — reviews is empty until the customer rates the order, and
   // reviewPromptDismissed is their "Not now" on the delivered-order prompt
   reviews: OrderReview[];
@@ -70,6 +76,7 @@ interface OrderState {
   changeStatus: (status: string) => Promise<void>;
   submitReview: (orderId: number, reviews: ReviewDraft[]) => Promise<string | null>;
   dismissReviewPrompt: (orderId: number) => Promise<void>;
+  cancelOrder: (orderId: number, reason?: string) => Promise<{ error: string | null; message?: string }>;
 }
 
 export const useOrderStore = create<OrderState>((set, get) => ({
@@ -136,6 +143,36 @@ export const useOrderStore = create<OrderState>((set, get) => ({
       return (
         err?.response?.data?.message || "Could not save your review"
       );
+    }
+  },
+
+  // resolves { error } on failure so the card can show the reason; on success
+  // the order is patched in place rather than refetching the whole list
+  cancelOrder: async (orderId, reason) => {
+    try {
+      const { data } = await api.post("/orders/cancel", { orderId, reason });
+
+      if (!data?.success) return { error: data?.message || "Couldn't cancel this order" };
+
+      set((state) => ({
+        orders: state.orders.map((order) =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: "cancelled",
+                cancelledAt: new Date().toISOString(),
+                cancelledBy: "customer",
+                paymentStatus: data.refund ? "refunded" : order.paymentStatus,
+                refundAmount: data.refund ? Math.round(data.refund.amount * 100) : order.refundAmount,
+              }
+            : order
+        ),
+      }));
+
+      return { error: null, message: data.message };
+    } catch (err) {
+      console.error("cancelOrder error", err);
+      return { error: err?.response?.data?.message || "Couldn't cancel this order" };
     }
   },
 

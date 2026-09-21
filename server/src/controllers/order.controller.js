@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { db } from "../config/db.js";
 import { fetchOrderReviews } from "./review.controller.js";
 import { sendOrderConfirmedEmail } from "../utils/orderEmails.js";
+import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -553,7 +554,9 @@ export const getOrders = async (req, res) => {
              o.shippingCity, o.shippingState, o.shippingPostalCode, o.shippingCountry,
              o.shippingPartner, o.trackingNumber, o.trackingUrl,
              o.deliveredAt, o.reviewPromptDismissedAt,
+             o.cancelledAt, o.cancelledBy,
              p.method AS paymentMethod, p.status AS paymentStatus,
+             p.refundAmount, p.refundedAt,
              p.details AS paymentDetails, p.razorpayPaymentId
       FROM orders o
       LEFT JOIN payments p ON p.orderId = o.id
@@ -729,6 +732,7 @@ export const trackOrderByCode = async (req, res) => {
         trackingUrl,
         shippedAt,
         deliveredAt,
+        cancelledAt,
         createdAt,
         updatedAt
       FROM orders
@@ -769,12 +773,22 @@ export const trackOrderByCode = async (req, res) => {
       };
     });
 
+    const [[payment]] = await db.query(
+      "SELECT status, refundAmount, refundedAt FROM payments WHERE orderId = ? LIMIT 1",
+      [order.id]
+    );
+
     return res.json({
       success: true,
       tracking: {
         orderCode: order.orderCode,
         orderId: order.id,
         status: order.status,
+        cancelledAt: order.cancelledAt,
+        refund:
+          payment?.status === "refunded"
+            ? { amount: Number(payment.refundAmount || 0) / 100, at: payment.refundedAt }
+            : null,
         statusLabel:
           order.status.charAt(0).toUpperCase() + order.status.slice(1),
         placedAt: order.createdAt,
@@ -801,6 +815,37 @@ export const trackOrderByCode = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Server Error",
+    });
+  }
+};
+
+export const cancelOrder = async (req, res) => {
+  try {
+    const result = await cancelOrderInternal({
+      orderId: Number(req.body.orderId),
+      userId: req.user.id,
+      by: "customer",
+      reason: req.body.reason,
+    });
+
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
+
+    const refunded = result.refund ? result.refund.amount / 100 : 0;
+
+    return res.json({
+      success: true,
+      message: refunded
+        ? `Order cancelled — a ₹${refunded} refund is on its way`
+        : "Order cancelled",
+      refund: refunded ? { amount: refunded } : null,
+    });
+  } catch (err) {
+    // the refund call itself failed: nothing was written, so a retry is safe
+    console.error("Cancel Order Error:", err);
+    return res.status(502).json({
+      success: false,
+      message: "We couldn't reach the payment provider to refund you — nothing has changed, please try again in a moment",
     });
   }
 };
