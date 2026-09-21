@@ -21,6 +21,7 @@ import Profile from "./pages/Profile";
 import Orders from "./pages/Orders";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import Unsubscribe from "./pages/Unsubscribe";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLayout from "@/components/AdminLayout";
 import AdminProducts from "./pages/AdminProducts";
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/bulk-order" element={<BulkOrder />} />
             <Route path="/terms-and-conditions" element={<Terms />} />
             <Route path="/privacy-policy" element={<Privacy />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/signin" element={<SignInRoute />} />
 
             <Route element={<RequireAuth />}>

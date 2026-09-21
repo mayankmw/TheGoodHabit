@@ -137,14 +137,14 @@ export const escapeHtml = (value) =>
  * sendEmail throws on any SMTP fault. Nothing an email is attached to — a
  * captured payment, a saved enquiry, a status change — may fail because of it.
  */
-export const safeSend = async (to, subject, text, html, attachments = []) => {
+export const safeSend = async (to, subject, text, html, attachments = [], headers = null) => {
   if (!to || !String(to).trim()) {
     console.error(`Email skipped — no recipient (${subject})`);
     return { success: false, skipped: true };
   }
 
   try {
-    await sendEmail(to, subject, text, html, attachments);
+    await sendEmail(to, subject, text, html, attachments, headers);
     return { success: true };
   } catch (err) {
     console.error(`Email failed (${subject}):`, err.message);
@@ -374,5 +374,28 @@ export const renderNewsletterEmail = ({ preheader = "", title = "", contentHtml 
       ? `Don't want these emails? <a href="${unsubscribeUrl}" style="color:${MUTED};text-decoration:underline;">Unsubscribe here</a>.`
       : "",
   });
+
+const SERVER_APP_URL = (process.env.SERVER_APP_URL || process.env.UPLOADS_APP_URL || "")
+  .replace(/\/+$/, "");
+
+/** The page a human lands on from the footer link — it asks before acting. */
+export const unsubscribeLink = (token) =>
+  token ? `${CLIENT_APP_URL}/unsubscribe?token=${encodeURIComponent(token)}` : "";
+
+/**
+ * RFC 8058 one-click headers. Gmail and Yahoo POST to the https URL with a
+ * `List-Unsubscribe=One-Click` body and expect the opt-out to happen without
+ * any further interaction, so this endpoint must not ask for confirmation.
+ */
+export const unsubscribeHeaders = (token) => {
+  if (!token || !SERVER_APP_URL) return null;
+
+  const oneClick = `${SERVER_APP_URL}/newsletter/unsubscribe/one-click?token=${encodeURIComponent(token)}`;
+
+  return {
+    "List-Unsubscribe": `<${oneClick}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+};
 
 export const EMAIL_THEME = { BRAND, ACCENT, PAGE_BG, CARD_BG, TEXT, MUTED, BORDER, SUCCESS, FONT, CLIENT_APP_URL };

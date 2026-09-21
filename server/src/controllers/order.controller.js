@@ -237,6 +237,22 @@ export const verifyRazorpayPayment = async (req, res) => {
       appOrderId
     } = req.body;
 
+    // appOrderId arrives from the client and was never checked against the
+    // caller. Without this, a signed-in customer could pass someone else's
+    // order id and drive the status change, the order_items insert and the
+    // confirmation email against that stranger's order.
+    const [[ownedOrder]] = await db.query(
+      "SELECT id FROM orders WHERE id = ? AND userId = ? LIMIT 1",
+      [appOrderId, req.user.id]
+    );
+
+    if (!ownedOrder) {
+      return res.status(403).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
     // Verify Signature
     const body = razorpay_order_id + "|" + razorpay_payment_id;
 

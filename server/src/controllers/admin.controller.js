@@ -9,6 +9,8 @@ import {
   refreshEmailLogo,
   renderEmail,
   renderNewsletterEmail,
+  unsubscribeLink,
+  unsubscribeHeaders,
   heading,
   paragraph,
   button,
@@ -1717,7 +1719,7 @@ export const sendNewsletter = async (req, res) => {
 
     /* ================= FETCH ACTIVE SUBSCRIBERS ================= */
     const [subscribers] = await db.query(
-      `SELECT email FROM newsletter_subscribers WHERE status = 'active'`
+      `SELECT email, unsubscribeToken FROM newsletter_subscribers WHERE status = 'active'`
     );
 
     if (!subscribers.length) {
@@ -1728,13 +1730,16 @@ export const sendNewsletter = async (req, res) => {
     }
 
     // `content` is the admin's own CKEditor HTML and is injected verbatim —
-    // escaping it here would show them their own tags as text.
-    const html = renderNewsletterEmail({
-      preheader: plainTextContent ? String(plainTextContent).slice(0, 120) : subject,
-      title: subject,
-      contentHtml: content,
-      unsubscribeUrl: EMAIL_THEME.CLIENT_APP_URL,
-    });
+    // escaping it here would show them their own tags as text. The footer link
+    // and the List-Unsubscribe headers are per recipient, so the body is built
+    // inside the send loop below rather than once here.
+    const buildHtml = (token) =>
+      renderNewsletterEmail({
+        preheader: plainTextContent ? String(plainTextContent).slice(0, 120) : subject,
+        title: subject,
+        contentHtml: content,
+        unsubscribeUrl: unsubscribeLink(token),
+      });
 
     /* ================= SEND EMAILS IN BATCHES ================= */
     let sentCount = 0;
@@ -1749,8 +1754,11 @@ export const sendNewsletter = async (req, res) => {
             sub.email,
             subject,
             plainTextContent || subject,
-            html,
-            attachments
+            buildHtml(sub.unsubscribeToken),
+            attachments,
+            // RFC 8058: what makes Gmail and Yahoo show a native
+            // "Unsubscribe" control beside the sender name
+            unsubscribeHeaders(sub.unsubscribeToken)
           )
         )
       );

@@ -27,7 +27,8 @@ const transporter = nodemailer.createTransport({
     subject,
     text,
     html = null,
-    attachments = []
+    attachments = [],
+    headers = null
   ) => {
     try {
       const mailOptions = {
@@ -37,6 +38,10 @@ const transporter = nodemailer.createTransport({
         text,
         html: html || `<p>${text}</p>`,
         attachments,
+        // List-Unsubscribe / List-Unsubscribe-Post live here: Gmail and Yahoo
+        // require them on bulk mail, and mailOptions was a fixed literal that
+        // could not carry any header at all
+        ...(headers ? { headers } : {}),
       };
 
       const info = await transporter.sendMail(mailOptions);
