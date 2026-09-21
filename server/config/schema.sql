@@ -39,6 +39,9 @@ CREATE TABLE products (
   originalPrice INT NOT NULL DEFAULT 0,
   discountedPrice INT NOT NULL DEFAULT 0,
 
+  -- NULL = not tracked (sell without limit); a number = tracked, 0 = sold out
+  stock INT NULL DEFAULT NULL,
+
   rating FLOAT DEFAULT 0,
   reviews INT DEFAULT 0,
 
@@ -245,6 +248,10 @@ CREATE TABLE orders (
 
   -- set when the customer taps "Not now" on the delivered-order review prompt
   reviewPromptDismissedAt DATETIME NULL,
+
+  -- NULL normally; a JSON array of { productId, wanted, available } when a
+  -- line could not be fully decremented from stock at payment time
+  oversoldItems JSON NULL,
 
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -551,6 +558,11 @@ CREATE TABLE newsletter_subscribers (
   email VARCHAR(255) UNIQUE,
 
   status ENUM('active','unsubscribed') DEFAULT 'active',
+
+  -- random per-subscriber id for one-click unsubscribe links, so an email
+  -- address never has to travel in a URL where it would leak into referrers
+  -- and access logs
+  unsubscribeToken CHAR(32) NULL UNIQUE,
 
   unsubscribedAt DATETIME NULL,
 

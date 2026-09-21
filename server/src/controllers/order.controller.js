@@ -50,7 +50,7 @@ const razorpay = new Razorpay({
 
 async function getCartTotalsWithCoupons(cartId) {
   const [items] = await db.query(
-    `SELECT ci.quantity, p.discountedPrice
+    `SELECT ci.quantity, p.id AS productId, p.name, p.stock, p.discountedPrice
      FROM cart_items ci
      JOIN products p ON p.id = ci.productId
      WHERE ci.cartId = ?`,
@@ -92,6 +92,7 @@ async function getCartTotalsWithCoupons(cartId) {
   discount = Math.min(discount, subtotal);
 
   return {
+    items,
     subtotal,
     discount,
     payable: Math.max(0, subtotal - discount),
@@ -152,11 +153,37 @@ export const createRazorpayOrder = async (req, res) => {
     }
 
     // Compute total
-    const { subtotal, discount, payable, appliedCoupons } =
+    const { items, subtotal, discount, payable, appliedCoupons } =
       await getCartTotalsWithCoupons(cartId);
 
     if (payable <= 0)
       return res.status(400).json({ success:false, message:"Cart total invalid" });
+
+    // Availability is checked at this exact point on purpose: everything above
+    // is a pure read, so rejecting leaves no Razorpay order, no orders row, no
+    // payments row and no burnt orderCode. stock IS NULL means untracked.
+    const shortItems = items.filter(
+      (it) => it.stock !== null && Number(it.stock) < Number(it.quantity)
+    );
+
+    if (shortItems.length) {
+      const first = shortItems[0];
+      return res.status(409).json({
+        success: false,
+        message:
+          shortItems.length === 1
+            ? Number(first.stock) === 0
+              ? `${first.name} just sold out`
+              : `Only ${Number(first.stock)} left of ${first.name}`
+            : "Some items in your cart are no longer available in that quantity",
+        unavailable: shortItems.map((it) => ({
+          productId: Number(it.productId),
+          name: it.name,
+          requested: Number(it.quantity),
+          available: Number(it.stock),
+        })),
+      });
+    }
 
     const amountPaise = Math.round(payable * 100);
 
@@ -322,65 +349,145 @@ export const verifyRazorpayPayment = async (req, res) => {
       console.error("Fetch Razorpay payment details error:", fetchErr);
     }
 
-    await db.query(
-      `UPDATE payments
-       SET razorpayPaymentId = ?,
-           razorpaySignature = ?,
-           status = 'paid',
-           method = ?,
-           email = ?,
-           contact = ?,
-           details = ?
-       WHERE razorpayOrderId = ?`,
-      [
-        razorpay_payment_id,
-        razorpay_signature,
-        method,
-        payerEmail,
-        payerContact,
-        details,
-        razorpay_order_id,
-      ]
-    );
+    // Everything that records the purchase now runs as one unit on a pinned
+    // connection. Before this it ran on the autocommit pool, so a failure
+    // partway through the item loop left the payment marked paid, the order
+    // marked processing, a half-written order_items list, stock decremented
+    // for only some lines, and the customer's cart never cleared.
+    let connection;
 
-    // 2️⃣ Update Order => processing now
-    await db.query(
-      `UPDATE orders
-       SET status = 'processing'
-       WHERE id = ?`,
-      [appOrderId]
-    );
+    try {
+      connection = await db.getConnection();
+      await connection.beginTransaction();
 
-    // 3️⃣ Move cart items -> order_items
-    const [cartItems] = await db.query(
-      `SELECT ci.quantity, p.id AS productId, p.discountedPrice AS price
-       FROM cart_items ci
-       JOIN products p ON p.id = ci.productId
-       JOIN cart c ON c.id = ci.cartId
-       WHERE c.userId = ?`,
-      [req.user.id]
-    );
-
-    for (const item of cartItems) {
-      await db.query(
-        `INSERT INTO order_items (orderId, productId, quantity, price)
-         VALUES (?, ?, ?, ?)`,
-        [appOrderId, item.productId, item.quantity, item.price]
+      // FOR UPDATE makes the replay guard atomic. The earlier check-then-act
+      // had a window where two concurrent verifies of the same Razorpay order
+      // both saw "not paid", and with stock in play that quietly double-
+      // decremented inventory.
+      const [[lockedPayment]] = await connection.query(
+        "SELECT id, status FROM payments WHERE razorpayOrderId = ? FOR UPDATE",
+        [razorpay_order_id]
       );
+
+      if (lockedPayment?.status === "paid") {
+        await connection.commit();
+        return res.json({ success: true, message: "Payment already verified" });
+      }
+
+      await connection.query(
+        `UPDATE payments
+         SET razorpayPaymentId = ?,
+             razorpaySignature = ?,
+             status = 'paid',
+             method = ?,
+             email = ?,
+             contact = ?,
+             details = ?
+         WHERE razorpayOrderId = ?`,
+        [
+          razorpay_payment_id,
+          razorpay_signature,
+          method,
+          payerEmail,
+          payerContact,
+          details,
+          razorpay_order_id,
+        ]
+      );
+
+      await connection.query(
+        `UPDATE orders SET status = 'processing' WHERE id = ?`,
+        [appOrderId]
+      );
+
+      const [cartItems] = await connection.query(
+        `SELECT ci.quantity, p.id AS productId, p.discountedPrice AS price
+         FROM cart_items ci
+         JOIN products p ON p.id = ci.productId
+         JOIN cart c ON c.id = ci.cartId
+         WHERE c.userId = ?`,
+        [req.user.id]
+      );
+
+      const oversold = [];
+
+      for (const item of cartItems) {
+        await connection.query(
+          `INSERT INTO order_items (orderId, productId, quantity, price)
+           VALUES (?, ?, ?, ?)`,
+          [appOrderId, item.productId, item.quantity, item.price]
+        );
+
+        // Best-effort by design: the payment is already captured, so a
+        // shortfall must not roll the order back — that would refuse to
+        // record something the customer has been charged for. The conditional
+        // UPDATE keeps stock off negative; untracked products are skipped.
+        const [decremented] = await connection.query(
+          `UPDATE products
+           SET stock = stock - ?
+           WHERE id = ? AND stock IS NOT NULL AND stock >= ?`,
+          [item.quantity, item.productId, item.quantity]
+        );
+
+        if (decremented.affectedRows === 0) {
+          const [[current]] = await connection.query(
+            "SELECT stock FROM products WHERE id = ? LIMIT 1",
+            [item.productId]
+          );
+
+          if (current && current.stock !== null) {
+            oversold.push({
+              productId: Number(item.productId),
+              wanted: Number(item.quantity),
+              available: Number(current.stock),
+            });
+          }
+        }
+      }
+
+      // stored on the order so an admin sees it before packing; a console
+      // line is not a control anyone can act on
+      if (oversold.length) {
+        await connection.query(
+          "UPDATE orders SET oversoldItems = ? WHERE id = ?",
+          [JSON.stringify(oversold), appOrderId]
+        );
+      }
+
+      const [[cartRow]] = await connection.query(
+        "SELECT id FROM cart WHERE userId = ? LIMIT 1",
+        [req.user.id]
+      );
+
+      if (cartRow) {
+        await connection.query("DELETE FROM cart_items WHERE cartId = ?", [
+          cartRow.id,
+        ]);
+      }
+
+      await connection.commit();
+
+      // logged after the commit as well, for anyone watching the process
+      for (const line of oversold) {
+        console.error(
+          `OVERSOLD — order ${appOrderId}: product ${line.productId} wanted ${line.wanted}, stock ${line.available}`
+        );
+      }
+    } catch (txErr) {
+      if (connection) await connection.rollback();
+      // Rolling back leaves the payment row un-paid, so the client can safely
+      // retry /orders/verify and the whole block replays cleanly.
+      console.error("Verify payment transaction failed:", txErr);
+      return res.status(500).json({
+        success: false,
+        message: "Could not finalise your order — please retry",
+      });
+    } finally {
+      if (connection) connection.release();
     }
 
-    // 4️⃣ Clear Cart
-    const [[cartRow]] = await db.query(
-      "SELECT id FROM cart WHERE userId = ? LIMIT 1",
-      [req.user.id]
-    );
-
-    if (cartRow) {
-      await db.query("DELETE FROM cart_items WHERE cartId = ?", [cartRow.id]);
-    }
-
-    // fire and forget — the payment is captured and the cart cleared, so a
-    // mail fault must not turn this into a 500 on a successful order
+    // fire and forget, and only after the commit — a mail fault must not turn
+    // a completed purchase into a 500
     sendOrderConfirmedEmail(appOrderId);
 
     return res.json({

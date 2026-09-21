@@ -25,6 +25,8 @@ type ProductForm = {
   category: string;
   originalPrice: string | number;
   discountedPrice: string | number;
+  // kept as a string: "" means untracked, "0" means sold out
+  stock: string;
   description: string;
   ingredients: string;
   images: File[];
@@ -33,6 +35,7 @@ type ProductForm = {
 
 type ProductRecord = {
   id: string | number;
+  stock?: number | null;
   name: string;
   image?: string | null;
   images?: unknown;
@@ -59,6 +62,7 @@ const createEmptyForm = (): ProductForm => ({
   category: "",
   originalPrice: "",
   discountedPrice: "",
+  stock: "",
   description: "",
   ingredients: "",
   images: [],
@@ -183,6 +187,9 @@ export default function AdminProducts() {
       category: product?.category || "",
       originalPrice: product?.originalPrice || "",
       discountedPrice: product?.discountedPrice || "",
+      // `?? ""` not `|| ""`: a sold-out product has stock 0, and `|| ""`
+      // would silently switch tracking off every time Edit is opened
+      stock: product?.stock === null || product?.stock === undefined ? "" : String(product.stock),
       description: product?.description || "",
       ingredients: parseIngredientsText(product?.ingredients),
       images: [],
@@ -395,6 +402,19 @@ export default function AdminProducts() {
                 onChange={(e) => setForm({ ...form, discountedPrice: e.target.value })}
               />
 
+              <Label>Stock</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                placeholder="Leave blank to sell without a stock limit"
+                value={form.stock}
+                onChange={(e) => setForm({ ...form, stock: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground -mt-1">
+                Blank means stock isn't tracked. 0 means sold out and hides Add to Cart.
+              </p>
+
               <Label>Description</Label>
               <Input
                 value={form.description}
@@ -517,6 +537,19 @@ export default function AdminProducts() {
                   value={form.discountedPrice}
                   onChange={(e) => setForm({ ...form, discountedPrice: e.target.value })}
                 />
+
+                <Label>Stock</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="Leave blank to sell without a stock limit"
+                  value={form.stock}
+                  onChange={(e) => setForm({ ...form, stock: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Blank means stock isn't tracked. 0 means sold out and hides Add to Cart.
+                </p>
 
                 <Label>Description</Label>
                 <Input

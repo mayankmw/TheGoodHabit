@@ -324,7 +324,7 @@ export default function AdminDashboard() {
 
       <p className="text-sm text-muted-foreground">Showing data for: {rangeLabel}</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <div className="bg-white shadow rounded-xl p-6 border">
           <p className="text-gray-500">Total Orders</p>
           <h2 className="text-3xl font-bold">{stats.orders.total}</h2>
@@ -350,7 +350,52 @@ export default function AdminDashboard() {
           <h2 className="text-3xl font-bold">{stats.products.totalProducts}</h2>
           <p className="text-sm text-gray-400">Added in selected range</p>
         </div>
+
+        {/* stock is a current level, not a figure for the selected range */}
+        <div className="bg-white shadow rounded-xl p-6 border">
+          <p className="text-gray-500">Needs restocking</p>
+          <h2 className="text-3xl font-bold">
+            {(stats.stock?.lowStock || 0) + (stats.stock?.outOfStock || 0)}
+          </h2>
+          <p className="text-sm text-gray-400">
+            {stats.stock?.outOfStock || 0} sold out · {stats.stock?.tracked || 0} tracked
+          </p>
+          {stats.stock?.oversoldOrders > 0 && (
+            <p className="mt-2 text-xs font-semibold text-red-700">
+              {stats.stock.oversoldOrders} order
+              {stats.stock.oversoldOrders === 1 ? "" : "s"} oversold — check before packing
+            </p>
+          )}
+        </div>
       </div>
+
+      {stats.stock?.items?.length > 0 && (
+        <div className="bg-white shadow rounded-xl p-6 border">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h3 className="font-semibold">Running low</h3>
+            <span className="text-xs text-muted-foreground">
+              At or below {stats.stock?.threshold || 5} units
+            </span>
+          </div>
+
+          <div className="divide-y">
+            {stats.stock.items.map((item: any) => (
+              <div key={item.id} className="flex items-center justify-between gap-3 py-2">
+                <span className="text-sm">{item.name}</span>
+                <span
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                    item.stock === 0
+                      ? "bg-red-100 text-red-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}
+                >
+                  {item.stock === 0 ? "Sold out" : `${item.stock} left`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="bg-white shadow rounded-xl p-6 border">

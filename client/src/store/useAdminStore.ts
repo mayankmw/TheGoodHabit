@@ -413,6 +413,16 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           products: {
             totalProducts: toNumber(s.products.totalProducts),
           },
+          // this store rebuilds stats field by field, so a server key that
+          // isn't mapped here is silently dropped and the tile renders blank
+          stock: {
+            threshold: toNumber(s.stock?.threshold),
+            tracked: toNumber(s.stock?.tracked),
+            lowStock: toNumber(s.stock?.lowStock),
+            outOfStock: toNumber(s.stock?.outOfStock),
+            oversoldOrders: toNumber(s.stock?.oversoldOrders),
+            items: Array.isArray(s.stock?.items) ? s.stock.items : [],
+          },
         },
       });
     } catch (e) {

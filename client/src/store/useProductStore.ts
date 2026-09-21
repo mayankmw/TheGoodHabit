@@ -11,6 +11,8 @@ interface Product {
   discountedPrice: number;
   rating: number;
   reviews: number;
+  // null means not tracked — never coerce it to 0
+  stock: number | null;
   description: string;
   ingredients: string[];
 }
@@ -86,6 +88,12 @@ const normalizeProduct = (product: unknown): Product => {
     discountedPrice: Number(source.discountedPrice || 0),
     rating: Number(source.rating || 0),
     reviews: Number(source.reviews || 0),
+    // deliberately NOT the `|| 0` idiom above: null here means untracked,
+    // and turning it into 0 would mark every existing product sold out
+    stock: ((raw) =>
+      raw === null || raw === undefined || raw === "" ? null : Number(raw))(
+      (source as { stock?: unknown }).stock
+    ),
     description: typeof source.description === "string" ? source.description : "",
     image: images[0] || null,
     images,

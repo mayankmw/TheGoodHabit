@@ -64,7 +64,8 @@ export const getCart = async (req, res) => {
          p.name,
          p.images,
          p.originalPrice,
-         p.discountedPrice
+         p.discountedPrice,
+         p.stock
        FROM cart_items ci
        JOIN products p ON p.id = ci.productId
        WHERE ci.cartId = ?`,
@@ -166,6 +167,31 @@ export const getCart = async (req, res) => {
 
 
 // ADD TO CART
+/**
+ * Availability for a signed-in cart. Guests get the same ceiling enforced in
+ * localStorage; without this the authenticated cart was the *less* protected
+ * of the two — it accepted any quantity and only failed at checkout.
+ *
+ * Returns null when the quantity is fine, or a message to reject with.
+ */
+const stockRejection = async (productId, wantedQuantity) => {
+  const [[product]] = await db.query(
+    "SELECT name, stock FROM products WHERE id = ? LIMIT 1",
+    [productId]
+  );
+
+  if (!product) return "Product not found";
+  // NULL means untracked — sell without limit
+  if (product.stock === null) return null;
+
+  const available = Number(product.stock);
+  if (wantedQuantity <= available) return null;
+
+  return available === 0
+    ? `${product.name} is sold out`
+    : `Only ${available} left of ${product.name}`;
+};
+
 export const addToCart = async (req, res) => {
   const userId = req.user.id;
   const { productId } = req.body;
@@ -185,6 +211,13 @@ export const addToCart = async (req, res) => {
       "SELECT * FROM cart_items WHERE cartId = ? AND productId = ?",
       [cartId, productId]
     );
+
+    const alreadyInCart = itemRows.length > 0 ? Number(itemRows[0].quantity) : 0;
+    const rejection = await stockRejection(productId, alreadyInCart + 1);
+
+    if (rejection) {
+      return res.status(409).json({ success: false, message: rejection });
+    }
 
     if (itemRows.length > 0) {
       // update quantity
@@ -228,6 +261,18 @@ export const updateCartItem = async (req, res) => {
   }
 
   try {
+    const [[cartItem]] = await db.query(
+      "SELECT productId FROM cart_items WHERE id = ? LIMIT 1",
+      [cartItemId]
+    );
+
+    if (cartItem) {
+      const rejection = await stockRejection(cartItem.productId, Number(quantity));
+      if (rejection) {
+        return res.status(409).json({ success: false, message: rejection });
+      }
+    }
+
     await db.query("UPDATE cart_items SET quantity = ? WHERE id = ?", [quantity, cartItemId]);
 
     // get cartId for this cartItem

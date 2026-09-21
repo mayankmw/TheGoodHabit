@@ -23,6 +23,7 @@ const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 const ASSET_IMAGE_URL = process.env.ASSET_IMAGE_URL || "";
 const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
 const REEL_SHORT_URL = process.env.REEL_SHORT_URL || "";
+const LOW_STOCK_THRESHOLD = Number(process.env.LOW_STOCK_THRESHOLD) || 5;
 const REEL_MAIN_URL = process.env.REEL_MAIN_URL || "";
 
 const parseJsonArray = (value) => {
@@ -51,6 +52,42 @@ const toCleanStringArray = (value) =>
   (Array.isArray(value) ? value : [])
     .map((item) => (typeof item === "string" ? item.trim() : ""))
     .filter(Boolean);
+
+/**
+ * Stock arrives from multer as a string, where "" and "0" are both falsy but
+ * mean opposite things: "" is "not tracked, sell without limit" and "0" is
+ * "genuinely sold out". Number("") is 0 and passes a finite check, so the
+ * empty string has to be tested before any numeric parsing.
+ *
+ * Returns { value } where undefined means "field absent, leave the column
+ * alone", or { error } carrying a message the admin should see.
+ */
+const parseJsonArrayValue = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string" || !value.trim()) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+const parseStockInput = (value) => {
+  if (value === undefined) return { value: undefined };
+  if (value === null || String(value).trim() === "") return { value: null };
+
+  const parsed = Number(value);
+
+  // Number.isInteger, not isFinite: MariaDB silently rounds 3.5 into an INT
+  // column rather than erroring, so a decimal would be quietly changed
+  if (!Number.isInteger(parsed) || parsed < 0)
+    return {
+      error: "Stock must be a whole number of 0 or more, or left blank to stop tracking it",
+    };
+
+  return { value: parsed };
+};
 
 const parseIngredientsInput = (value) => {
   if (value === undefined) return null;
@@ -225,6 +262,32 @@ export const getStats = async (req, res) => {
       [startDate, endDate]
     );
 
+    // Point-in-time, unlike every other query in getStats: stock is a current
+    // level, not something that happened inside the selected date range.
+    // `stock IS NOT NULL` is what keeps untracked products out — COALESCE(stock,0)
+    // would match the entire catalogue.
+    const [[stockCounts]] = await db.query(
+      `SELECT
+         SUM(stock IS NOT NULL AND stock > 0 AND stock <= ?) AS lowStock,
+         SUM(stock IS NOT NULL AND stock = 0) AS outOfStock,
+         SUM(stock IS NOT NULL) AS tracked
+       FROM products`,
+      [LOW_STOCK_THRESHOLD]
+    );
+
+    const [[oversoldOrders]] = await db.query(
+      "SELECT COUNT(*) AS n FROM orders WHERE oversoldItems IS NOT NULL"
+    );
+
+    const [atRisk] = await db.query(
+      `SELECT id, name, stock
+       FROM products
+       WHERE stock IS NOT NULL AND stock <= ?
+       ORDER BY stock ASC, name ASC
+       LIMIT 8`,
+      [LOW_STOCK_THRESHOLD]
+    );
+
     return res.json({
       success: true,
       range: {
@@ -249,7 +312,19 @@ export const getStats = async (req, res) => {
           ...users,
           newToday: Number(users.totalUsers || 0),
         },
-        products
+        products,
+        stock: {
+          threshold: LOW_STOCK_THRESHOLD,
+          tracked: Number(stockCounts.tracked) || 0,
+          lowStock: Number(stockCounts.lowStock) || 0,
+          outOfStock: Number(stockCounts.outOfStock) || 0,
+          oversoldOrders: Number(oversoldOrders.n) || 0,
+          items: atRisk.map((row) => ({
+            id: Number(row.id),
+            name: row.name,
+            stock: Number(row.stock),
+          })),
+        }
       }
     });
 
@@ -412,8 +487,14 @@ export const createProduct = async (req, res) => {
       originalPrice,
       discountedPrice,
       description,
-      ingredients
+      ingredients,
+      stock
     } = req.body;
+
+    const parsedStock = parseStockInput(stock);
+    if (parsedStock.error) {
+      return res.status(400).json({ success: false, message: parsedStock.error });
+    }
 
     const parsedOriginalPrice = Number(originalPrice);
     if (!name || originalPrice === undefined || originalPrice === "" || !Number.isFinite(parsedOriginalPrice)) {
@@ -446,9 +527,9 @@ export const createProduct = async (req, res) => {
       `
       INSERT INTO products (
         name, images, category,
-        originalPrice, discountedPrice,
+        originalPrice, discountedPrice, stock,
         description, ingredients
-      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         name,
@@ -456,6 +537,7 @@ export const createProduct = async (req, res) => {
         category || null,
         parsedOriginalPrice,
         finalDiscountedPrice,
+        parsedStock.value ?? null,
         description || null,
         JSON.stringify(parsedIngredients || []),
       ]
@@ -481,7 +563,8 @@ export const updateProduct = async (req, res) => {
       originalPrice,
       discountedPrice,
       description,
-      ingredients
+      ingredients,
+      stock
     } = req.body;
 
     const [[existing]] = await db.query(`SELECT images FROM products WHERE id = ?`, [id]);
@@ -554,6 +637,15 @@ export const updateProduct = async (req, res) => {
       updates.push("discountedPrice = ?");
       values.push(parsedDiscountedPrice);
     }
+    if (stock !== undefined) {
+      const parsedStock = parseStockInput(stock);
+      if (parsedStock.error) {
+        return res.status(400).json({ success: false, message: parsedStock.error });
+      }
+      // null here is meaningful — it switches tracking off
+      updates.push("stock = ?");
+      values.push(parsedStock.value);
+    }
     if (description !== undefined) {
       updates.push("description = ?");
       values.push(description || null);
@@ -604,6 +696,7 @@ export const fetchOrders = async (req, res) => {
         o.discountedPrice,
         o.status,
         o.createdAt,
+        o.oversoldItems,
         u.name AS customerName,
         u.email
       FROM orders o
@@ -611,7 +704,14 @@ export const fetchOrders = async (req, res) => {
       ORDER BY o.createdAt DESC
     `);
 
-    return res.json({ success: true, orders });
+    // mysql2 hands JSON back as a string on this column type
+    const formatted = orders.map((order) => {
+      const { oversoldItems, ...rest } = order;
+      const parsed = parseJsonArrayValue(oversoldItems);
+      return { ...rest, oversold: parsed.length ? parsed : null };
+    });
+
+    return res.json({ success: true, orders: formatted });
   } catch (err) {
     console.error("Fetch Orders Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
@@ -694,6 +794,27 @@ export const fetchOrderById = async (req, res) => {
 // "pending" is set automatically when an order is created (pre-payment) and
 // is never a manually chosen target — it's included here only so an order
 // stuck in it can still be moved forward.
+/**
+ * Puts stock back when an order is cancelled. Untracked products are skipped,
+ * so a cancellation can never turn an unlimited product into a counted one.
+ */
+const restoreOrderStock = async (orderId) => {
+  const [items] = await db.query(
+    `SELECT oi.quantity, p.id AS productId
+     FROM order_items oi
+     JOIN products p ON p.id = oi.productId
+     WHERE oi.orderId = ?`,
+    [orderId]
+  );
+
+  for (const item of items) {
+    await db.query(
+      "UPDATE products SET stock = stock + ? WHERE id = ? AND stock IS NOT NULL",
+      [item.quantity, item.productId]
+    );
+  }
+};
+
 const ALLOWED_NEXT_ORDER_STATUSES = {
   pending: ["processing", "cancelled"],
   processing: ["processing", "shipped", "cancelled"],
@@ -759,6 +880,7 @@ export const updateOrder = async (req, res) => {
     // rather than testing the incoming status alone.
     const justShipped = status === "shipped" && existing.status !== "shipped";
     const justDelivered = status === "delivered" && existing.status !== "delivered";
+    const justCancelled = status === "cancelled" && existing.status !== "cancelled";
 
     // stamp shipped/delivered timestamps automatically the first time an
     // order reaches that status — nothing client-side ever sends these.
@@ -790,6 +912,9 @@ export const updateOrder = async (req, res) => {
         id
       ]
     );
+
+    // the goods are coming back, so the units do too
+    if (justCancelled) await restoreOrderStock(id);
 
     // fire and forget after the row is written; req.user here is the ADMIN,
     // so the recipient is resolved from orders.userId inside these helpers

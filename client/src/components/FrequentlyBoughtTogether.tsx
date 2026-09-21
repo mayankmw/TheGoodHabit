@@ -3,6 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { toast } from "sonner";
+import { isOutOfStock } from "@/lib/stock";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
 
@@ -12,6 +14,7 @@ type BundleProduct = {
   image: string;
   originalPrice: number;
   discountedPrice: number;
+  stock?: number | null;
 };
 
 export const FrequentlyBoughtTogether = ({
@@ -40,9 +43,10 @@ export const FrequentlyBoughtTogether = ({
 
   const extraProducts = products
     .filter((p) => String(p.id) !== String(currentProduct.id))
+    .filter((p) => !isOutOfStock(p.stock))
     .slice(0, 2);
 
-  if (!extraProducts.length) return null;
+  if (!extraProducts.length || isOutOfStock(currentProduct.stock)) return null;
 
   const bundleItems = [currentProduct, ...extraProducts];
   const totalOriginal = bundleItems.reduce(
@@ -61,6 +65,7 @@ export const FrequentlyBoughtTogether = ({
       image: product.image,
       originalPrice: product.originalPrice,
       discountedPrice: product.discountedPrice,
+      stock: product.stock,
     });
     setOpenSearch(false);
     setOpenCart(true);
@@ -69,14 +74,29 @@ export const FrequentlyBoughtTogether = ({
   const handleAddAll = async () => {
     try {
       setAddingAll(true);
+
+      // results were previously discarded, so a rejected line vanished
+      // silently and the customer believed they had the whole bundle
+      const failed: string[] = [];
+
       for (const item of bundleItems) {
-        await addToCart(item.id, {
+        const res = await addToCart(item.id, {
           name: item.name,
           image: item.image,
           originalPrice: item.originalPrice,
           discountedPrice: item.discountedPrice,
+          stock: item.stock,
         });
+
+        if (res && res.success === false) failed.push(item.name);
       }
+
+      if (failed.length === bundleItems.length) {
+        toast.error("Couldn't add the bundle — those items aren't available");
+      } else if (failed.length) {
+        toast.warning(`Added the rest, but ${failed.join(" and ")} couldn't be added`);
+      }
+
       setOpenSearch(false);
       setOpenCart(true);
     } finally {

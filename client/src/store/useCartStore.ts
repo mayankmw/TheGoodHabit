@@ -16,6 +16,8 @@ type CartItem = {
   image: string | null;
   originalPrice: number;
   discountedPrice: number;
+  // null/undefined means the product isn't stock-tracked
+  stock?: number | null;
   [key: string]: unknown;
 };
 
@@ -26,6 +28,7 @@ type GuestProductMeta = {
   image?: string | null;
   originalPrice?: number;
   discountedPrice?: number;
+  stock?: number | null;
 };
 
 type GuestCartEntry = {
@@ -35,6 +38,8 @@ type GuestCartEntry = {
   image: string | null;
   originalPrice: number;
   discountedPrice: number;
+  // null/undefined means the product isn't stock-tracked
+  stock?: number | null;
 };
 
 const GUEST_CART_KEY = "guest_cart";
@@ -211,8 +216,29 @@ export const useCartStore = create<CartState>((set, get) => ({
       set({ loading: true, error: null });
       const items = readGuestCart();
       const existing = items.find((it) => String(it.productId) === String(productId));
+
+      // the guest cart lives entirely in localStorage, so the stock ceiling has
+      // to be enforced here — there is no server call to reject it. Prefer the
+      // freshly passed value over whatever was stored on a previous visit.
+      const stock =
+        product?.stock === undefined ? existing?.stock ?? null : product.stock;
+      const tracked = stock !== null && stock !== undefined;
+      const inCart = existing?.quantity ?? 0;
+
+      if (tracked && inCart + 1 > Number(stock)) {
+        set({ loading: false });
+        return {
+          success: false,
+          message:
+            Number(stock) === 0
+              ? "This item is sold out"
+              : `Only ${Number(stock)} available`,
+        };
+      }
+
       if (existing) {
         existing.quantity += 1;
+        existing.stock = stock;
       } else {
         items.push({
           productId,
@@ -221,6 +247,7 @@ export const useCartStore = create<CartState>((set, get) => ({
           image: product?.image ?? null,
           originalPrice: Number(product?.originalPrice || 0),
           discountedPrice: Number(product?.discountedPrice || 0),
+          stock,
         });
       }
       writeGuestCart(items);
@@ -249,7 +276,11 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err) {
       console.error("addToCart error", err);
       set({ loading: false, error: err?.response?.data || err.message });
-      return null;
+      // axios throws on the stock guard's 409, and returning null here would
+      // throw away the one thing the customer needs to be told
+      return err?.response?.data?.message
+        ? { success: false, message: err.response.data.message }
+        : null;
     }
   },
 
@@ -263,6 +294,20 @@ export const useCartStore = create<CartState>((set, get) => ({
       const items = readGuestCart();
       const item = items.find((it) => Number(it.productId) === Number(cartItemId));
       if (!item) return { success: false, message: "Item not found in cart" };
+
+      // same ceiling as addToCart — typing a quantity straight into the box
+      // bypasses the "+" button entirely
+      const tracked = item.stock !== null && item.stock !== undefined;
+      if (tracked && quantity > Number(item.stock)) {
+        return {
+          success: false,
+          message:
+            Number(item.stock) === 0
+              ? "This item is sold out"
+              : `Only ${Number(item.stock)} available`,
+        };
+      }
+
       item.quantity = quantity;
       writeGuestCart(items);
 
@@ -285,7 +330,9 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err) {
       console.error("updateQuantity error", err);
       set({ loading: false, error: err?.response?.data || err.message });
-      return null;
+      return err?.response?.data?.message
+        ? { success: false, message: err.response.data.message }
+        : null;
     }
   },
 

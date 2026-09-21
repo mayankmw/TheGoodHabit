@@ -6,6 +6,8 @@ import { Star } from "lucide-react";
 import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether";
 import { ProductReviews } from "@/components/ProductReviews";
 import { calcDiscountPercent } from "@/lib/pricing";
+import { toast } from "sonner";
+import { isOutOfStock, isLowStock } from "@/lib/stock";
 import { useProductStore } from "@/store/useProductStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -106,6 +108,9 @@ export const Product = () => {
     product.originalPrice,
     product.discountedPrice
   );
+
+  const outOfStock = isOutOfStock(product.stock);
+  const lowStock = isLowStock(product.stock);
 
   return (
     <section className="bg-gradient-to-b from-amber-50 via-white to-amber-100 text-foreground min-h-screen py-10 relative overflow-hidden">
@@ -281,22 +286,39 @@ export const Product = () => {
               </div>
             </div>
 
+            {outOfStock ? (
+              <p className="text-sm font-semibold text-zinc-700">
+                Out of stock — check back soon
+              </p>
+            ) : lowStock ? (
+              <p className="text-sm font-semibold text-amber-700">
+                Hurry, only {product.stock} left
+              </p>
+            ) : null}
+
             <Button
-              className="bg-primary text-primary-foreground hover:bg-primary/80 px-6 py-3 rounded-full font-semibold transition"
-              onClick={(e) => {
+              className="bg-primary text-primary-foreground hover:bg-primary/80 px-6 py-3 rounded-full font-semibold transition disabled:opacity-60"
+              disabled={outOfStock}
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                addToCart(product.id, {
+                if (outOfStock) return;
+                const res = await addToCart(product.id, {
                   name: product.name,
                   image: product.image,
                   originalPrice: product.originalPrice,
                   discountedPrice: product.discountedPrice,
+                  stock: product.stock,
                 });
+                if (res && res.success === false) {
+                  toast.error(res.message || "Couldn't add to cart");
+                  return;
+                }
                 setOpenSearch(false);
                 setOpenCart(true);
               }}
             >
-              Add to Cart
+              {outOfStock ? "Out of Stock" : "Add to Cart"}
             </Button>
           </div>
 
@@ -332,6 +354,7 @@ export const Product = () => {
           image: galleryImages[0] || product.image,
           originalPrice: product.originalPrice,
           discountedPrice: product.discountedPrice,
+          stock: product.stock,
         }}
         products={frequentlyBought}
         loading={loadingFrequentlyBought}

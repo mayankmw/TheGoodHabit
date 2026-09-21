@@ -5,6 +5,8 @@ import { useCartStore } from "@/store/useCartStore";
 import { Link } from "react-router-dom";
 import { useUIStore } from "@/store/useUIStore";
 import { calcDiscountPercent } from "@/lib/pricing";
+import { toast } from "sonner";
+import { isOutOfStock, isLowStock } from "@/lib/stock";
 
 interface ProductCardProps {
   id: string;
@@ -14,6 +16,7 @@ interface ProductCardProps {
   discountedPrice: number;
   rating: number;
   reviews: number;
+  stock?: number | null;
 }
 
 export const ProductCard = ({
@@ -24,7 +27,11 @@ export const ProductCard = ({
   discountedPrice,
   rating,
   reviews,
+  stock,
 }: ProductCardProps) => {
+  const outOfStock = isOutOfStock(stock);
+  const lowStock = isLowStock(stock);
+
   const discountPercent = calcDiscountPercent(originalPrice, discountedPrice);
 
   const renderStars = () => {
@@ -57,6 +64,12 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
               alt={name}
               className="w-[80%] h-full object-cover group-hover:scale-105 transition-transform duration-300 mx-auto"
             />
+
+            {outOfStock && (
+              <div className="absolute top-4 left-4 bg-zinc-800 text-white px-3 py-1 rounded-full text-xs font-bold shadow-soft">
+                Out of stock
+              </div>
+            )}
 
             {/* Discount Badge — hidden when the row has no real discount */}
             {discountPercent > 0 && (
@@ -99,16 +112,31 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
             <span className="text-2xl font-black">₹{discountedPrice}</span>
           </div>
 
+          {lowStock && (
+            <p className="text-xs font-semibold text-amber-700">
+              Only {stock} left
+            </p>
+          )}
+
           {/* Add to Cart */}
-          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-base py-6 rounded-full"
-            onClick={(e) => {
+          <Button
+            className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-base py-6 rounded-full disabled:opacity-60"
+            disabled={outOfStock}
+            onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              addToCart(id, { name, image, originalPrice, discountedPrice });
+              if (outOfStock) return;
+              // the add can still be refused — the stock guard runs server side
+              // and the cart may already hold the last units
+              const res = await addToCart(id, { name, image, originalPrice, discountedPrice, stock });
+              if (res && res.success === false) {
+                toast.error(res.message || "Couldn't add to cart");
+                return;
+              }
               setOpenSearch(false);
               setOpenCart(true);
             }}>
-            ADD TO CART
+            {outOfStock ? "OUT OF STOCK" : "ADD TO CART"}
           </Button>
         </div>
       </CardContent>

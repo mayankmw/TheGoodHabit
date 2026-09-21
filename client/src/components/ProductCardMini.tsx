@@ -5,6 +5,8 @@ import { useCartStore } from "@/store/useCartStore";
 import { Link } from "react-router-dom";
 import { useUIStore } from "@/store/useUIStore";
 import { calcDiscountPercent } from "@/lib/pricing";
+import { toast } from "sonner";
+import { isOutOfStock } from "@/lib/stock";
 
 interface ProductCardMiniProps {
   id: string;
@@ -14,6 +16,7 @@ interface ProductCardMiniProps {
   discountedPrice: number;
   rating: number;
   reviews: number;
+  stock?: number | null;
 }
 
 export const ProductCardMini = ({
@@ -24,7 +27,10 @@ export const ProductCardMini = ({
   discountedPrice,
   rating,
   reviews,
+  stock,
 }: ProductCardMiniProps) => {
+  const outOfStock = isOutOfStock(stock);
+
 
   const discountPercent = calcDiscountPercent(originalPrice, discountedPrice);
 
@@ -64,6 +70,12 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
             />
 
             {/* Discount Badge */}
+            {outOfStock && (
+              <div className="absolute top-1.5 left-1.5 bg-zinc-800 text-white px-1.5 py-0.5 rounded-full text-[9px] font-semibold">
+                Sold out
+              </div>
+            )}
+
             {discountPercent > 0 && (
               <div className="absolute top-1.5 right-1.5 bg-green-600 text-white px-1.5 py-0.5 rounded-full text-[9px] font-semibold">
                 -{discountPercent}%
@@ -103,15 +115,24 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
           </div>
 
           {/* Add Button */}
-          <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground text-[10px] font-bold py-1.5 rounded-md"
-            onClick={(e) => {
+          <Button
+            className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground text-[10px] font-bold py-1.5 rounded-md disabled:opacity-60"
+            disabled={outOfStock}
+            onClick={async (e) => {
               e.preventDefault();
               e.stopPropagation();
-              addToCart(id, { name, image, originalPrice, discountedPrice });
+              if (outOfStock) return;
+              // the add can still be refused — the stock guard runs server side
+              // and the cart may already hold the last units
+              const res = await addToCart(id, { name, image, originalPrice, discountedPrice, stock });
+              if (res && res.success === false) {
+                toast.error(res.message || "Couldn't add to cart");
+                return;
+              }
               setOpenSearch(false);
               setOpenCart(true);
             }}>
-            ADD
+            {outOfStock ? "SOLD OUT" : "ADD"}
           </Button>
 
         </div>

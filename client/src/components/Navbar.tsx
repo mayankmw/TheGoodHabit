@@ -431,6 +431,11 @@ export const Navbar = () => {
         originalPrice: product.originalPrice,
         discountedPrice: product.discountedPrice,
       });
+      if (res && res.success === false) {
+        toast.error(res.message || "Couldn't add to cart");
+        return;
+      }
+
       // if storeAddToCart returns awarded coupons directly:
       if (res && res.awarded && res.awarded.length > 0) {
         // mark seen so effect won't double-animate
@@ -453,6 +458,12 @@ export const Navbar = () => {
   const handleUpdateQuantity = async (cartItemId, newQty) => {
     try {
       const res = await updateQuantityStore(cartItemId, newQty);
+
+      if (res && res.success === false) {
+        toast.error(res.message || "Couldn't update the quantity");
+        return;
+      }
+
       // if updateQuantityStore returns awarded:
       if (res && res.awarded && res.awarded.length > 0) {
         res.awarded.forEach((code) => seenCouponCodesRef.current.add(code));
@@ -749,7 +760,12 @@ export const Navbar = () => {
                                     <span className="w-4 text-center text-xs font-medium">{item.quantity}</span>
                                     <button
                                       onClick={() => handleUpdateQuantity(item.cartItemId, item.quantity + 1)}
-                                      className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted"
+                                      disabled={
+                                        item.stock !== null &&
+                                        item.stock !== undefined &&
+                                        item.quantity >= Number(item.stock)
+                                      }
+                                      className="flex h-5 w-5 items-center justify-center rounded-full hover:bg-muted disabled:opacity-40 disabled:hover:bg-transparent"
                                       aria-label="Increase quantity"
                                     >
                                       <Plus className="h-3 w-3" />
@@ -764,6 +780,18 @@ export const Navbar = () => {
                                     <Trash2 className="h-4 w-4" />
                                   </button>
                                 </div>
+
+                                {/* a greyed-out "+" with no explanation reads as
+                                    a broken button, so say what the limit is */}
+                                {item.stock !== null &&
+                                  item.stock !== undefined &&
+                                  item.quantity >= Number(item.stock) && (
+                                    <p className="mt-1 text-[11px] font-medium text-amber-700">
+                                      {Number(item.stock) === 1
+                                        ? "Last one — that's all we have"
+                                        : `Only ${Number(item.stock)} in stock`}
+                                    </p>
+                                  )}
                               </div>
                             </div>
                           ))}
@@ -1023,7 +1051,7 @@ export const Navbar = () => {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                     {results.map((product) => (
-                      <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                      <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                     ))}
                   </div>
 
@@ -1040,7 +1068,7 @@ export const Navbar = () => {
               {query.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                   {recommended.map((product) => (
-                    <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                    <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                   ))}
                 </div>
               )}
