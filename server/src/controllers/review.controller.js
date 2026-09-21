@@ -154,4 +154,109 @@ export const dismissOrderReviewPrompt = async (req, res) => {
   }
 };
 
+// Public reviewer identity: first name + last initial, never the email. Seeded
+// emails are derived from names, so exposing them would publish full identities
+// on a page that logged-out visitors (and crawlers) can read.
+const toDisplayName = (name) => {
+  const clean = typeof name === "string" ? name.trim() : "";
+  if (!clean) return "Verified buyer";
+
+  const parts = clean.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+
+  return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+};
+
+/**
+ * Public — the product page is viewable logged out, so this route carries no
+ * auth middleware and must never return userId or email.
+ *
+ * The summary is computed from product_reviews rather than read off
+ * products.rating/products.reviews, because those columns still hold legacy
+ * hand-entered marketing figures for older products and would disagree with
+ * the list rendered underneath them.
+ */
+export const getProductReviews = async (req, res) => {
+  try {
+    const productId = Number(req.body.productId);
+
+    if (!productId)
+      return res.status(400).json({
+        success: false,
+        message: "Product ID is required",
+      });
+
+    // clamped: this endpoint is public, so the caller doesn't get to ask for
+    // a hundred thousand rows
+    const limit = Math.min(Math.max(Number(req.body.limit) || 5, 1), 50);
+    const page = Math.max(Number(req.body.page) || 1, 1);
+    const offset = (page - 1) * limit;
+
+    // one round trip for the count, average and per-star histogram. SUM/AVG
+    // come back from mysql2 as strings, and as NULL when no rows match, so
+    // every one of them is coerced below
+    const [[totals]] = await db.query(
+      `SELECT COUNT(*) AS total,
+              AVG(rating) AS average,
+              SUM(rating = 5) AS star5,
+              SUM(rating = 4) AS star4,
+              SUM(rating = 3) AS star3,
+              SUM(rating = 2) AS star2,
+              SUM(rating = 1) AS star1
+       FROM product_reviews
+       WHERE productId = ?`,
+      [productId]
+    );
+
+    const total = Number(totals.total) || 0;
+
+    const summary = {
+      total,
+      average: total ? Number(Number(totals.average).toFixed(1)) : 0,
+      breakdown: {
+        5: Number(totals.star5) || 0,
+        4: Number(totals.star4) || 0,
+        3: Number(totals.star3) || 0,
+        2: Number(totals.star2) || 0,
+        1: Number(totals.star1) || 0,
+      },
+    };
+
+    // LIMIT/OFFSET placeholders must receive real numbers — mysql2's text
+    // protocol quotes strings and MariaDB rejects `LIMIT '5'`
+    const [rows] = await db.query(
+      `SELECT r.id, r.rating, r.comment, r.createdAt, u.name AS reviewerName
+       FROM product_reviews r
+       JOIN users u ON u.id = r.userId
+       WHERE r.productId = ?
+       ORDER BY r.createdAt DESC, r.id DESC
+       LIMIT ? OFFSET ?`,
+      [productId, limit, offset]
+    );
+
+    const reviews = rows.map((row) => ({
+      id: Number(row.id),
+      rating: Number(row.rating),
+      comment: row.comment || null,
+      createdAt: row.createdAt,
+      reviewer: toDisplayName(row.reviewerName),
+      // every row is tied to a delivered order by construction
+      verified: true,
+    }));
+
+    return res.json({
+      success: true,
+      page,
+      limit,
+      total,
+      hasMore: offset + reviews.length < total,
+      summary,
+      reviews,
+    });
+  } catch (err) {
+    console.error("Fetch Product Reviews Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
 export { fetchOrderReviews };

@@ -69,10 +69,18 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
         {/* Content */}
         <div className="p-4 space-y-3">
 
-          {/* Rating */}
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1">{renderStars()}</div>
-            <span className="text-sm text-muted-foreground">| {reviews} Reviews</span>
+          {/* Rating — an empty star frame reads as "rated badly" rather than
+              "not rated yet", so unreviewed products get a label instead. The
+              row stays put either way to keep card heights aligned in sliders. */}
+          <div className="flex items-center gap-2 min-h-[1.25rem]">
+            {reviews > 0 ? (
+              <>
+                <div className="flex gap-1">{renderStars()}</div>
+                <span className="text-sm text-muted-foreground">| {reviews} Reviews</span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">No reviews yet</span>
+            )}
           </div>
 
           {/* Name */}

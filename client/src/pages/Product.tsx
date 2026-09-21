@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether";
+import { ProductReviews } from "@/components/ProductReviews";
 import { useProductStore } from "@/store/useProductStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -168,17 +169,27 @@ export const Product = () => {
 
           {/* Ratings */}
           <div className="flex items-center gap-2 mt-2">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                className={`w-5 h-5 ${
-                  i < Math.floor(product.rating)
-                    ? "text-yellow-400 fill-yellow-400"
-                    : "text-zinc-500"
-                }`}
-              />
-            ))}
-            <span className="text-sm text-muted-foreground">({product.reviews} reviews)</span>
+            {product.reviews > 0 ? (
+              <>
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-5 h-5 ${
+                      i < Math.round(product.rating)
+                        ? "text-yellow-400 fill-yellow-400"
+                        : "text-zinc-500"
+                    }`}
+                  />
+                ))}
+                <span className="text-sm text-muted-foreground">
+                  {product.rating} ({product.reviews} {product.reviews === 1 ? "review" : "reviews"})
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">
+                No reviews yet — be the first to review this product
+              </span>
+            )}
           </div>
 
           {/* Description */}
@@ -314,6 +325,8 @@ export const Product = () => {
         products={frequentlyBought}
         loading={loadingFrequentlyBought}
       />
+
+      <ProductReviews productId={product.id} />
 
       {/* ✅ Hero 3 (Product Page Banner) */}
       <div>

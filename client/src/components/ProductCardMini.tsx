@@ -76,10 +76,16 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
         {/* Content */}
         <div className="p-2.5 space-y-1.5">
           
-          {/* Rating */}
-          <div className="flex items-center gap-1">
-            <div className="flex gap-[1px]">{renderStars()}</div>
-            <span className="text-[10px] text-muted-foreground">{reviews}</span>
+          {/* Rating — see ProductCard: no star frame until a review exists */}
+          <div className="flex items-center gap-1 min-h-[0.875rem]">
+            {reviews > 0 ? (
+              <>
+                <div className="flex gap-[1px]">{renderStars()}</div>
+                <span className="text-[10px] text-muted-foreground">{reviews}</span>
+              </>
+            ) : (
+              <span className="text-[10px] text-muted-foreground">No reviews yet</span>
+            )}
           </div>
 
           {/* Product Name */}
