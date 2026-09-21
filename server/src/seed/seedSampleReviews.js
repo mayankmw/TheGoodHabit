@@ -114,10 +114,12 @@ const syncProductRatings = async (productIds) => {
   await db.query(
     `UPDATE products p
      SET p.rating = COALESCE(
-           (SELECT ROUND(AVG(r.rating), 1) FROM product_reviews r WHERE r.productId = p.id),
+           (SELECT ROUND(AVG(r.rating), 1) FROM product_reviews r
+            WHERE r.productId = p.id AND r.status = 'visible'),
            0
          ),
-         p.reviews = (SELECT COUNT(*) FROM product_reviews r WHERE r.productId = p.id)
+         p.reviews = (SELECT COUNT(*) FROM product_reviews r
+                      WHERE r.productId = p.id AND r.status = 'visible')
      WHERE p.id IN (${placeholders})`,
     productIds
   );

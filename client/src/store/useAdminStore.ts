@@ -59,6 +59,20 @@ interface ReelItem {
   created_at: string;
 }
 
+export interface AdminReview {
+  id: number;
+  productId: number;
+  productName: string;
+  customerName: string;
+  customerEmail: string;
+  orderCode: string | null;
+  rating: number;
+  comment: string | null;
+  status: "visible" | "hidden";
+  createdAt: string;
+  moderatedAt: string | null;
+}
+
 interface AdminState {
   loadingStats: boolean;
   loadingRevenue: boolean;
@@ -226,6 +240,18 @@ interface AdminState {
     content: string;
   }) => Promise<any>;
 
+  /* ================= REVIEWS ================= */
+  loadingReviews: boolean;
+  togglingReview: boolean;
+
+  reviews: AdminReview[];
+  reviewProducts: { id: number; name: string }[];
+  reviewStats: { total: number; visible: number; hidden: number };
+  reviewPagination: { page: number; limit: number; total: number; totalPages: number };
+
+  fetchReviews: (params?: Record<string, unknown>) => Promise<void>;
+  toggleReview: (id: number, status: "visible" | "hidden") => Promise<any>;
+
   /* ================= REELS ================= */
   loadingReels: boolean;
   savingReel: boolean;
@@ -332,6 +358,15 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     totalPages: 1,
   },
   newsletters: [],
+
+  /* ================= REVIEWS ================= */
+  loadingReviews: false,
+  togglingReview: false,
+
+  reviews: [],
+  reviewProducts: [],
+  reviewStats: { total: 0, visible: 0, hidden: 0 },
+  reviewPagination: { page: 1, limit: 20, total: 0, totalPages: 1 },
 
   /* ================= REELS ================= */
   loadingReels: false,
@@ -1036,6 +1071,45 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       return { success: false };
     } finally {
       set({ sendingNewsletter: false });
+    }
+  },
+
+  fetchReviews: async (params = {}) => {
+    try {
+      set({ loadingReviews: true });
+
+      const { data } = await api.post("/admin/reviews", params);
+      if (!data?.success) return;
+
+      set({
+        reviews: data.reviews || [],
+        reviewProducts: data.products || [],
+        reviewStats: data.stats || { total: 0, visible: 0, hidden: 0 },
+        reviewPagination: data.pagination || {
+          page: 1,
+          limit: 20,
+          total: 0,
+          totalPages: 1,
+        },
+      });
+    } catch (e) {
+      console.error("Fetch reviews error", e);
+    } finally {
+      set({ loadingReviews: false });
+    }
+  },
+
+  toggleReview: async (id, status) => {
+    try {
+      set({ togglingReview: true });
+
+      const { data } = await api.post("/admin/review/toggle", { id, status });
+      return data;
+    } catch (e: any) {
+      console.error("Toggle review error", e);
+      return e?.response?.data || { success: false, message: "Failed to update review" };
+    } finally {
+      set({ togglingReview: false });
     }
   },
 

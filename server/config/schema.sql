@@ -310,11 +310,18 @@ CREATE TABLE product_reviews (
   rating TINYINT UNSIGNED NOT NULL,
   comment TEXT,
 
+  -- admin moderation: hidden rows survive for audit but leave the public list
+  -- and the products.rating/products.reviews aggregates
+  status ENUM('visible','hidden') NOT NULL DEFAULT 'visible',
+  moderatedAt DATETIME NULL,
+  moderatedBy INT UNSIGNED NULL,
+
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
   UNIQUE KEY uniq_review_order_product (orderId, productId),
   KEY idx_review_product (productId),
+  KEY idx_review_product_status (productId, status),
   KEY idx_review_user (userId),
 
   CONSTRAINT chk_review_rating CHECK (rating BETWEEN 1 AND 5),

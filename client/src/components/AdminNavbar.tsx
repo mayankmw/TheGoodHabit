@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, Film, Users } from "lucide-react";
+import { Menu, LayoutDashboard, Package, ShoppingBag, LogOut, Image, TicketPercent, Rows, BookOpen, MessageSquare, Mail, Share2, Layers, ChevronUp, ChevronDown, Film, Users, Star } from "lucide-react";
 import { useCommonStore } from "@/store/useCommonStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { LOGO_FALLBACK } from "@/lib/assetFallbacks";
@@ -56,6 +56,7 @@ export const AdminNavbar = () => {
       label: "Engagement",
       icon: <MessageSquare size={18} />,
       children: [
+        { label: "Reviews", to: "/admin/reviews", icon: <Star size={16} /> },
         { label: "Contacts", to: "/admin/contacts", icon: <MessageSquare size={16} /> },
         { label: "Newsletters", to: "/admin/newsletters", icon: <Mail size={16} /> },
         { label: "Subscribers", to: "/admin/newsletters/subscribers", icon: <Users size={16} /> },

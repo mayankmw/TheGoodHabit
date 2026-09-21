@@ -4,7 +4,9 @@ const MAX_COMMENT_LENGTH = 1000;
 
 // products.rating / products.reviews are denormalised for the storefront
 // listings, so every write to product_reviews has to fold back into them.
-const syncProductRatings = async (productIds) => {
+// Hidden reviews are excluded, which is what makes admin moderation move the
+// public star rating.
+export const syncProductRatings = async (productIds) => {
   const ids = [...new Set(productIds.map(Number).filter(Boolean))];
   if (!ids.length) return;
 
@@ -13,10 +15,12 @@ const syncProductRatings = async (productIds) => {
   await db.query(
     `UPDATE products p
      SET p.rating = COALESCE(
-           (SELECT ROUND(AVG(r.rating), 1) FROM product_reviews r WHERE r.productId = p.id),
+           (SELECT ROUND(AVG(r.rating), 1) FROM product_reviews r
+            WHERE r.productId = p.id AND r.status = 'visible'),
            0
          ),
-         p.reviews = (SELECT COUNT(*) FROM product_reviews r WHERE r.productId = p.id)
+         p.reviews = (SELECT COUNT(*) FROM product_reviews r
+                      WHERE r.productId = p.id AND r.status = 'visible')
      WHERE p.id IN (${placeholders})`,
     ids
   );
@@ -204,7 +208,7 @@ export const getProductReviews = async (req, res) => {
               SUM(rating = 2) AS star2,
               SUM(rating = 1) AS star1
        FROM product_reviews
-       WHERE productId = ?`,
+       WHERE productId = ? AND status = 'visible'`,
       [productId]
     );
 
@@ -228,7 +232,7 @@ export const getProductReviews = async (req, res) => {
       `SELECT r.id, r.rating, r.comment, r.createdAt, u.name AS reviewerName
        FROM product_reviews r
        JOIN users u ON u.id = r.userId
-       WHERE r.productId = ?
+       WHERE r.productId = ? AND r.status = 'visible'
        ORDER BY r.createdAt DESC, r.id DESC
        LIMIT ? OFFSET ?`,
       [productId, limit, offset]

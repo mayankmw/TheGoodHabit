@@ -43,7 +43,9 @@ import {
   updateReel,
   reorderReels,
   toggleReel,
-  deleteReel
+  deleteReel,
+  getAllReviews,
+  toggleReviewStatus
 } from "../controllers/admin.controller.js";
 
 const router = express.Router();
@@ -175,6 +177,12 @@ router.post("/reel/reorder", auth, isAdmin, reorderReels);
 router.post("/reel/toggle", auth, isAdmin, toggleReel);
 
 router.post("/reel/delete", auth, isAdmin, deleteReel);
+
+
+/* ================= REVIEWS ================= */
+
+router.post("/reviews", auth, isAdmin, getAllReviews);
+router.post("/review/toggle", auth, isAdmin, toggleReviewStatus);
 
 
 export default router;

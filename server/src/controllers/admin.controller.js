@@ -1,5 +1,6 @@
 import { db } from "../config/db.js";
 import sendEmail from "../utils/sendEmail.js";
+import { syncProductRatings } from "./review.controller.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -1957,5 +1958,168 @@ export const deleteReel = async (req, res) => {
   } catch (err) {
     console.error("Delete Reel Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+
+/* ================= REVIEWS ================= */
+
+const REVIEW_STATUSES = ["visible", "hidden"];
+
+export const getAllReviews = async (req, res) => {
+  try {
+    const { search, status, productId, rating } = req.body;
+
+    const limit = Math.min(Math.max(Number(req.body.limit) || 20, 1), 100);
+    const page = Math.max(Number(req.body.page) || 1, 1);
+    const offset = (page - 1) * limit;
+
+    // LEFT JOIN on products: product_reviews.productId carries no FK, so an
+    // inner join would silently swallow reviews whose product was removed
+    const baseFrom = `
+      FROM product_reviews r
+      JOIN users u ON u.id = r.userId
+      LEFT JOIN products p ON p.id = r.productId
+      LEFT JOIN orders o ON o.id = r.orderId
+    `;
+
+    let where = " WHERE 1=1";
+    const params = [];
+
+    if (status && status !== "all") {
+      where += " AND r.status = ?";
+      params.push(status);
+    }
+
+    if (productId && productId !== "all") {
+      where += " AND r.productId = ?";
+      params.push(Number(productId));
+    }
+
+    if (rating && rating !== "all") {
+      where += " AND r.rating = ?";
+      params.push(Number(rating));
+    }
+
+    if (search) {
+      where += " AND (r.comment LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR p.name LIKE ? OR o.orderCode LIKE ?)";
+      const like = `%${search}%`;
+      params.push(like, like, like, like, like);
+    }
+
+    const [[countRow]] = await db.query(
+      `SELECT COUNT(*) AS total ${baseFrom} ${where}`,
+      params
+    );
+    const total = Number(countRow.total) || 0;
+
+    // LIMIT/OFFSET placeholders need real numbers, not strings
+    const [rows] = await db.query(
+      `SELECT r.id, r.rating, r.comment, r.status, r.createdAt, r.moderatedAt,
+              r.productId, p.name AS productName,
+              u.name AS customerName, u.email AS customerEmail,
+              o.orderCode
+       ${baseFrom} ${where}
+       ORDER BY r.createdAt DESC, r.id DESC
+       LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+
+    // unfiltered, so the tiles keep reading the same while filters change
+    const [[counts]] = await db.query(
+      `SELECT COUNT(*) AS total,
+              SUM(status = 'visible') AS visible,
+              SUM(status = 'hidden') AS hidden
+       FROM product_reviews`
+    );
+
+    // populates the product filter without a second round trip from the client
+    const [products] = await db.query(
+      `SELECT DISTINCT r.productId AS id, p.name
+       FROM product_reviews r
+       LEFT JOIN products p ON p.id = r.productId
+       ORDER BY p.name`
+    );
+
+    return res.json({
+      success: true,
+      reviews: rows.map((row) => ({
+        ...row,
+        id: Number(row.id),
+        productId: Number(row.productId),
+        rating: Number(row.rating),
+        productName: row.productName || "(product removed)",
+        customerName: row.customerName || "Unnamed customer",
+      })),
+      products: products.map((row) => ({
+        id: Number(row.id),
+        name: row.name || `Product #${row.id}`,
+      })),
+      stats: {
+        total: Number(counts.total) || 0,
+        visible: Number(counts.visible) || 0,
+        hidden: Number(counts.hidden) || 0,
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  } catch (err) {
+    console.error("Fetch Reviews Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const toggleReviewStatus = async (req, res) => {
+  const { id, status } = req.body;
+
+  try {
+    // `=== undefined` rather than falsiness, matching the other admin toggles
+    if (id === undefined || status === undefined)
+      return res.status(400).json({
+        success: false,
+        message: "Review id and status are required",
+      });
+
+    if (!REVIEW_STATUSES.includes(status))
+      return res.status(400).json({
+        success: false,
+        message: `Status must be one of: ${REVIEW_STATUSES.join(", ")}`,
+      });
+
+    // unlike the other toggles we read first — the productId is needed to
+    // resync the denormalised rating once the row flips
+    const [[existing]] = await db.query(
+      "SELECT id, productId FROM product_reviews WHERE id = ? LIMIT 1",
+      [Number(id)]
+    );
+
+    if (!existing)
+      return res.status(404).json({ success: false, message: "Review not found" });
+
+    await db.query(
+      `UPDATE product_reviews
+       SET status = ?, moderatedAt = NOW(), moderatedBy = ?
+       WHERE id = ?`,
+      [status, req.user.id, existing.id]
+    );
+
+    // hidden rows leave products.rating/products.reviews, so the storefront
+    // stars move the moment a review is pulled
+    await syncProductRatings([Number(existing.productId)]);
+
+    return res.json({
+      success: true,
+      message:
+        status === "hidden"
+          ? "Review hidden from the product page"
+          : "Review restored to the product page",
+    });
+  } catch (err) {
+    console.error("Toggle Review Status Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
