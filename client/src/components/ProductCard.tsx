@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useCartStore } from "@/store/useCartStore";
 import { Link } from "react-router-dom";
 import { useUIStore } from "@/store/useUIStore";
+import { calcDiscountPercent } from "@/lib/pricing";
 
 interface ProductCardProps {
   id: string;
@@ -24,9 +25,7 @@ export const ProductCard = ({
   rating,
   reviews,
 }: ProductCardProps) => {
-  const discountPercent = Math.round(
-    ((originalPrice - discountedPrice) / originalPrice) * 100
-  );
+  const discountPercent = calcDiscountPercent(originalPrice, discountedPrice);
 
   const renderStars = () => {
     const stars = [];
@@ -59,10 +58,12 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
               className="w-[80%] h-full object-cover group-hover:scale-105 transition-transform duration-300 mx-auto"
             />
 
-            {/* Discount Badge */}
-            <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-bold shadow-soft">
-              -{discountPercent}% OFF
-            </div>
+            {/* Discount Badge — hidden when the row has no real discount */}
+            {discountPercent > 0 && (
+              <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-bold shadow-soft">
+                -{discountPercent}% OFF
+              </div>
+            )}
           </div>
         </Link>
 

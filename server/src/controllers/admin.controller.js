@@ -1,6 +1,10 @@
 import { db } from "../config/db.js";
 import sendEmail from "../utils/sendEmail.js";
 import { syncProductRatings } from "./review.controller.js";
+import {
+  sendOrderShippedEmail,
+  sendOrderDeliveredEmail,
+} from "../utils/orderEmails.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -738,6 +742,12 @@ export const updateOrder = async (req, res) => {
       }
     }
 
+    // A same-status save is legal (it is how an admin corrects a tracking
+    // number), so the email trigger compares against the PRE-update row
+    // rather than testing the incoming status alone.
+    const justShipped = status === "shipped" && existing.status !== "shipped";
+    const justDelivered = status === "delivered" && existing.status !== "delivered";
+
     // stamp shipped/delivered timestamps automatically the first time an
     // order reaches that status — nothing client-side ever sends these.
     const resolvedShippedAt =
@@ -768,6 +778,18 @@ export const updateOrder = async (req, res) => {
         id
       ]
     );
+
+    // fire and forget after the row is written; req.user here is the ADMIN,
+    // so the recipient is resolved from orders.userId inside these helpers
+    if (justShipped) {
+      sendOrderShippedEmail(id, {
+        shippingPartner: safePartner || existing.shippingPartner,
+        trackingNumber: safeTrackingNumber || existing.trackingNumber,
+        trackingUrl: safeTrackingUrl || existing.trackingUrl,
+      });
+    }
+
+    if (justDelivered) sendOrderDeliveredEmail(id);
 
     return res.json({ success: true, message: "Order updated successfully" });
   } catch (err) {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether";
 import { ProductReviews } from "@/components/ProductReviews";
+import { calcDiscountPercent } from "@/lib/pricing";
 import { useProductStore } from "@/store/useProductStore";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
@@ -101,8 +102,9 @@ export const Product = () => {
   // const isDatesProduct = product.type === "dates";
   const isDatesProduct = true;
 
-  const discountPercent = Math.round(
-    ((product.originalPrice - product.discountedPrice) / product.originalPrice) * 100
+  const discountPercent = calcDiscountPercent(
+    product.originalPrice,
+    product.discountedPrice
   );
 
   return (
@@ -263,10 +265,19 @@ export const Product = () => {
             <div className="flex flex-col">
               <div className="flex items-center gap-3">
                 <span className="text-2xl font-bold">₹{product.discountedPrice}</span>
-                <span className="text-sm text-muted-foreground line-through">₹{product.originalPrice}</span>
-                <span className="text-sm font-semibold text-green-600">
-                  ({discountPercent}% OFF)
-                </span>
+
+                {/* only show a struck-through price when it really is higher —
+                    otherwise it reads as a price rise sold as a saving */}
+                {discountPercent > 0 && (
+                  <>
+                    <span className="text-sm text-muted-foreground line-through">
+                      ₹{product.originalPrice}
+                    </span>
+                    <span className="text-sm font-semibold text-green-600">
+                      ({discountPercent}% OFF)
+                    </span>
+                  </>
+                )}
               </div>
             </div>
 

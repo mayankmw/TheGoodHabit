@@ -1,13 +1,18 @@
 import { useEffect, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "sonner";
 import { GoogleLogin } from "@react-oauth/google";
 
 export const SignIn = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // RequireAuth stashes where the visitor was headed; fall back to /profile
+  const from = (location.state as { from?: { pathname: string; search?: string } } | null)?.from;
+  const redirectTo = from ? `${from.pathname}${from.search || ""}` : "/profile";
 
   const sendOtp = useAuthStore((s) => s.sendOtp);
   const verifyOtp = useAuthStore((s) => s.verifyOtp);
@@ -36,7 +41,7 @@ export const SignIn = () => {
 
     if (res.success) {
       toast.success(res.message);
-      navigate("/profile");
+      navigate(redirectTo, { replace: true });
     } else {
       toast.error(res.message);
     }
@@ -44,7 +49,7 @@ export const SignIn = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token");
-    if (token) navigate("/profile");
+    if (token) navigate(redirectTo, { replace: true });
   }, []);
 
   return (
@@ -66,7 +71,7 @@ export const SignIn = () => {
 
             if (res.success) {
               toast.success("Logged in with Google");
-              navigate("/profile");
+              navigate(redirectTo, { replace: true });
             } else {
               toast.error(res.message);
             }

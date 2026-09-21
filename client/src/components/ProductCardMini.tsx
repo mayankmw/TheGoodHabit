@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useCartStore } from "@/store/useCartStore";
 import { Link } from "react-router-dom";
 import { useUIStore } from "@/store/useUIStore";
+import { calcDiscountPercent } from "@/lib/pricing";
 
 interface ProductCardMiniProps {
   id: string;
@@ -25,9 +26,7 @@ export const ProductCardMini = ({
   reviews,
 }: ProductCardMiniProps) => {
 
-  const discountPercent = Math.round(
-    ((originalPrice - discountedPrice) / originalPrice) * 100
-  );
+  const discountPercent = calcDiscountPercent(originalPrice, discountedPrice);
 
   const renderStars = () => {
     const stars = [];

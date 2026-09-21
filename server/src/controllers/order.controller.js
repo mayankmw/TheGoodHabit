@@ -2,6 +2,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { db } from "../config/db.js";
 import { fetchOrderReviews } from "./review.controller.js";
+import { sendOrderConfirmedEmail } from "../utils/orderEmails.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -258,6 +259,17 @@ export const verifyRazorpayPayment = async (req, res) => {
       });
     }
 
+    // A replayed verify would duplicate order_items and re-send the
+    // confirmation email, so a payment already marked paid short-circuits.
+    const [[alreadyPaid]] = await db.query(
+      "SELECT status FROM payments WHERE razorpayOrderId = ? LIMIT 1",
+      [razorpay_order_id]
+    );
+
+    if (alreadyPaid?.status === "paid") {
+      return res.json({ success: true, message: "Payment already verified" });
+    }
+
     // 1️⃣ Update Payments — pull the full payment object from Razorpay so we
     // capture how it was actually paid (method + card/upi/bank/wallet info,
     // Razorpay's fee/tax), not just the id/signature the checkout handler
@@ -350,6 +362,10 @@ export const verifyRazorpayPayment = async (req, res) => {
     if (cartRow) {
       await db.query("DELETE FROM cart_items WHERE cartId = ?", [cartRow.id]);
     }
+
+    // fire and forget — the payment is captured and the cart cleared, so a
+    // mail fault must not turn this into a 500 on a successful order
+    sendOrderConfirmedEmail(appOrderId);
 
     return res.json({
       success: true,
