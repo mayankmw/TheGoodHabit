@@ -21,6 +21,7 @@ import publicRoutes from "./routes/public.routes.js";
 import { seedDefaultUser } from "./seed/seedUser.js";
 import { seedDefaultAssets } from "./seed/seedDefaultAssets.js";
 import { refreshEmailLogo } from "./utils/emailTemplates.js";
+import { startAbandonedCheckoutSweep } from "./utils/abandonedCheckouts.js";
 
 
 dotenv.config();
@@ -81,6 +82,8 @@ app.listen(PORT, async () => {
 
   // emails render the logo the admin panel uploaded
   await refreshEmailLogo();
+
+  startAbandonedCheckoutSweep();
 
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

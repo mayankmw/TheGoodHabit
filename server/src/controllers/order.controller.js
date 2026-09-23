@@ -199,6 +199,17 @@ export const createRazorpayOrder = async (req, res) => {
       receipt: `order_${Date.now()}`
     });
 
+    // The lines are snapshotted alongside the address for the same reason: what
+    // the customer is paying for must not be re-read later. Verification used
+    // to rebuild order_items from the LIVE cart, so anything added while the
+    // payment modal was open shipped for the price agreed before it.
+    const itemsSnapshot = items.map((it) => ({
+      productId: Number(it.productId),
+      name: it.name,
+      quantity: Number(it.quantity),
+      price: Number(it.discountedPrice),
+    }));
+
     // 1️⃣ Create ORDER (address is snapshotted — the address book entry can
     // change or be deleted after this order is placed)
     const [orderResult] = await db.query(
@@ -206,9 +217,9 @@ export const createRazorpayOrder = async (req, res) => {
          userId, addressId,
          shippingAddressLine1, shippingAddressLine2, shippingPhone, shippingCity,
          shippingState, shippingPostalCode, shippingCountry,
-         totalPrice, discountedPrice, status, appliedCoupons
+         totalPrice, discountedPrice, status, appliedCoupons, itemsSnapshot
        )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
       [
         userId,
         address.id,
@@ -222,6 +233,7 @@ export const createRazorpayOrder = async (req, res) => {
         subtotal,
         payable,
         JSON.stringify(appliedCoupons),
+        JSON.stringify(itemsSnapshot),
       ]
     );
 
@@ -428,14 +440,37 @@ export const verifyRazorpayPayment = async (req, res) => {
         [appOrderId]
       );
 
-      const [cartItems] = await connection.query(
-        `SELECT ci.quantity, p.id AS productId, p.discountedPrice AS price
-         FROM cart_items ci
-         JOIN products p ON p.id = ci.productId
-         JOIN cart c ON c.id = ci.cartId
-         WHERE c.userId = ?`,
-        [req.user.id]
+      // Build from what was priced, NOT from the cart as it stands now. Re-reading
+      // the cart here let a customer add items while the payment modal was open
+      // and receive them for the amount agreed beforehand.
+      const [[snapshotRow]] = await connection.query(
+        "SELECT itemsSnapshot FROM orders WHERE id = ? LIMIT 1",
+        [appOrderId]
       );
+
+      let cartItems = [];
+      try {
+        const parsed = JSON.parse(snapshotRow?.itemsSnapshot || "null");
+        if (Array.isArray(parsed)) cartItems = parsed;
+      } catch {
+        cartItems = [];
+      }
+
+      // orders created before the snapshot existed fall back to the old
+      // behaviour rather than recording nothing at all
+      if (!cartItems.length) {
+        const [live] = await connection.query(
+          `SELECT ci.quantity, p.id AS productId, p.discountedPrice AS price
+           FROM cart_items ci
+           JOIN products p ON p.id = ci.productId
+           JOIN cart c ON c.id = ci.cartId
+           WHERE c.userId = ?`,
+          [req.user.id]
+        );
+        cartItems = live;
+        if (live.length)
+          console.warn(`Order ${appOrderId} had no itemsSnapshot — fell back to the live cart`);
+      }
 
       const oversold = [];
 

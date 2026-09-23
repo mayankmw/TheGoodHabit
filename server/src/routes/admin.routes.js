@@ -15,6 +15,7 @@ import {
   fetchOrderById,
   updateOrder,
   cancelOrderAsAdmin,
+  sweepAbandonedCheckouts,
   getAllAssets,
   updateAsset,
   getAllCoupons,
@@ -89,6 +90,7 @@ router.post("/orders", auth, isAdmin, fetchOrders);
 router.post("/order", auth, isAdmin, fetchOrderById);
 router.post("/order/update", auth, isAdmin, updateOrder);
 router.post("/order/cancel", auth, isAdmin, cancelOrderAsAdmin);
+router.post("/orders/sweep-abandoned", auth, isAdmin, sweepAbandonedCheckouts);
 
 router.post("/assets", auth, isAdmin, getAllAssets);
 

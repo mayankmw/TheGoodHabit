@@ -261,12 +261,17 @@ CREATE TABLE orders (
 
   appliedCoupons JSON,
 
+  -- the lines as priced when the Razorpay order was created; payment
+  -- verification builds order_items from this, never from the live cart
+  itemsSnapshot JSON,
+
   status ENUM(
     'pending',
     'processing',
     'shipped',
     'delivered',
-    'cancelled'
+    'cancelled',
+    'abandoned'
   ) DEFAULT 'pending',
 
   shippingPartner VARCHAR(100),
@@ -280,6 +285,10 @@ CREATE TABLE orders (
   cancelledAt DATETIME NULL,
   cancelledBy ENUM('customer','admin') NULL,
   cancelReason VARCHAR(255) NULL,
+
+  -- a checkout the customer walked away from, and the recovery nudge we sent
+  abandonedAt DATETIME NULL,
+  recoveryEmailSentAt DATETIME NULL,
 
   -- set when the customer taps "Not now" on the delivered-order review prompt
   reviewPromptDismissedAt DATETIME NULL,

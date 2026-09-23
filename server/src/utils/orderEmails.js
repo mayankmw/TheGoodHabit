@@ -273,3 +273,67 @@ export const sendOrderCancelledEmail = async (orderId) => {
     console.error("Order cancelled email error:", err.message);
   }
 };
+
+/**
+ * The nudge for a checkout that was started and never paid. Links back to the
+ * shop rather than the dead Razorpay order: that order is finished, but the
+ * cart behind it is untouched (it is only cleared on successful payment).
+ */
+export const sendAbandonedCheckoutEmail = async (orderId) => {
+  try {
+    const order = await loadOrderForEmail(orderId);
+    if (!order) return;
+
+    // order_items is only written once a payment succeeds, so what they were
+    // about to buy lives in the snapshot taken at checkout
+    const [[row]] = await db.query(
+      "SELECT itemsSnapshot FROM orders WHERE id = ? LIMIT 1",
+      [orderId]
+    );
+
+    let items = [];
+    try {
+      const parsed = JSON.parse(row?.itemsSnapshot || "null");
+      if (Array.isArray(parsed)) items = parsed;
+    } catch {
+      items = [];
+    }
+
+    if (!items.length) return;   // nothing to remind them about
+
+    const name = greetingName(order.customerName);
+    const total = items.reduce((sum, i) => sum + Number(i.price) * Number(i.quantity), 0);
+
+    const text = [
+      `Hi ${name},`,
+      ``,
+      `You left these behind:`,
+      itemLinesText(items),
+      ``,
+      `Total: ${formatINR(total)}`,
+      ``,
+      `Your basket is still saved — pick up where you left off: ${CLIENT_APP_URL}`,
+    ].join("\n");
+
+    const html = renderEmail({
+      preheader: `Your basket is still saved — ${formatINR(total)}`,
+      title: "You left something behind",
+      bodyHtml: [
+        heading("Still thinking it over?"),
+        paragraph(`Hi ${escapeHtml(name)}, you started checking out and didn't finish. Your basket is still here.`),
+        itemsTable(items),
+        paragraph(`<strong>Total: ${formatINR(total)}</strong>`),
+        button("Finish your order", CLIENT_APP_URL),
+        divider(),
+        paragraph(
+          "If you changed your mind that's absolutely fine — no payment was taken.",
+          MUTED
+        ),
+      ].join("\n"),
+    });
+
+    await safeSend(order.customerEmail, "You left something in your basket", text, html);
+  } catch (err) {
+    console.error("Abandoned checkout email error:", err.message);
+  }
+};

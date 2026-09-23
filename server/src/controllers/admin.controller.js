@@ -6,6 +6,7 @@ import {
   sendOrderDeliveredEmail,
 } from "../utils/orderEmails.js";
 import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.js";
+import { runAbandonedCheckoutSweep } from "../utils/abandonedCheckouts.js";
 import {
   refreshEmailLogo,
   renderEmail,
@@ -263,6 +264,14 @@ export const getStats = async (req, res) => {
       [startDate, endDate]
     );
 
+    const [[abandoned]] = await db.query(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(discountedPrice), 0) AS value,
+              SUM(recoveryEmailSentAt IS NOT NULL) AS nudged
+       FROM orders
+       WHERE status = 'abandoned'`
+    );
+
     // Point-in-time, unlike every other query in getStats: stock is a current
     // level, not something that happened inside the selected date range.
     // `stock IS NOT NULL` is what keeps untracked products out — COALESCE(stock,0)
@@ -314,6 +323,11 @@ export const getStats = async (req, res) => {
           newToday: Number(users.totalUsers || 0),
         },
         products,
+        abandoned: {
+          total: Number(abandoned.total) || 0,
+          value: Number(abandoned.value) || 0,
+          nudged: Number(abandoned.nudged) || 0,
+        },
         stock: {
           threshold: LOW_STOCK_THRESHOLD,
           tracked: Number(stockCounts.tracked) || 0,
@@ -2177,6 +2191,21 @@ export const cancelOrderAsAdmin = async (req, res) => {
       success: false,
       message: "Refund failed at the payment provider — nothing has changed, try again",
     });
+  }
+};
+
+export const sweepAbandonedCheckouts = async (req, res) => {
+  try {
+    const result = await runAbandonedCheckoutSweep();
+
+    return res.json({
+      success: true,
+      message: `${result.abandoned} checkout${result.abandoned === 1 ? "" : "s"} marked abandoned, ${result.emailed} recovery email${result.emailed === 1 ? "" : "s"} sent`,
+      ...result,
+    });
+  } catch (err) {
+    console.error("Sweep Abandoned Checkouts Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
