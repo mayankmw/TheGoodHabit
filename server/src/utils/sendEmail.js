@@ -1,6 +1,11 @@
 import nodemailer from "nodemailer";
 
 const emailPort = Number(process.env.EMAIL_PORT || 587);
+// Development safety net. When set, EVERY outgoing message is delivered here
+// instead of its real recipient — so testing a flow on a dev machine can never
+// reach an actual customer. Leave it unset in production and nothing changes.
+const MAIL_REDIRECT_TO = (process.env.MAIL_REDIRECT_TO || "").trim();
+
 const emailSecure =
   process.env.EMAIL_SECURE === "true" || emailPort === 465;
 
@@ -31,9 +36,13 @@ const transporter = nodemailer.createTransport({
     headers = null
   ) => {
     try {
+      // the true recipient is preserved as a header so a redirected inbox can
+      // still tell who each message was actually for
+      const redirected = Boolean(MAIL_REDIRECT_TO) && to !== MAIL_REDIRECT_TO;
+
       const mailOptions = {
         from: `"NoshBOB" <${process.env.EMAIL_USER}>`,
-        to,
+        to: redirected ? MAIL_REDIRECT_TO : to,
         subject,
         text,
         html: html || `<p>${text}</p>`,
@@ -41,8 +50,12 @@ const transporter = nodemailer.createTransport({
         // List-Unsubscribe / List-Unsubscribe-Post live here: Gmail and Yahoo
         // require them on bulk mail, and mailOptions was a fixed literal that
         // could not carry any header at all
-        ...(headers ? { headers } : {}),
+        ...(headers || redirected
+          ? { headers: { ...(headers || {}), ...(redirected ? { "X-Original-To": to } : {}) } }
+          : {}),
       };
+
+      if (redirected) console.log(`✉️  redirected: ${to} -> ${MAIL_REDIRECT_TO} (${subject})`);
 
       const info = await transporter.sendMail(mailOptions);
       return info;
