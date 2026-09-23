@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { toast } from "sonner";
 import api from "@/lib/api";
 
 type CartActionResponse = {
@@ -199,6 +200,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         availableCoupons: data.availableCoupons || [],
         loading: false,
       });
+
+      // the server detaches coupons that stopped qualifying; without this the
+      // total just changes and the customer has no idea why
+      for (const removed of data.removedCoupons || []) {
+        toast.info(removed.message || `${removed.code} was removed from your cart`);
+      }
+
       return data;
     } catch (err) {
       console.error("fetchCart error", err);
@@ -422,7 +430,9 @@ export const useCartStore = create<CartState>((set, get) => ({
     } catch (err) {
       console.error("applyCoupon error", err);
       set({ loading: false, error: err?.response?.data || err.message });
-      return null;
+      return err?.response?.data?.message
+        ? { success: false, message: err.response.data.message }
+        : null;
     }
   },
 

@@ -204,6 +204,36 @@ CREATE TABLE cart_coupons (
 
 
 -- =====================================================
+-- COUPON REDEMPTIONS
+-- =====================================================
+
+CREATE TABLE coupon_redemptions (
+
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+  couponId INT UNSIGNED NOT NULL,
+  userId INT UNSIGNED NOT NULL,
+  orderId INT UNSIGNED NOT NULL,
+
+  -- the code as it stood when redeemed — a coupon can be renamed later
+  code VARCHAR(100),
+  discountValue DECIMAL(10,2) NOT NULL DEFAULT 0,
+
+  redeemedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  -- makes recording idempotent on a replayed payment verification
+  UNIQUE KEY uniq_redemption_coupon_order (couponId, orderId),
+  KEY idx_redemption_coupon_user (couponId, userId),
+
+  FOREIGN KEY (couponId) REFERENCES coupons(id) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (orderId) REFERENCES orders(id) ON DELETE CASCADE
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+-- =====================================================
 -- ORDERS
 -- =====================================================
 

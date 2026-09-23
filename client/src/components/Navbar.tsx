@@ -254,6 +254,12 @@ export const Navbar = () => {
           (err && typeof err === "object" && "message" in err && err.message) ||
           "Unable to start checkout. Please try again.";
         toast.error(message);
+
+        // checkout rejects when a coupon stopped qualifying, so the drawer is
+        // showing a total that is no longer what we'd charge
+        if (err && typeof err === "object" && "removedCoupons" in err) {
+          await fetchCart();
+        }
         return;
       }
 

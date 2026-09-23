@@ -4,6 +4,11 @@ import { db } from "../config/db.js";
 import { fetchOrderReviews } from "./review.controller.js";
 import { sendOrderConfirmedEmail } from "../utils/orderEmails.js";
 import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.js";
+import {
+  validateCartCoupons,
+  dropCartCoupons,
+  redeemOrderCoupons,
+} from "../utils/coupons.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -49,7 +54,7 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
-async function getCartTotalsWithCoupons(cartId) {
+async function getCartTotalsWithCoupons(cartId, userId = null) {
   const [items] = await db.query(
     `SELECT ci.quantity, p.id AS productId, p.name, p.stock, p.discountedPrice
      FROM cart_items ci
@@ -63,41 +68,24 @@ async function getCartTotalsWithCoupons(cartId) {
     0
   );
 
-  // coupons applied to this cart
-  const [coupons] = await db.query(
-    `SELECT cc.*, c.discount_type, c.value, c.max_discount
-     FROM cart_coupons cc
-     JOIN coupons c ON c.id = cc.couponId
-     WHERE cc.cartId = ? AND cc.is_applied = 1`,
-    [cartId]
-  );
+  // Every applied coupon is re-checked here against active, its date window,
+  // min_order and single-use — none of which were verified before, so a coupon
+  // kept discounting after it expired, after it was switched off, and after
+  // the cart fell below its own minimum.
+  const { valid, dropped, discount } = await validateCartCoupons({
+    cartId,
+    userId,
+    subtotal,
+  });
 
-  let discount = 0;
-
-  for (const c of coupons) {
-    if (c.discount_type === "flat") {
-      discount += Number(c.value || 0);
-    } 
-    
-    else if (c.discount_type === "percent") {
-      let d = (subtotal * Number(c.value || 0)) / 100;
-      if (c.max_discount) d = Math.min(d, Number(c.max_discount));
-      discount += d;
-    }
-    
-    else if (c.discount_type === "free_gift") {
-      // no numeric deduction, handled via gift logic
-    }
-  }
-
-  discount = Math.min(discount, subtotal);
-
+  const coupons = valid;
   return {
     items,
     subtotal,
     discount,
     payable: Math.max(0, subtotal - discount),
-    appliedCoupons: coupons
+    appliedCoupons: coupons,
+    droppedCoupons: dropped,
   };
 }
 
@@ -154,8 +142,24 @@ export const createRazorpayOrder = async (req, res) => {
     }
 
     // Compute total
-    const { items, subtotal, discount, payable, appliedCoupons } =
-      await getCartTotalsWithCoupons(cartId);
+    const { items, subtotal, discount, payable, appliedCoupons, droppedCoupons } =
+      await getCartTotalsWithCoupons(cartId, userId);
+
+    // A coupon that stopped qualifying changes what the customer pays, so we
+    // detach it and stop rather than silently charging a different amount than
+    // the cart showed. The client refetches and shows the new total.
+    if (droppedCoupons.length) {
+      await dropCartCoupons(droppedCoupons.map((c) => c.cartCouponId));
+
+      return res.status(409).json({
+        success: false,
+        message:
+          droppedCoupons.length === 1
+            ? `${droppedCoupons[0].message} — your total has been updated`
+            : "Some coupons are no longer valid — your total has been updated",
+        removedCoupons: droppedCoupons.map((c) => ({ code: c.code, reason: c.reason, message: c.message })),
+      });
+    }
 
     if (payable <= 0)
       return res.status(400).json({ success:false, message:"Cart total invalid" });
@@ -478,6 +482,29 @@ export const verifyRazorpayPayment = async (req, res) => {
         );
       }
 
+      // Spend the coupons this order was priced with. Inside the transaction,
+      // so a coupon is only ever consumed against money that actually arrived,
+      // and keyed on (couponId, orderId) so a replayed verify is a no-op.
+      const [[orderRow]] = await connection.query(
+        "SELECT appliedCoupons FROM orders WHERE id = ? LIMIT 1",
+        [appOrderId]
+      );
+
+      let orderCoupons = [];
+      try {
+        const parsed = JSON.parse(orderRow?.appliedCoupons || "[]");
+        if (Array.isArray(parsed)) orderCoupons = parsed;
+      } catch {
+        orderCoupons = [];
+      }
+
+      await redeemOrderCoupons({
+        orderId: appOrderId,
+        userId: req.user.id,
+        coupons: orderCoupons,
+        connection,
+      });
+
       const [[cartRow]] = await connection.query(
         "SELECT id FROM cart WHERE userId = ? LIMIT 1",
         [req.user.id]
@@ -485,6 +512,11 @@ export const verifyRazorpayPayment = async (req, res) => {
 
       if (cartRow) {
         await connection.query("DELETE FROM cart_items WHERE cartId = ?", [
+          cartRow.id,
+        ]);
+        // the coupon has been spent — leaving it attached is what let one
+        // coupon quietly discount every future order
+        await connection.query("DELETE FROM cart_coupons WHERE cartId = ?", [
           cartRow.id,
         ]);
       }

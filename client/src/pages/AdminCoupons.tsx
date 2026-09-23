@@ -178,6 +178,7 @@ export default function AdminCoupons() {
               <th className="px-4 py-3 text-left">Title</th>
               <th className="px-4 py-3 text-left">Discount</th>
               <th className="px-4 py-3 text-left">Min Order</th>
+              <th className="px-4 py-3 text-left">Used</th>
               <th className="px-4 py-3 text-left">Status</th>
               <th className="px-4 py-3 text-left">Actions</th>
             </tr>
@@ -219,6 +220,27 @@ export default function AdminCoupons() {
                 </td>
 
                 <td className="px-4 py-3">₹{c.min_order}</td>
+
+                {/* redemptions were previously unknowable — there was no ledger */}
+                <td className="px-4 py-3 whitespace-nowrap">
+                  {c.redemptions > 0 ? (
+                    <>
+                      <div className="font-medium">
+                        {c.redemptions}×
+                        {Boolean(c.single_use_per_user) && (
+                          <span className="ml-1 text-xs text-muted-foreground">
+                            ({c.redeemedByUsers} {c.redeemedByUsers === 1 ? "customer" : "customers"})
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        ₹{Math.round(c.totalDiscountGiven)} given
+                      </div>
+                    </>
+                  ) : (
+                    <span className="text-gray-400">Never</span>
+                  )}
+                </td>
 
                 <td className="px-4 py-3">
                   <Switch

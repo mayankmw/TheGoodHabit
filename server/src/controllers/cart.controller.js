@@ -1,4 +1,10 @@
 import { db } from "../config/db.js";
+import {
+  couponRejection,
+  redemptionCountsForUser,
+  validateCartCoupons,
+  dropCartCoupons,
+} from "../utils/coupons.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -86,63 +92,67 @@ export const getCart = async (req, res) => {
     // base total (before coupons)
     const cartTotalBeforeDiscount = calcCartTotal(formattedItems);
 
-    // fetch cart_coupons (user-applied coupons for this cart)
-    // include max_discount for percent caps
-    const [cartCoupons] = await db.query(
-      `SELECT cc.id, cc.cartId, cc.couponId, cc.code, cc.appliedAt, cc.is_applied,
-              c.title, c.discount_type, c.value, c.max_discount, c.min_order, c.auto_award
-       FROM cart_coupons cc
-       JOIN coupons c ON c.id = cc.couponId
-       WHERE cc.cartId = ?`,
-      [cartId]
-    );
-
-    // compute simple numeric discounts only for applied coupons
-    let cartDiscountTotal = 0;
-    const enrichedCartCoupons = (cartCoupons || []).map((cc) => {
-      const obj = { ...cc, discountApplied: 0 };
-
-      // only calculate for actively applied coupons
-      if (!cc.is_applied) return obj;
-
-      const type = cc.discount_type;
-      if (type === "flat") {
-        const flat = Number(cc.value || 0);
-        obj.discountApplied = Math.min(flat, cartTotalBeforeDiscount); // can't exceed subtotal
-      } else if (type === "percent") {
-        const pct = Number(cc.value || 0) / 100;
-        let discount = Math.round(cartTotalBeforeDiscount * pct * 100) / 100;
-        if (cc.max_discount) {
-          discount = Math.min(discount, Number(cc.max_discount));
-        }
-        obj.discountApplied = Math.min(discount, cartTotalBeforeDiscount);
-      } else if (type === "free_gift") {
-        // free gift doesn't change numeric total in this simple implementation
-        obj.discountApplied = 0;
-      }
-
-      cartDiscountTotal += Number(obj.discountApplied || 0);
-      return obj;
+    // Re-check what is applied instead of trusting it. A coupon that expired,
+    // was switched off, or no longer meets its minimum is detached here rather
+    // than shown as still discounting a total it isn't allowed to touch.
+    const { valid, dropped, discount: cartDiscountTotal } = await validateCartCoupons({
+      cartId,
+      userId,
+      subtotal: cartTotalBeforeDiscount,
     });
 
-    // final cart total after coupon discounts (never negative)
-    const cartTotal = Math.max(0, Math.round((cartTotalBeforeDiscount - cartDiscountTotal) * 100) / 100);
+    if (dropped.length) await dropCartCoupons(dropped.map((c) => c.cartCouponId));
+
+    const enrichedCartCoupons = valid.map((c) => ({
+      id: c.cartCouponId,
+      cartId,
+      couponId: c.couponId,
+      code: c.code,
+      is_applied: 1,
+      title: c.title,
+      discount_type: c.discount_type,
+      value: c.value,
+      max_discount: c.max_discount,
+      min_order: c.min_order,
+      auto_award: c.auto_award,
+      discountApplied: c.discountApplied,
+    }));
+
+    const removedCoupons = dropped.map((c) => ({
+      code: c.code,
+      reason: c.reason,
+      message: c.message,
+    }));
+
+    const cartTotal = Math.max(
+      0,
+      Math.round((cartTotalBeforeDiscount - cartDiscountTotal) * 100) / 100
+    );
 
     // fetch all active coupons and mark availability based on pre-discount subtotal
     const [allCoupons] = await db.query(
-      `SELECT id, code, title, description, discount_type, value, max_discount, min_order, active, auto_award
+      `SELECT id, code, title, description, discount_type, value, max_discount,
+              min_order, active, auto_award, single_use_per_user, starts_at, expires_at
        FROM coupons
        WHERE active = 1
+         AND (starts_at IS NULL OR starts_at <= NOW())
+         AND (expires_at IS NULL OR expires_at > NOW())
        ORDER BY auto_award DESC, min_order ASC`
     );
 
     const appliedCodes = new Set((enrichedCartCoupons || []).map((c) => c.code));
+    const usedCounts = await redemptionCountsForUser((allCoupons || []).map((c) => c.id), userId);
+
     const availableCoupons = (allCoupons || []).map((c) => {
       const meetsMin = cartTotalBeforeDiscount >= Number(c.min_order || 0);
       const alreadyApplied = appliedCodes.has(c.code);
+      // offering a single-use coupon the customer has already spent just sets
+      // up a rejection at apply time
+      const alreadyUsed = Boolean(c.single_use_per_user) && (usedCounts.get(Number(c.id)) || 0) > 0;
       return {
         ...c,
-        available: meetsMin && !alreadyApplied,
+        alreadyUsed,
+        available: meetsMin && !alreadyApplied && !alreadyUsed,
         alreadyApplied,
         reason: alreadyApplied ? "already_applied" : meetsMin ? "eligible" : "min_order_not_met",
       };
@@ -157,6 +167,8 @@ export const getCart = async (req, res) => {
       cartDiscountTotal,
       cartCoupons: enrichedCartCoupons,
       availableCoupons,
+      // coupons detached this request, so the UI can say why the total moved
+      removedCoupons,
     });
   } catch (err) {
     console.error("GET CART ERROR:", err);
@@ -377,13 +389,14 @@ export const applyCoupon = async (req, res) => {
   }
 
   try {
-    // 1) find coupon by code and active
+    // 1) find coupon by code — validity is judged below, so an expired or
+    // switched-off code gets a specific reason rather than "not found"
     const [couponRows] = await db.query(
-      "SELECT * FROM coupons WHERE code = ? AND active = 1 LIMIT 1",
+      "SELECT * FROM coupons WHERE code = ? LIMIT 1",
       [code]
     );
     if (couponRows.length === 0) {
-      return res.status(404).json({ success: false, message: "Coupon not found or inactive" });
+      return res.status(404).json({ success: false, message: "Coupon not found" });
     }
     const coupon = couponRows[0];
 
@@ -407,12 +420,19 @@ export const applyCoupon = async (req, res) => {
     );
     const cartTotal = items.reduce((s, it) => s + (it.discountedPrice || 0) * (it.quantity || 0), 0);
 
-    // 4) check min_order requirement
-    const minOrder = Number(coupon.min_order || 0);
-    if (cartTotal < minOrder) {
+    // 4) active, date window, min_order and single-use, all in one place.
+    // Dates and single_use_per_user were never checked here before.
+    const counts = await redemptionCountsForUser([coupon.id], userId);
+    const rejection = couponRejection(coupon, {
+      subtotal: cartTotal,
+      redeemedByUser: counts.get(Number(coupon.id)) || 0,
+    });
+
+    if (rejection) {
       return res.status(400).json({
         success: false,
-        message: `Cart total must be at least ₹${minOrder} to use this coupon`,
+        reason: rejection.reason,
+        message: rejection.message,
         cartTotal,
       });
     }

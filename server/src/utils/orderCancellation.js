@@ -1,6 +1,7 @@
 import Razorpay from "razorpay";
 import { db } from "../config/db.js";
 import { sendOrderCancelledEmail } from "./orderEmails.js";
+import { releaseOrderCoupons } from "./coupons.js";
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -158,6 +159,10 @@ export const cancelOrder = async ({ orderId, userId = null, by, reason = null })
       // stock is only ever decremented at payment verification, so a pending
       // order has nothing to give back
       if (order.status !== "pending") await restoreOrderStock(orderId, connection);
+
+      // without this a single-use coupon stays burnt on an order the
+      // customer never received
+      await releaseOrderCoupons(orderId, connection);
     }
 
     if (refund) {

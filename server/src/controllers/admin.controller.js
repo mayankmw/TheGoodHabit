@@ -1043,24 +1043,38 @@ export const getAllCoupons = async (req, res) => {
   try {
     const { search, active } = req.body;
 
-    let sql = `SELECT * FROM coupons WHERE 1=1`;
+    // redemption count was previously unknowable — there was no ledger to count
+    let sql = `SELECT c.*,
+                 (SELECT COUNT(*) FROM coupon_redemptions r WHERE r.couponId = c.id) AS redemptions,
+                 (SELECT COUNT(DISTINCT r.userId) FROM coupon_redemptions r WHERE r.couponId = c.id) AS redeemedByUsers,
+                 (SELECT COALESCE(SUM(r.discountValue), 0) FROM coupon_redemptions r WHERE r.couponId = c.id) AS totalDiscountGiven
+               FROM coupons c WHERE 1=1`;
     const params = [];
 
     if (search) {
-      sql += ` AND (code LIKE ? OR title LIKE ?)`;
+      sql += ` AND (c.code LIKE ? OR c.title LIKE ?)`;
       params.push(`%${search}%`, `%${search}%`);
     }
 
     if (active !== undefined) {
-      sql += ` AND active = ?`;
+      sql += ` AND c.active = ?`;
       params.push(active);
     }
 
-    sql += ` ORDER BY createdAt DESC`;
+    sql += ` ORDER BY c.createdAt DESC`;
 
     const [coupons] = await db.query(sql, params);
 
-    res.json({ success: true, coupons });
+    // COUNT comes back as a number but SUM arrives as a string from mysql2
+    res.json({
+      success: true,
+      coupons: coupons.map((c) => ({
+        ...c,
+        redemptions: Number(c.redemptions) || 0,
+        redeemedByUsers: Number(c.redeemedByUsers) || 0,
+        totalDiscountGiven: Number(c.totalDiscountGiven) || 0,
+      })),
+    });
   } catch (err) {
     console.error("Get Coupons Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
