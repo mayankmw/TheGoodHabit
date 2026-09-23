@@ -265,7 +265,31 @@ export const addToCart = async (req, res) => {
 
 
 // UPDATE QUANTITY
+/**
+ * Resolves a cart line only if it belongs to the caller.
+ *
+ * updateCartItem and removeCartItem previously took cartItemId straight from
+ * the request body and acted on it, so any signed-in customer could change or
+ * empty a stranger's cart by guessing an id.
+ */
+const findOwnedCartItem = async (cartItemId, userId) => {
+  const id = Number(cartItemId);
+  if (!id) return null;
+
+  const [[row]] = await db.query(
+    `SELECT ci.id, ci.cartId, ci.productId, ci.quantity
+     FROM cart_items ci
+     JOIN cart c ON c.id = ci.cartId
+     WHERE ci.id = ? AND c.userId = ?
+     LIMIT 1`,
+    [id, userId]
+  );
+
+  return row || null;
+};
+
 export const updateCartItem = async (req, res) => {
+  const userId = req.user.id;
   const { cartItemId, quantity } = req.body;
 
   if (quantity < 1) {
@@ -273,23 +297,21 @@ export const updateCartItem = async (req, res) => {
   }
 
   try {
-    const [[cartItem]] = await db.query(
-      "SELECT productId FROM cart_items WHERE id = ? LIMIT 1",
-      [cartItemId]
-    );
+    const cartItem = await findOwnedCartItem(cartItemId, userId);
 
-    if (cartItem) {
-      const rejection = await stockRejection(cartItem.productId, Number(quantity));
-      if (rejection) {
-        return res.status(409).json({ success: false, message: rejection });
-      }
+    // someone else's line is indistinguishable from one that doesn't exist
+    if (!cartItem) {
+      return res.status(404).json({ success: false, message: "Cart item not found" });
     }
 
-    await db.query("UPDATE cart_items SET quantity = ? WHERE id = ?", [quantity, cartItemId]);
+    const rejection = await stockRejection(cartItem.productId, Number(quantity));
+    if (rejection) {
+      return res.status(409).json({ success: false, message: rejection });
+    }
 
-    // get cartId for this cartItem
-    const [rows] = await db.query("SELECT cartId FROM cart_items WHERE id = ?", [cartItemId]);
-    const cartId = rows[0]?.cartId;
+    await db.query("UPDATE cart_items SET quantity = ? WHERE id = ?", [quantity, cartItem.id]);
+
+    const cartId = cartItem.cartId;
 
     // compute cart total
     let cartTotal = 0;
@@ -315,14 +337,19 @@ export const updateCartItem = async (req, res) => {
 
 // REMOVE ITEM
 export const removeCartItem = async (req, res) => {
+  const userId = req.user.id;
   const { cartItemId } = req.body;
 
   try {
-    // find cartId before deleting
-    const [rows] = await db.query("SELECT cartId FROM cart_items WHERE id = ?", [cartItemId]);
-    const cartId = rows.length ? rows[0].cartId : null;
+    const cartItem = await findOwnedCartItem(cartItemId, userId);
 
-    await db.query("DELETE FROM cart_items WHERE id = ?", [cartItemId]);
+    if (!cartItem) {
+      return res.status(404).json({ success: false, message: "Cart item not found" });
+    }
+
+    const cartId = cartItem.cartId;
+
+    await db.query("DELETE FROM cart_items WHERE id = ?", [cartItem.id]);
 
     // recompute cart total (optional) and keep cartCoupons as-is (no auto-award)
     let cartTotal = 0;
