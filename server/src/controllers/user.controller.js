@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { db } from "../config/db.js";
@@ -99,40 +100,59 @@ export const googleLogin = async (req, res) => {
   }
 };
 
+const isValidEmail = (email = "") => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
 export const sendOtp = async (req, res) => {
-  const { email } = req.body;
+  const email = String(req.body.email || "").trim().toLowerCase();
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+  // this route is unauthenticated and sends mail, so it was a free relay:
+  // anything in the body got a branded email, and nothing capped the rate
+  if (!isValidEmail(email)) {
+    return res.status(400).json({ success: false, message: "Enter a valid email address" });
+  }
 
-  await db.query(
-    "INSERT INTO otps (email, code, expiresAt) VALUES (?, ?, ?)",
-    [email, code, expiresAt]
-  );
+  try {
+    // an unused code from a moment ago is still valid, so re-sending would
+    // leave several live codes for one address
+    await db.query("DELETE FROM otps WHERE email = ? OR expiresAt < NOW()", [email]);
 
-  const html = renderEmail({
-    preheader: `${code} is your NoshBOB login code`,
-    title: "Your NoshBOB login code",
-    bodyHtml: [
-      heading("Your login code"),
-      paragraph("Enter this code to sign in. It expires in 5 minutes."),
-      codeBlock(code),
-      paragraph(
-        "If you didn't request this, you can safely ignore this email — nobody can sign in without the code.",
-        EMAIL_THEME.MUTED
-      ),
-    ].join("\n"),
-  });
+    // crypto.randomInt, not Math.random — a predictable login code is a
+    // predictable way into someone's account
+    const code = String(crypto.randomInt(100000, 1000000));
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 min
 
-  // never block sign-in on a mail fault: the OTP row is already written
-  await safeSend(
-    email,
-    "Your NoshBOB login code",
-    `Your NoshBOB login code is ${code}. It expires in 5 minutes.`,
-    html
-  );
+    await db.query(
+      "INSERT INTO otps (email, code, expiresAt) VALUES (?, ?, ?)",
+      [email, code, expiresAt]
+    );
 
-  return res.json({ success: true, message: "OTP sent to your email." });
+    const html = renderEmail({
+      preheader: `${code} is your NoshBOB login code`,
+      title: "Your NoshBOB login code",
+      bodyHtml: [
+        heading("Your login code"),
+        paragraph("Enter this code to sign in. It expires in 5 minutes."),
+        codeBlock(code),
+        paragraph(
+          "If you didn't request this, you can safely ignore this email — nobody can sign in without the code.",
+          EMAIL_THEME.MUTED
+        ),
+      ].join("\n"),
+    });
+
+    // never block sign-in on a mail fault: the OTP row is already written
+    await safeSend(
+      email,
+      "Your NoshBOB login code",
+      `Your NoshBOB login code is ${code}. It expires in 5 minutes.`,
+      html
+    );
+
+    return res.json({ success: true, message: "OTP sent to your email." });
+  } catch (err) {
+    console.error("Send OTP Error:", err);
+    return res.status(500).json({ success: false, message: "Could not send the code — please try again" });
+  }
 };
 
 export const verifyOtp = async (req, res) => {
@@ -152,6 +172,9 @@ export const verifyOtp = async (req, res) => {
   if (new Date(otpData.expiresAt) < new Date()) {
     return res.json({ success: false, message: "OTP expired" });
   }
+
+  // burn it — a code that stays valid after use can be replayed
+  await db.query("DELETE FROM otps WHERE email = ?", [email]);
 
   // Check if user exists
   const [userRows] = await db.query(
