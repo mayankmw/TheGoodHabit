@@ -63,20 +63,28 @@ export const restoreOrderStock = async (orderId, connection = db) => {
  * treated as success and the existing refund is looked up — that is what
  * makes a retried cancellation safe after a partial failure.
  */
-const refundPayment = async (payment) => {
+export const refundPayment = async (payment, { amount, reason = "order_cancelled" } = {}) => {
+  // defaults to the full capture; returns pass the value of the lines coming back
+  const refundAmount = Number(amount ?? payment.amount);
+
   try {
     const refund = await razorpay.payments.refund(payment.razorpayPaymentId, {
-      amount: payment.amount,
-      notes: { orderId: String(payment.orderId), reason: "order_cancelled" },
+      amount: refundAmount,
+      notes: { orderId: String(payment.orderId), reason },
     });
-    return { id: refund.id, amount: Number(refund.amount ?? payment.amount) };
+    return { id: refund.id, amount: Number(refund.amount ?? refundAmount) };
   } catch (err) {
     const description = err?.error?.description || err?.message || "";
 
-    if (/fully refunded|already.*refund/i.test(description)) {
+    // Razorpay refuses a second FULL refund, which is what makes a retried
+    // cancellation safe. A partial refund has no such guard, so only recover
+    // an existing one when we were asking for the whole amount.
+    const askingForEverything = refundAmount === Number(payment.amount);
+
+    if (askingForEverything && /fully refunded|already.*refund/i.test(description)) {
       const existing = await razorpay.payments.fetchMultipleRefund(payment.razorpayPaymentId);
       const first = existing?.items?.[0];
-      if (first) return { id: first.id, amount: Number(first.amount ?? payment.amount) };
+      if (first) return { id: first.id, amount: Number(first.amount ?? refundAmount) };
     }
 
     throw err;

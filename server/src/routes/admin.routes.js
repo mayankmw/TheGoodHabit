@@ -16,6 +16,8 @@ import {
   updateOrder,
   cancelOrderAsAdmin,
   sweepAbandonedCheckouts,
+  getAllReturns,
+  decideReturn,
   getAllAssets,
   updateAsset,
   getAllCoupons,
@@ -91,6 +93,12 @@ router.post("/order", auth, isAdmin, fetchOrderById);
 router.post("/order/update", auth, isAdmin, updateOrder);
 router.post("/order/cancel", auth, isAdmin, cancelOrderAsAdmin);
 router.post("/orders/sweep-abandoned", auth, isAdmin, sweepAbandonedCheckouts);
+
+
+/* ================= RETURNS ================= */
+
+router.post("/returns", auth, isAdmin, getAllReturns);
+router.post("/return/decide", auth, isAdmin, decideReturn);
 
 router.post("/assets", auth, isAdmin, getAllAssets);
 

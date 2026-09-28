@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CreditCard, ExternalLink, MapPin, Package, Truck, XCircle } from "lucide-react";
+import { CreditCard, ExternalLink, MapPin, Package, Truck, XCircle, PackageX } from "lucide-react";
 import { toast } from "sonner";
 import { useOrderStore } from "@/store/useOrderStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { OrderReviewSection } from "@/components/OrderReviewSection";
+import { ReturnRequestDialog } from "@/components/ReturnRequestDialog";
 import {
   formatPaymentMethod,
   paymentStatusBadgeClass,
@@ -125,6 +126,7 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
   const cancelOrder = useOrderStore((s) => s.cancelOrder);
   const [toCancel, setToCancel] = useState(null);
   const [cancelling, setCancelling] = useState(false);
+  const [toReturn, setToReturn] = useState(null);
 
   const confirmCancel = async () => {
     if (!toCancel) return;
@@ -195,6 +197,18 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
                 >
                   <Truck className="h-3.5 w-3.5" />
                   Track Order
+                </Button>
+              )}
+
+              {order.status === "delivered" && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="rounded-full gap-1.5 text-muted-foreground hover:text-primary"
+                  onClick={() => setToReturn(order)}
+                >
+                  <PackageX className="h-3.5 w-3.5" />
+                  Report a problem
                 </Button>
               )}
 
@@ -321,6 +335,14 @@ function OrdersList({ list, loading, loadMore, hasMore }) {
             Load More
           </Button>
         </div>
+      )}
+
+      {toReturn && (
+        <ReturnRequestDialog
+          order={toReturn}
+          open={Boolean(toReturn)}
+          onOpenChange={(next) => !next && setToReturn(null)}
+        />
       )}
 
       <Dialog open={Boolean(toCancel)} onOpenChange={(open) => !open && !cancelling && setToCancel(null)}>

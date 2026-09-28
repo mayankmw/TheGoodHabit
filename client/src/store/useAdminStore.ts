@@ -240,6 +240,20 @@ interface AdminState {
     content: string;
   }) => Promise<any>;
 
+  /* ================= RETURNS ================= */
+  loadingReturns: boolean;
+  decidingReturn: boolean;
+  returns: any[];
+  returnStats: { total: number; pending: number; approved: number; refunded: number };
+
+  fetchReturns: (params?: Record<string, unknown>) => Promise<void>;
+  decideReturn: (payload: {
+    id: number;
+    decision: "approved" | "rejected";
+    adminNote?: string;
+    restock?: boolean;
+  }) => Promise<any>;
+
   /* ================= REVIEWS ================= */
   loadingReviews: boolean;
   togglingReview: boolean;
@@ -358,6 +372,12 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     totalPages: 1,
   },
   newsletters: [],
+
+  /* ================= RETURNS ================= */
+  loadingReturns: false,
+  decidingReturn: false,
+  returns: [],
+  returnStats: { total: 0, pending: 0, approved: 0, refunded: 0 },
 
   /* ================= REVIEWS ================= */
   loadingReviews: false,
@@ -1081,6 +1101,39 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       return { success: false };
     } finally {
       set({ sendingNewsletter: false });
+    }
+  },
+
+  fetchReturns: async (params = {}) => {
+    try {
+      set({ loadingReturns: true });
+
+      const { data } = await api.post("/admin/returns", params);
+      if (!data?.success) return;
+
+      set({
+        returns: data.requests || [],
+        returnStats: data.stats || { total: 0, pending: 0, approved: 0, refunded: 0 },
+      });
+    } catch (e) {
+      console.error("Fetch returns error", e);
+    } finally {
+      set({ loadingReturns: false });
+    }
+  },
+
+  decideReturn: async (payload) => {
+    try {
+      set({ decidingReturn: true });
+
+      const { data } = await api.post("/admin/return/decide", payload);
+      return data;
+    } catch (e: any) {
+      console.error("Decide return error", e);
+      // a 502 here means the refund failed at Razorpay and nothing changed
+      return e?.response?.data || { success: false, message: "Couldn't update the request" };
+    } finally {
+      set({ decidingReturn: false });
     }
   },
 

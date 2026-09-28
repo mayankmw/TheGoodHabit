@@ -5,6 +5,12 @@ import { fetchOrderReviews } from "./review.controller.js";
 import { sendOrderConfirmedEmail } from "../utils/orderEmails.js";
 import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.js";
 import {
+  createReturnRequest,
+  claimableLines,
+  listReturnRequests,
+  RETURN_WINDOW_DAYS,
+} from "../utils/returns.js";
+import {
   validateCartCoupons,
   dropCartCoupons,
   redeemOrderCoupons,
@@ -914,5 +920,67 @@ export const cancelOrder = async (req, res) => {
       success: false,
       message: "We couldn't reach the payment provider to refund you — nothing has changed, please try again in a moment",
     });
+  }
+};
+
+/** What the customer may still claim on a delivered order. */
+export const getReturnableItems = async (req, res) => {
+  try {
+    const orderId = Number(req.body.orderId);
+
+    const [[order]] = await db.query(
+      "SELECT id, status, deliveredAt FROM orders WHERE id = ? AND userId = ? LIMIT 1",
+      [orderId, req.user.id]
+    );
+
+    if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+    const daysSince = order.deliveredAt
+      ? (Date.now() - new Date(order.deliveredAt).getTime()) / 86_400_000
+      : 0;
+
+    return res.json({
+      success: true,
+      windowDays: RETURN_WINDOW_DAYS,
+      withinWindow: order.status === "delivered" && daysSince <= RETURN_WINDOW_DAYS,
+      items: await claimableLines(orderId),
+      requests: await listReturnRequests({ orderId, userId: req.user.id }),
+    });
+  } catch (err) {
+    console.error("Returnable Items Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const requestReturn = async (req, res) => {
+  try {
+    const photos = (req.files || []).map((f) => f.filename);
+
+    // multipart sends everything as strings, so the item list arrives encoded
+    let items = req.body.items;
+    if (typeof items === "string") {
+      try { items = JSON.parse(items); } catch { items = []; }
+    }
+
+    const result = await createReturnRequest({
+      orderId: Number(req.body.orderId),
+      userId: req.user.id,
+      reason: req.body.reason,
+      comment: req.body.comment,
+      items,
+      photos,
+    });
+
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
+
+    return res.json({
+      success: true,
+      message: "Thanks — we'll review this and get back to you within a couple of days",
+      request: result.request,
+    });
+  } catch (err) {
+    console.error("Request Return Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };

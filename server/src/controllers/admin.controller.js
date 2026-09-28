@@ -7,6 +7,7 @@ import {
 } from "../utils/orderEmails.js";
 import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.js";
 import { runAbandonedCheckoutSweep } from "../utils/abandonedCheckouts.js";
+import { listReturnRequests, decideReturnRequest } from "../utils/returns.js";
 import {
   refreshEmailLogo,
   renderEmail,
@@ -2206,6 +2207,69 @@ export const sweepAbandonedCheckouts = async (req, res) => {
   } catch (err) {
     console.error("Sweep Abandoned Checkouts Error:", err);
     return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/* ================= RETURNS ================= */
+
+export const getAllReturns = async (req, res) => {
+  try {
+    const requests = await listReturnRequests({ status: req.body.status });
+
+    const [[counts]] = await db.query(
+      `SELECT COUNT(*) AS total,
+              SUM(status = 'requested') AS pending,
+              SUM(status = 'approved') AS approved,
+              COALESCE(SUM(refundAmount), 0) AS refunded
+       FROM return_requests`
+    );
+
+    return res.json({
+      success: true,
+      requests,
+      // SUM arrives as a string from mysql2; COUNT does not
+      stats: {
+        total: Number(counts.total) || 0,
+        pending: Number(counts.pending) || 0,
+        approved: Number(counts.approved) || 0,
+        refunded: Number(counts.refunded) || 0,
+      },
+    });
+  } catch (err) {
+    console.error("Fetch Returns Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+export const decideReturn = async (req, res) => {
+  try {
+    const result = await decideReturnRequest({
+      requestId: Number(req.body.id),
+      decision: req.body.decision,
+      adminNote: req.body.adminNote,
+      restock: Boolean(req.body.restock),
+      adminId: req.user.id,
+    });
+
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
+
+    return res.json({
+      success: true,
+      message:
+        result.decision === "rejected"
+          ? "Return declined — the customer has been told"
+          : result.refund
+          ? `Return approved and \u20b9${result.refund.amount / 100} refunded`
+          : "Return approved (no payment had been taken)",
+    });
+  } catch (err) {
+    // the refund failed at Razorpay: nothing was written, so a retry is safe
+    console.error("Decide Return Error:", err);
+    return res.status(502).json({
+      success: false,
+      message: "Refund failed at the payment provider — the request is unchanged, try again",
+    });
   }
 };
 

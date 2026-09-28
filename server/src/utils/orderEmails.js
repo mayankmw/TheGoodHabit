@@ -337,3 +337,85 @@ export const sendAbandonedCheckoutEmail = async (orderId) => {
     console.error("Abandoned checkout email error:", err.message);
   }
 };
+
+/** Tells the customer what happened to a return they raised. */
+export const sendReturnDecisionEmail = async (requestId) => {
+  try {
+    const [[request]] = await db.query(
+      `SELECT r.id, r.status, r.adminNote, r.refundAmount, r.orderId,
+              o.orderCode, u.name AS customerName, u.email AS customerEmail
+       FROM return_requests r
+       JOIN orders o ON o.id = r.orderId
+       JOIN users u ON u.id = r.userId
+       WHERE r.id = ? LIMIT 1`,
+      [requestId]
+    );
+
+    if (!request) return;
+
+    const [items] = await db.query(
+      `SELECT ri.quantity, ri.price, p.name
+       FROM return_request_items ri
+       LEFT JOIN products p ON p.id = ri.productId
+       WHERE ri.returnRequestId = ?`,
+      [requestId]
+    );
+
+    const lines = items.map((i) => ({ ...i, name: i.name || "(product removed)" }));
+    const name = greetingName(request.customerName);
+    const code = request.orderCode || `#${request.orderId}`;
+    const approved = request.status === "approved";
+    const refunded = Number(request.refundAmount || 0) / 100;
+
+    const outcome = approved
+      ? refunded
+        ? `We've approved your return and sent ${formatINR(refunded)} back to your original payment method. It usually lands within 5–7 business days.`
+        : `We've approved your return. No payment was taken for this order, so there's nothing to refund.`
+      : `We've looked into your return for order ${code} and won't be able to approve it this time.`;
+
+    const text = [
+      `Hi ${name},`,
+      ``,
+      outcome,
+      ``,
+      ...lines.map((i) => `- ${i.name} x ${i.quantity}`),
+      ``,
+      request.adminNote ? `Note from our team: ${request.adminNote}` : "",
+      ``,
+      `Any questions, just reply to this email.`,
+    ].filter((l) => l !== null).join("\n");
+
+    const html = renderEmail({
+      preheader: approved
+        ? refunded
+          ? `Return approved — ${formatINR(refunded)} on its way`
+          : "Return approved"
+        : "About your return request",
+      title: approved ? `Return approved for ${code}` : `About your return for ${code}`,
+      bodyHtml: [
+        heading(approved ? "Your return is approved" : "About your return"),
+        paragraph(`Hi ${escapeHtml(name)}, ${escapeHtml(outcome)}`),
+        approved && refunded
+          ? panel(
+              `<strong style="color:${MUTED};font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Refund</strong><br /><span style="font-size:18px;font-weight:bold;">${formatINR(refunded)}</span><br /><span style="color:${MUTED};">Back on your original payment method within 5–7 business days</span>`
+            )
+          : "",
+        itemsTable(lines),
+        request.adminNote
+          ? panel(`<strong>Note from our team</strong><br />${escapeHtml(request.adminNote)}`)
+          : "",
+        divider(),
+        paragraph("Any questions, just reply to this email — we read every one.", MUTED),
+      ].join("\n"),
+    });
+
+    await safeSend(
+      request.customerEmail,
+      approved ? `Return approved for order ${code}` : `About your return for order ${code}`,
+      text,
+      html
+    );
+  } catch (err) {
+    console.error("Return decision email error:", err.message);
+  }
+};
