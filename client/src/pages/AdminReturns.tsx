@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, ImageIcon, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ImageIcon, X, ZoomIn } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -46,6 +46,8 @@ export default function AdminReturns() {
   const [active, setActive] = useState<any>(null);
   const [note, setNote] = useState("");
   const [restock, setRestock] = useState(false);
+  // the index survives closing so the photo doesn't vanish mid fade-out
+  const [lightbox, setLightbox] = useState({ open: false, index: 0 });
 
   useEffect(() => {
     fetchReturns({ status });
@@ -56,7 +58,14 @@ export default function AdminReturns() {
     setNote("");
     // damaged goods are the common case, so restocking is off unless chosen
     setRestock(false);
+    setLightbox({ open: false, index: 0 });
   };
+
+  const photos: string[] = active?.photos || [];
+
+  // wraps at both ends so the arrows never dead-end
+  const stepPhoto = (delta: number) =>
+    setLightbox((l) => ({ ...l, index: (l.index + delta + photos.length) % photos.length }));
 
   const decide = async (decision: "approved" | "rejected") => {
     if (!active) return;
@@ -238,19 +247,76 @@ export default function AdminReturns() {
                 </div>
               </div>
 
-              {active.photos?.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {active.photos.map((photo: string) => (
-                    <a
-                      key={photo}
-                      href={`${import.meta.env.VITE_UPLOADS_URL || ""}/uploads/returns/${photo}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-primary underline"
+              {photos.length > 0 && (
+                <div className="space-y-2">
+                  <Label>Photos from the customer</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {photos.map((photo, index) => (
+                      <button
+                        key={photo}
+                        type="button"
+                        onClick={() => setLightbox({ open: true, index })}
+                        aria-label={`Enlarge photo ${index + 1}`}
+                        className="group relative cursor-zoom-in overflow-hidden rounded border bg-muted/40"
+                      >
+                        <img src={photo} alt="" className="aspect-square w-full object-contain" />
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/30 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                          <ZoomIn className="h-5 w-5" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* nested in the review dialog, so Esc or an outside click
+                      closes only this and the review stays open underneath */}
+                  <Dialog
+                    open={lightbox.open}
+                    onOpenChange={(next) => !next && setLightbox((l) => ({ ...l, open: false }))}
+                  >
+                    <DialogContent
+                      className="max-w-4xl"
+                      onKeyDown={(e) => {
+                        if (e.key === "ArrowRight") stepPhoto(1);
+                        if (e.key === "ArrowLeft") stepPhoto(-1);
+                      }}
                     >
-                      {photo.slice(0, 18)}…
-                    </a>
-                  ))}
+                      <DialogHeader>
+                        <DialogTitle>
+                          {photos.length > 1 ? `Photo ${lightbox.index + 1} of ${photos.length}` : "Photo"}
+                        </DialogTitle>
+                      </DialogHeader>
+
+                      <div className="relative flex items-center justify-center">
+                        <img
+                          src={photos[lightbox.index]}
+                          alt={`Customer photo ${lightbox.index + 1}`}
+                          className="max-h-[75vh] max-w-full rounded object-contain"
+                        />
+                        {photos.length > 1 && (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              aria-label="Previous photo"
+                              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow"
+                              onClick={() => stepPhoto(-1)}
+                            >
+                              <ChevronLeft />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              aria-label="Next photo"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-white/90 shadow"
+                              onClick={() => stepPhoto(1)}
+                            >
+                              <ChevronRight />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </div>
               )}
 

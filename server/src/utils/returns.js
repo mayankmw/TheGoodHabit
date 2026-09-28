@@ -6,6 +6,11 @@ import { sendReturnDecisionEmail } from "./orderEmails.js";
 // so this is deliberately shorter than an apparel-style window.
 const RETURN_WINDOW_DAYS = Number(process.env.RETURN_WINDOW_DAYS) || 7;
 
+const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
+// falls back to the folder the upload route writes to, so an environment
+// without the variable still gets working photo links
+const RETURN_IMAGE_URL = process.env.RETURN_IMAGE_URL || "uploads/returns/";
+
 export const RETURN_REASONS = ["damaged", "wrong_item", "not_as_described", "other"];
 
 const asArray = (value) => {
@@ -293,7 +298,8 @@ export const listReturnRequests = async ({ status, orderId, userId } = {}) => {
   );
 
   for (const row of rows) {
-    row.photos = asArray(row.photos);
+    // stored as bare file names, sent as full URLs like every other upload
+    row.photos = asArray(row.photos).map((file) => `${UPLOADS_APP_URL}${RETURN_IMAGE_URL}${file}`);
     row.refundAmount = row.refundAmount === null ? null : Number(row.refundAmount);
 
     const [items] = await db.query(
