@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ImagePlus } from "lucide-react";
 import { useAdminStore } from "@/store/useAdminStore";
 import { Button } from "@/components/ui/button";
 import {
@@ -154,6 +155,36 @@ const getProductImages = (product: ProductRecord | null | undefined): string[] =
   return Array.from(images);
 };
 
+// The file input is cleared after every pick so the same file can be added
+// again, which would leave a visible native input stuck on "No file chosen"
+// while images are attached. The button and count say what is really there.
+const ImagePicker = ({ count, onPick }: { count: number; onPick: (files: File[]) => void }) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="flex items-center gap-3">
+      <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
+        <ImagePlus />
+        Add images
+      </Button>
+      <span className="text-sm text-muted-foreground">
+        {count ? `${count} image${count === 1 ? "" : "s"} attached` : "No images attached"}
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        onChange={(e) => {
+          onPick(e.target.files ? Array.from(e.target.files) : []);
+          e.currentTarget.value = "";
+        }}
+      />
+    </div>
+  );
+};
+
 export default function AdminProducts() {
   const {
     products,
@@ -181,6 +212,20 @@ export default function AdminProducts() {
     };
   }, [newImagePreviews]);
 
+  // New thumbnails render below the picker, usually past the bottom of the
+  // scrolling form, so a pick looked like it did nothing. Only one modal is
+  // open at a time, so this ref serves the grid in both.
+  const newImagesGridRef = useRef<HTMLDivElement>(null);
+  const revealNewImages = useRef(false);
+
+  useEffect(() => {
+    if (!revealNewImages.current) return;
+    revealNewImages.current = false;
+    // the last tile, not the grid: with several rows the grid's top would
+    // come into view and the image just added would stay out of sight
+    newImagesGridRef.current?.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [form.images]);
+
   const hydrateFormFromProduct = (product: ProductRecord | null | undefined) => {
     setForm({
       name: product?.name || "",
@@ -199,6 +244,7 @@ export default function AdminProducts() {
 
   const handleSelectImages = (files: File[]) => {
     if (!files.length) return;
+    revealNewImages.current = true;
     setForm((prev) => ({
       ...prev,
       images: [...prev.images, ...files],
@@ -428,25 +474,16 @@ export default function AdminProducts() {
               />
 
               <Label>Images</Label>
-              <Input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
-                  handleSelectImages(selectedFiles);
-                  e.currentTarget.value = "";
-                }}
-              />
+              <ImagePicker count={form.images.length} onPick={handleSelectImages} />
 
               {form.images.length > 0 && (
-                <div className="grid grid-cols-4 gap-2">
+                <div ref={newImagesGridRef} className="grid grid-cols-4 gap-2">
                   {newImagePreviews.map((preview, index) => (
                     <div key={`${preview.file.name}-${index}`} className="relative">
                       <img
                         src={preview.url}
                         alt={preview.file.name}
-                        className="h-16 w-full rounded border object-cover"
+                        className="aspect-square w-full rounded border bg-muted/40 object-contain"
                       />
                       <button
                         type="button"
@@ -488,7 +525,7 @@ export default function AdminProducts() {
                           <img
                             src={image}
                             alt="Current product image"
-                            className="h-16 w-full rounded border object-cover"
+                            className="aspect-square w-full rounded border bg-muted/40 object-contain"
                           />
                           <button
                             type="button"
@@ -564,25 +601,16 @@ export default function AdminProducts() {
                 />
 
                 <Label>Add More Images</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => {
-                    const selectedFiles = e.target.files ? Array.from(e.target.files) : [];
-                    handleSelectImages(selectedFiles);
-                    e.currentTarget.value = "";
-                  }}
-                />
+                <ImagePicker count={form.images.length} onPick={handleSelectImages} />
 
                 {form.images.length > 0 && (
-                  <div className="grid grid-cols-4 gap-2">
+                  <div ref={newImagesGridRef} className="grid grid-cols-4 gap-2">
                     {newImagePreviews.map((preview, index) => (
                       <div key={`${preview.file.name}-${index}`} className="relative">
                         <img
                           src={preview.url}
                           alt={preview.file.name}
-                          className="h-16 w-full rounded border object-cover"
+                          className="aspect-square w-full rounded border bg-muted/40 object-contain"
                         />
                         <button
                           type="button"
