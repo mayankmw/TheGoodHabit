@@ -33,6 +33,7 @@ export const sendContactMessage = async (req, res) => {
 
     const html = renderInternalEmail({
       title: "New contact form submission",
+      preheader: String(message).slice(0, 120),
       rows: [
         ["Name", escapeHtml(name)],
         ["Email", `<a href="mailto:${escapeHtml(email)}" style="color:${EMAIL_THEME.BRAND};">${escapeHtml(email)}</a>`],

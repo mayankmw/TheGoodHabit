@@ -152,6 +152,7 @@ export const submitBulkOrder = async (req, res) => {
 
     const html = renderInternalEmail({
       title: "New bulk order enquiry",
+      preheader: `${totalUnits} units across ${normalizedItems.length} product${normalizedItems.length === 1 ? "" : "s"}`,
       rows: [
         ["Name", escapeHtml(name.trim())],
         ["Email", `<a href="mailto:${escapeHtml(email.trim())}" style="color:${EMAIL_THEME.BRAND};">${escapeHtml(email.trim())}</a>`],

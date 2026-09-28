@@ -266,28 +266,55 @@ const brandHeader = () => {
   </tr>`;
 };
 
-const brandFooter = (footerNote = "") => `
+// "Your orders" and "you shop with NoshBOB" are wrong for the shop owner, so
+// owner mail gets the same footer pointing at the admin panel instead
+const FOOTERS = {
+  customer: {
+    links: [
+      ["Shop NoshBOB", CLIENT_APP_URL],
+      ["Contact us", `${CLIENT_APP_URL}/contact`],
+      ["Your orders", `${CLIENT_APP_URL}/orders`],
+    ],
+    reason: "You're receiving this because you shop with NoshBOB.",
+  },
+  owner: {
+    links: [
+      ["Open the admin panel", `${CLIENT_APP_URL}/admin`],
+      ["View the shop", CLIENT_APP_URL],
+    ],
+    reason: "Sent automatically by your NoshBOB store.",
+  },
+};
+
+const brandFooter = (audience, footerNote = "") => {
+  const { links, reason } = FOOTERS[audience];
+
+  const linksHtml = links
+    .map(
+      ([label, href], i) =>
+        `<a href="${href}" style="color:${BRAND};text-decoration:none;${i === 0 ? "font-weight:bold;" : ""}">${label}</a>`
+    )
+    .join("\n        &nbsp;·&nbsp;\n        ");
+
+  return `
   <tr>
     <td style="background-color:${PAGE_BG};padding:24px 28px;border-top:1px solid ${BORDER};">
       ${footerNote ? `<p style="margin:0 0 10px;font-family:${FONT};font-size:12px;line-height:1.6;color:${MUTED};">${footerNote}</p>` : ""}
       <p style="margin:0 0 6px;font-family:${FONT};font-size:13px;line-height:1.6;color:${TEXT};">
-        <a href="${CLIENT_APP_URL}" style="color:${BRAND};text-decoration:none;font-weight:bold;">Shop NoshBOB</a>
-        &nbsp;·&nbsp;
-        <a href="${CLIENT_APP_URL}/contact" style="color:${BRAND};text-decoration:none;">Contact us</a>
-        &nbsp;·&nbsp;
-        <a href="${CLIENT_APP_URL}/orders" style="color:${BRAND};text-decoration:none;">Your orders</a>
+        ${linksHtml}
       </p>
       <p style="margin:0;font-family:${FONT};font-size:11px;line-height:1.6;color:${MUTED};">
-        You're receiving this because you shop with NoshBOB.
+        ${reason}
       </p>
     </td>
   </tr>`;
+};
 
 /**
- * Customer-facing shell: branded header band, white card, footer links.
+ * The shell every email shares: branded header band, white card, footer.
  * `preheader` is the grey line inboxes show beside the subject.
  */
-export const renderEmail = ({ preheader = "", title = "", bodyHtml = "", footerNote = "" }) => `<!DOCTYPE html>
+const renderShell = ({ preheader, title, bodyHtml, footerHtml }) => `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -313,7 +340,7 @@ export const renderEmail = ({ preheader = "", title = "", bodyHtml = "", footerN
             ${bodyHtml}
           </td>
         </tr>
-        ${brandFooter(footerNote)}
+        ${footerHtml}
       </table>
     </td>
   </tr>
@@ -321,11 +348,15 @@ export const renderEmail = ({ preheader = "", title = "", bodyHtml = "", footerN
 </body>
 </html>`;
 
+export const renderEmail = ({ preheader = "", title = "", bodyHtml = "", footerNote = "" }) =>
+  renderShell({ preheader, title, bodyHtml, footerHtml: brandFooter("customer", footerNote) });
+
 /**
- * Internal shell for notifications that go to the shop owner. Deliberately
- * plain — marketing chrome makes an operational alert slower to scan.
+ * Notifications to the shop owner, in the same shell as customer mail.
+ * `rows` are [label, valueHtml] pairs: the value is not escaped here, and
+ * rows with an empty value are dropped.
  */
-export const renderInternalEmail = ({ title = "", rows = [], bodyHtml = "" }) => {
+export const renderInternalEmail = ({ title = "", preheader = "", rows = [], bodyHtml = "" }) => {
   const rowsHtml = rows
     .filter(([, value]) => value)
     .map(
@@ -337,31 +368,18 @@ export const renderInternalEmail = ({ title = "", rows = [], bodyHtml = "" }) =>
     )
     .join("");
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /><title>${escapeHtml(title)}</title></head>
-<body style="margin:0;padding:0;background-color:#F6F6F6;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F6F6F6;">
-  <tr>
-    <td align="center" style="padding:20px 12px;">
-      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background-color:#ffffff;border:1px solid #E5E5E5;border-radius:8px;">
-        <tr>
-          <td style="padding:18px 22px;border-bottom:2px solid ${BRAND};">
-            <div style="font-family:${FONT};font-size:16px;font-weight:bold;color:${TEXT};">${escapeHtml(title)}</div>
-          </td>
-        </tr>
-        <tr>
-          <td style="padding:20px 22px;">
-            ${rowsHtml ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px;">${rowsHtml}</table>` : ""}
-            ${bodyHtml}
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-</table>
-</body>
-</html>`;
+  return renderShell({
+    preheader,
+    title,
+    bodyHtml: [
+      heading(escapeHtml(title)),
+      rowsHtml
+        ? panel(`<table role="presentation" cellpadding="0" cellspacing="0" border="0">${rowsHtml}</table>`)
+        : "",
+      bodyHtml,
+    ].join("\n"),
+    footerHtml: brandFooter("owner"),
+  });
 };
 
 /** Wraps admin-authored newsletter HTML without touching the markup itself. */
