@@ -85,6 +85,10 @@ export const redemptionCountsForUser = async (couponIds, userId, connection = db
  * Re-checks every coupon applied to a cart and splits them into those still
  * valid and those that have to go. Nothing is written — callers decide whether
  * to drop them, because a browsing view and a checkout want different things.
+ *
+ * One coupon per order: applying a coupon replaces the previous one, so a cart
+ * only holds more than one if it was stacked before that rule, or two applies
+ * raced each other. The newest valid coupon keeps the slot.
  */
 export const validateCartCoupons = async ({ cartId, userId, subtotal, connection = db }) => {
   const [applied] = await connection.query(
@@ -94,7 +98,8 @@ export const validateCartCoupons = async ({ cartId, userId, subtotal, connection
             c.single_use_per_user, c.auto_award, c.gift_product_id
      FROM cart_coupons cc
      JOIN coupons c ON c.id = cc.couponId
-     WHERE cc.cartId = ? AND cc.is_applied = 1`,
+     WHERE cc.cartId = ? AND cc.is_applied = 1
+     ORDER BY cc.appliedAt DESC, cc.id DESC`,
     [cartId]
   );
 
@@ -113,8 +118,17 @@ export const validateCartCoupons = async ({ cartId, userId, subtotal, connection
       redeemedByUser: counts.get(Number(coupon.couponId)) || 0,
     });
 
-    if (rejection) dropped.push({ ...coupon, ...rejection });
-    else valid.push({ ...coupon, discountApplied: couponDiscountFor(coupon, subtotal) });
+    if (rejection) {
+      dropped.push({ ...coupon, ...rejection });
+    } else if (valid.length) {
+      dropped.push({
+        ...coupon,
+        reason: "one_per_order",
+        message: `Only one coupon per order, so ${coupon.code} was removed and ${valid[0].code} kept`,
+      });
+    } else {
+      valid.push({ ...coupon, discountApplied: couponDiscountFor(coupon, subtotal) });
+    }
   }
 
   const discount = Math.min(

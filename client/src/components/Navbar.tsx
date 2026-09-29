@@ -502,15 +502,16 @@ export const Navbar = () => {
       if (res && res.success) {
         // ensure newly applied codes are seen
         if (res.applied?.code) seenCouponCodesRef.current.add(res.applied.code);
+        // one coupon per order: the message says which one this replaced
+        toast.success(res.message || "Coupon applied");
         // trigger small animation
         triggerOfferPoppers();
         // refresh full cart state
         await fetchCart();
         setShowCoupons(false);
       } else {
-        // server returned error
-        const message = res?.message || "Unable to apply coupon";
-        console.warn(message);
+        // the server says why (minimum not met, expired, already used...)
+        toast.error(res?.message || "Unable to apply coupon");
       }
     } catch (e) {
       console.error("apply coupon error", e);
@@ -829,7 +830,10 @@ export const Navbar = () => {
                             <div className="space-y-4">
                               {(cartCoupons || []).length > 0 && (
                                 <div className="mb-4">
-                                  <h5 className="text-sm font-semibold">Applied Coupons</h5>
+                                  <h5 className="text-sm font-semibold">Applied coupon</h5>
+                                  <p className="text-xs text-muted-foreground">
+                                    One coupon per order. Switching to another replaces this one.
+                                  </p>
                                   <div className="space-y-2 mt-2">
                                     {cartCoupons.map((cc) => (
                                       <div key={cc.id} className="bg-white border rounded-lg p-3 flex items-center justify-between">
@@ -880,7 +884,7 @@ export const Navbar = () => {
                                       className="bg-[#7fc3ba] text-white px-4 py-2 rounded-lg font-semibold"
                                       onClick={() => handleApplyCoupon(c.code)}
                                     >
-                                      Apply
+                                      {(cartCoupons || []).length > 0 ? "Switch" : "Apply"}
                                     </button>
                                   </div>
                                 </div>
@@ -913,23 +917,15 @@ export const Navbar = () => {
                                     3) Otherwise show fallback text.
                                   */}
                                 {Array.isArray(cartCoupons) && cartCoupons.filter(cc => cc.is_applied).length > 0 ? (
-                                  // show the first applied coupon summary (if multiple applied you could change text accordingly)
+                                  // one coupon per order, so this is the applied one
                                   (() => {
-                                    const applied = cartCoupons.filter(cc => cc.is_applied);
-                                    const first = applied[0];
+                                    const applied = cartCoupons.find(cc => cc.is_applied);
                                     return (
                                       <div className="font-semibold flex items-center gap-1">
                                         <Check className="w-4 h-4 text-green-600" />
-                                        <strong>{first.code}</strong>
-                                        <span className="font-normal">— {first.title}</span>
-
-                                        {applied.length > 1 && (
-                                          <span className="text-xs text-muted-foreground ml-1">
-                                            (+{applied.length - 1} more)
-                                          </span>
-                                        )}
+                                        <strong>{applied.code}</strong>
+                                        <span className="font-normal">— {applied.title}</span>
                                       </div>
-
                                     );
                                   })()
                                 ) : (

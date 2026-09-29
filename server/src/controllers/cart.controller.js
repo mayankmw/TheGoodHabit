@@ -473,12 +473,41 @@ export const applyCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: "Coupon already applied to this cart" });
     }
 
-    // 6) insert cart_coupons (mark applied)
-    await db.query(
-      `INSERT INTO cart_coupons (cartId, userId, couponId, code, is_applied, appliedAt)
-       VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP())`,
-      [cartId, userId, coupon.id, coupon.code]
-    );
+    // 6) one coupon per order: the new one replaces whatever the cart had.
+    // The cart row is locked so two applies at once can't both land.
+    let replaced = [];
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query("SELECT id FROM cart WHERE id = ? FOR UPDATE", [cartId]);
+
+      const [previous] = await connection.query(
+        "SELECT code FROM cart_coupons WHERE cartId = ? AND couponId <> ?",
+        [cartId, coupon.id]
+      );
+      replaced = previous.map((p) => p.code);
+
+      await connection.query("DELETE FROM cart_coupons WHERE cartId = ? AND couponId <> ?", [
+        cartId,
+        coupon.id,
+      ]);
+      await connection.query(
+        `INSERT INTO cart_coupons (cartId, userId, couponId, code, is_applied, appliedAt)
+         VALUES (?, ?, ?, ?, 1, CURRENT_TIMESTAMP())`,
+        [cartId, userId, coupon.id, coupon.code]
+      );
+
+      await connection.commit();
+    } catch (err) {
+      await connection.rollback();
+      // the same code applied twice at once: the unique key caught the second
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({ success: false, message: "Coupon already applied to this cart" });
+      }
+      throw err;
+    } finally {
+      connection.release();
+    }
 
     // 7) return updated cartCoupons & cartTotal (and the applied coupon)
     const [cartCoupons] = await db.query(
@@ -492,7 +521,8 @@ export const applyCoupon = async (req, res) => {
 
     return res.json({
       success: true,
-      message: "Coupon applied",
+      message: replaced.length ? `${coupon.code} applied, replacing ${replaced.join(", ")}` : `${coupon.code} applied`,
+      replaced,
       applied: {
         code: coupon.code,
         title: coupon.title,
