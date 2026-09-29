@@ -1,10 +1,10 @@
 import { db } from "../config/db.js";
+import { listPublicReels } from "../utils/reels.js";
+import { InstagramError } from "../utils/instagram.js";
 
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 const ASSET_IMAGE_URL = process.env.ASSET_IMAGE_URL || "";
 const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
-const REEL_SHORT_URL = process.env.REEL_SHORT_URL || "";
-const REEL_MAIN_URL = process.env.REEL_MAIN_URL || "";
 
 export const getAssets = async (req, res) => {
   try {
@@ -130,62 +130,15 @@ export const getSocials = async (req, res) => {
 
 export const getReels = async (req, res) => {
   try {
-    const [rows] = await db.query(`
-      SELECT
-        r.id,
-        r.short_video,
-        r.main_video,
-        r.product_id,
-        r.views,
-        r.sort_order,
-
-        p.name,
-        p.originalPrice,
-        p.discountedPrice
-      FROM reels r
-      JOIN products p ON p.id = r.product_id
-      WHERE r.active = 1
-      ORDER BY r.sort_order ASC
-    `);
-
-    const reels = rows.map((r) => {
-      const discountPercentage =
-        r.originalPrice > 0
-          ? Math.round(
-              ((r.originalPrice - r.discountedPrice) / r.originalPrice) * 100
-            )
-          : null;
-
-      return {
-        id: r.id,
-
-        video: r.short_video
-          ? `${UPLOADS_APP_URL}${REEL_SHORT_URL}/${r.short_video}`
-          : null,
-
-        activeVideo: r.main_video
-          ? `${UPLOADS_APP_URL}${REEL_MAIN_URL}/${r.main_video}`
-          : null,
-
-        views: r.views || "0",
-
-        product: {
-          id: r.product_id,
-          name: r.name,
-          price: r.discountedPrice,
-          originalPrice: r.originalPrice,
-          discount: discountPercentage
-            ? `${discountPercentage}% Off`
-            : null,
-        },
-      };
-    });
-
-    res.json({
-      success: true,
-      reels,
-    });
+    res.json({ success: true, reels: await listPublicReels() });
   } catch (err) {
+    // no connected account, or Instagram down: the home page just skips the
+    // section, and the admin panel is where the reason shows
+    if (err instanceof InstagramError) {
+      console.error("Public Reels Error:", err.message);
+      return res.json({ success: true, reels: [] });
+    }
+
     console.error("Public Reels Error:", err);
     res.status(500).json({
       success: false,

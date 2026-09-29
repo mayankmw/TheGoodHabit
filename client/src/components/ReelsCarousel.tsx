@@ -1,11 +1,84 @@
 import { useState, useCallback, useEffect } from "react";
+import { Link } from "react-router-dom";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Heart, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Instagram, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useCommonStore } from "@/store/useCommonStore";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { useCommonStore, type ReelItem } from "@/store/useCommonStore";
+
+type ReelProduct = ReelItem["product"];
+
+const COVER_CLASS = "group relative block aspect-[9/16] w-full overflow-hidden bg-black";
+
+const Price = ({ product, className }: { product: ReelProduct; className?: string }) => {
+  const off =
+    product.originalPrice > product.price
+      ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+      : 0;
+
+  return (
+    <div className={cn("flex items-baseline gap-2 text-sm", className)}>
+      <span className="font-bold">₹{product.price}</span>
+      {off > 0 && (
+        <>
+          <span className="text-xs text-muted-foreground line-through">₹{product.originalPrice}</span>
+          <span className="text-xs font-semibold text-green-600">{off}% Off</span>
+        </>
+      )}
+    </div>
+  );
+};
+
+const BuyButton = ({
+  product,
+  className,
+  onNavigate,
+}: {
+  product: ReelProduct;
+  className?: string;
+  onNavigate?: () => void;
+}) => (
+  <Button
+    asChild
+    variant={product.inStock ? "default" : "outline"}
+    className={cn(
+      "font-bold text-xs",
+      product.inStock && "bg-secondary hover:bg-secondary/90 text-secondary-foreground",
+      className
+    )}
+  >
+    <Link to={`/products/${product.id}`} onClick={onNavigate}>
+      {product.inStock ? "Buy Now" : "Sold out"}
+    </Link>
+  </Button>
+);
+
+const ReelCover = ({ reel }: { reel: ReelItem }) => (
+  <>
+    {reel.thumbnailUrl && (
+      <img
+        src={reel.thumbnailUrl}
+        alt=""
+        loading="lazy"
+        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+      />
+    )}
+    <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/10 transition-colors group-hover:bg-black/25">
+      <span className="rounded-full bg-white/90 p-3 text-primary shadow-lg">
+        {reel.videoUrl ? <Play className="h-5 w-5 fill-current" /> : <Instagram className="h-5 w-5" />}
+      </span>
+      {!reel.videoUrl && (
+        <span className="rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white">
+          Watch on Instagram
+        </span>
+      )}
+    </span>
+  </>
+);
 
 export const ReelsCarousel = () => {
-  const { reels, fetchReels, loadingReels } = useCommonStore();
+  const { reels, fetchReels } = useCommonStore();
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -14,21 +87,14 @@ export const ReelsCarousel = () => {
 
   const [canScrollPrev, setCanScrollPrev] = useState(false);
   const [canScrollNext, setCanScrollNext] = useState(false);
-  const [activeReel, setActiveReel] = useState<any>(null);
+  const [playing, setPlaying] = useState<ReelItem | null>(null);
 
-  /* ================= FETCH REELS ================= */
   useEffect(() => {
     fetchReels();
   }, [fetchReels]);
 
-  const scrollPrev = useCallback(
-    () => emblaApi && emblaApi.scrollPrev(),
-    [emblaApi]
-  );
-  const scrollNext = useCallback(
-    () => emblaApi && emblaApi.scrollNext(),
-    [emblaApi]
-  );
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
 
   const onSelect = useCallback(() => {
     if (!emblaApi) return;
@@ -47,14 +113,7 @@ export const ReelsCarousel = () => {
     };
   }, [emblaApi, onSelect]);
 
-  if (loadingReels) {
-    return (
-      <section className="py-12 text-center text-muted-foreground">
-        Loading reels...
-      </section>
-    );
-  }
-
+  // nothing to show, or Instagram isn't connected: leave the section out
   if (!reels.length) return null;
 
   return (
@@ -72,6 +131,7 @@ export const ReelsCarousel = () => {
               size="icon"
               onClick={scrollPrev}
               disabled={!canScrollPrev}
+              aria-label="Previous reels"
               className="rounded-full bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary disabled:opacity-30"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -81,6 +141,7 @@ export const ReelsCarousel = () => {
               size="icon"
               onClick={scrollNext}
               disabled={!canScrollNext}
+              aria-label="Next reels"
               className="rounded-full bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary disabled:opacity-30"
             >
               <ChevronRight className="h-5 w-5" />
@@ -92,57 +153,36 @@ export const ReelsCarousel = () => {
         <div className="overflow-hidden" ref={emblaRef}>
           <div className="flex gap-5">
             {reels.map((reel) => (
-              <div
-                key={reel.id}
-                className="flex-[0_0_85%] sm:flex-[0_0_38%] lg:flex-[0_0_18%]"
-              >
-                <div
-                  onClick={() => setActiveReel(reel)}
-                  className="cursor-pointer border rounded-xl overflow-hidden bg-card hover:scale-[1.03] transition"
-                >
-                  {/* Video */}
-                  <div className="relative aspect-[3/5] bg-black">
-                    <video
-                      src={reel.video}
-                      muted
-                      loop
-                      playsInline
-                      autoPlay
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute bottom-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                      {reel.views} Views
-                    </div>
-                    <button className="absolute bottom-2 right-2 bg-black/70 text-white p-1.5 rounded-full">
-                      <Heart className="w-4 h-4" />
+              <div key={reel.id} className="flex-[0_0_62%] sm:flex-[0_0_38%] md:flex-[0_0_28%] lg:flex-[0_0_19%]">
+                <div className="flex h-full flex-col overflow-hidden rounded-xl border bg-card">
+                  {reel.videoUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => setPlaying(reel)}
+                      aria-label={`Play the reel for ${reel.product.name}`}
+                      className={COVER_CLASS}
+                    >
+                      <ReelCover reel={reel} />
                     </button>
-                  </div>
+                  ) : (
+                    // licensed music: Instagram only lets these play on Instagram
+                    <a
+                      href={reel.permalink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Watch the reel for ${reel.product.name} on Instagram (opens in a new tab)`}
+                      className={COVER_CLASS}
+                    >
+                      <ReelCover reel={reel} />
+                    </a>
+                  )}
 
-                  {/* Product Info */}
-                  <div className="p-3 text-center">
-                    <h3 className="text-sm font-semibold line-clamp-2">
-                      {reel.product.name}
-                    </h3>
-
-                    <div className="mt-1 flex justify-center gap-2 text-sm">
-                      <span className="font-bold">₹{reel.product.price}</span>
-
-                      {reel.product.originalPrice && (
-                        <span className="line-through text-xs text-muted-foreground">
-                          ₹{reel.product.originalPrice}
-                        </span>
-                      )}
-
-                      {reel.product.discount && (
-                        <span className="text-xs text-green-600 font-semibold">
-                          {reel.product.discount}
-                        </span>
-                      )}
+                  <div className="flex flex-1 flex-col p-3 text-center">
+                    <h3 className="text-sm font-semibold line-clamp-2">{reel.product.name}</h3>
+                    <Price product={reel.product} className="mt-1 justify-center" />
+                    <div className="mt-auto pt-3">
+                      <BuyButton product={reel.product} className="w-full" />
                     </div>
-
-                    <Button className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold text-xs mt-3">
-                      Buy Now
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -151,47 +191,57 @@ export const ReelsCarousel = () => {
         </div>
       </div>
 
-      {/* ================= FULLSCREEN REEL ================= */}
-      {activeReel && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="relative w-full max-w-[380px] h-[85vh] rounded-2xl overflow-hidden bg-black">
-            <button
-              onClick={() => setActiveReel(null)}
-              className="absolute top-3 right-3 bg-black/70 text-white p-2 rounded-full z-50"
-            >
-              <X className="w-5 h-5" />
-            </button>
+      {/* ================= PLAYER ================= */}
+      <Dialog open={Boolean(playing)} onOpenChange={(open) => !open && setPlaying(null)}>
+        {/* grid-cols-1: DialogContent is a grid, and its default auto column
+            widens to fit a long product name, pushing the video and the Buy
+            button past the dialog's edge. The [&>button] styles are for the
+            built-in close button, which is near invisible over light footage. */}
+        <DialogContent className="max-w-[400px] grid-cols-1 gap-0 overflow-hidden p-0 [&>button]:rounded-full [&>button]:bg-black/50 [&>button]:p-1.5 [&>button]:text-white [&>button]:opacity-100 [&>button]:hover:bg-black/70">
+          {playing && (
+            <>
+              <DialogTitle className="sr-only">Reel: {playing.product.name}</DialogTitle>
 
-            <video
-              src={activeReel.activeVideo}
-              controls
-              autoPlay
-              className="w-full h-full object-cover"
-            />
-
-            <div className="absolute bottom-0 w-full bg-gradient-to-t from-black/90 to-transparent p-4 text-white">
-              <h3 className="text-lg font-bold">
-                {activeReel.product.name}
-              </h3>
-
-              <div className="mt-1 flex gap-2 text-sm">
-                <span className="font-semibold">
-                  ₹{activeReel.product.price}
-                </span>
-                {activeReel.product.originalPrice && (
-                  <span className="line-through text-xs text-gray-400">
-                    ₹{activeReel.product.originalPrice}
-                  </span>
-                )}
+              <div className="h-[68vh] max-h-[700px] w-full bg-black">
+                <video
+                  key={playing.id}
+                  src={playing.videoUrl ?? undefined}
+                  poster={playing.thumbnailUrl ?? undefined}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="h-full w-full object-contain"
+                />
               </div>
 
-              <Button className="w-full mt-3 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-bold">
-                Buy Now
-                </Button>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="flex items-center gap-3 p-4">
+                {playing.product.image && (
+                  <img
+                    src={playing.product.image}
+                    alt=""
+                    className="h-14 w-14 shrink-0 rounded-lg border object-cover"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="line-clamp-2 font-semibold leading-snug">{playing.product.name}</p>
+                  <Price product={playing.product} />
+                </div>
+                <BuyButton product={playing.product} onNavigate={() => setPlaying(null)} />
+              </div>
+
+              <a
+                href={playing.permalink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 border-t py-2.5 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <Instagram className="h-3.5 w-3.5" />
+                Watch on Instagram
+              </a>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };

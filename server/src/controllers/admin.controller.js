@@ -9,6 +9,15 @@ import { cancelOrder as cancelOrderInternal } from "../utils/orderCancellation.j
 import { runAbandonedCheckoutSweep } from "../utils/abandonedCheckouts.js";
 import { listReturnRequests, decideReturnRequest } from "../utils/returns.js";
 import {
+  listAdminReels,
+  addReel,
+  changeReelProduct,
+  setReelActive,
+  removeReel,
+  reorderReels as reorderReelsInternal,
+} from "../utils/reels.js";
+import { listAccountVideos, getConnectionStatus, InstagramError } from "../utils/instagram.js";
+import {
   refreshEmailLogo,
   renderEmail,
   renderNewsletterEmail,
@@ -25,9 +34,7 @@ const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
 const ASSET_IMAGE_URL = process.env.ASSET_IMAGE_URL || "";
 const STORY_IMAGE_URL = process.env.STORY_IMAGE_URL || "";
-const REEL_SHORT_URL = process.env.REEL_SHORT_URL || "";
 const LOW_STOCK_THRESHOLD = Number(process.env.LOW_STOCK_THRESHOLD) || 5;
-const REEL_MAIN_URL = process.env.REEL_MAIN_URL || "";
 
 const parseJsonArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -1958,211 +1965,137 @@ export const sendNewsletter = async (req, res) => {
   }
 };
 
+/* ================= REELS ================= */
+
+// Instagram being unreachable, or refusing the token, is the provider's
+// failure rather than the request's, and its message says what to fix
+const instagramFailure = (res, err, label) => {
+  console.error(`${label}:`, err.message);
+  return res.status(502).json({ success: false, message: err.message });
+};
+
 export const getAllReels = async (req, res) => {
   try {
-    const [rows] = await db.query(`
-      SELECT
-        r.*,
-        p.name AS product_name
-      FROM reels r
-      JOIN products p ON p.id = r.product_id
-      ORDER BY r.sort_order ASC, r.created_at DESC
-    `);
+    // in order: listing the reels is what discovers a refused token, and the
+    // status should already report it
+    const reels = await listAdminReels();
+    const instagram = await getConnectionStatus();
 
-    const reels = rows.map((r) => ({
-      ...r,
-
-      short_video_url: r.short_video
-        ? `${UPLOADS_APP_URL}${REEL_SHORT_URL}/${r.short_video}`
-        : null,
-
-      main_video_url: r.main_video
-        ? `${UPLOADS_APP_URL}${REEL_MAIN_URL}/${r.main_video}`
-        : null,
-    }));
-
-    res.json({
-      success: true,
-      reels,
-    });
+    return res.json({ success: true, reels, instagram });
   } catch (err) {
     console.error("Get Reels Error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    return res.status(500).json({ success: false, message: "Server Error" });
+  }
+};
+
+/** The connected account's videos, a page at a time, for picking a reel. */
+export const getInstagramVideos = async (req, res) => {
+  try {
+    const { items, nextCursor } = await listAccountVideos({ after: req.body.after || null });
+
+    const ids = items.map((m) => m.id);
+    const [added] = ids.length
+      ? await db.query("SELECT instagramMediaId FROM reels WHERE instagramMediaId IN (?)", [ids])
+      : [[]];
+    const addedIds = new Set(added.map((r) => r.instagramMediaId));
+
+    return res.json({
+      success: true,
+      videos: items.map((m) => ({
+        id: m.id,
+        permalink: m.permalink,
+        caption: m.caption || null,
+        thumbnailUrl: m.thumbnail_url || null,
+        // Instagram sends "+0000", which Safari's Date can't parse
+        timestamp: m.timestamp ? new Date(m.timestamp).toISOString() : null,
+        added: addedIds.has(m.id),
+        // no video file means licensed music: it can only play on Instagram
+        playable: Boolean(m.media_url),
+      })),
+      nextCursor,
+    });
+  } catch (err) {
+    if (err instanceof InstagramError) return instagramFailure(res, err, "Instagram Videos Error");
+    console.error("Instagram Videos Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 export const createReel = async (req, res) => {
   try {
-    const { product_id } = req.body;
-
-    const shortVideo = req.files?.short_video?.[0]?.filename;
-    const mainVideo = req.files?.main_video?.[0]?.filename;
-
-    if (!shortVideo || !mainVideo || !product_id) {
-      return res.status(400).json({
-        success: false,
-        message: "Short video, main video and product are required",
-      });
-    }
-
-    // 🔹 Auto-calculate next sort order
-    const [[{ maxOrder }]] = await db.query(
-      `SELECT COALESCE(MAX(sort_order), 0) AS maxOrder FROM reels`
-    );
-
-    const nextOrder = maxOrder + 1;
-
-    await db.query(
-      `
-      INSERT INTO reels
-        (short_video, main_video, product_id, sort_order, created_by)
-      VALUES (?, ?, ?, ?, ?)
-      `,
-      [shortVideo, mainVideo, product_id, nextOrder, req.user.id]
-    );
-
-    res.status(201).json({
-      success: true,
-      message: "Reel created successfully",
+    const result = await addReel({
+      instagramMediaId: req.body.instagramMediaId,
+      productId: req.body.productId,
+      adminId: req.user.id,
     });
+
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
+
+    return res.status(201).json({ success: true, message: "Reel added", id: result.id });
   } catch (err) {
+    if (err instanceof InstagramError) return instagramFailure(res, err, "Create Reel Error");
     console.error("Create Reel Error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
+/** Only the product can change: a different video is a different reel. */
 export const updateReel = async (req, res) => {
   try {
-    const { id, product_id, sort_order } = req.body;
+    const result = await changeReelProduct({ id: Number(req.body.id), productId: req.body.productId });
 
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Reel ID is required",
-      });
-    }
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
 
-    const shortVideo = req.files?.short_video?.[0]?.filename || null;
-    const mainVideo = req.files?.main_video?.[0]?.filename || null;
-
-    const [[existing]] = await db.query(
-      `SELECT id FROM reels WHERE id = ?`,
-      [id]
-    );
-
-    if (!existing) {
-      return res.status(404).json({
-        success: false,
-        message: "Reel not found",
-      });
-    }
-
-    await db.query(
-      `
-      UPDATE reels SET
-        short_video = COALESCE(?, short_video),
-        main_video = COALESCE(?, main_video),
-        product_id = COALESCE(?, product_id),
-        sort_order = COALESCE(?, sort_order)
-      WHERE id = ?
-      `,
-      [shortVideo, mainVideo, product_id, sort_order, id]
-    );
-
-    res.json({
-      success: true,
-      message: "Reel updated successfully",
-    });
+    return res.json({ success: true, message: "Reel updated" });
   } catch (err) {
     console.error("Update Reel Error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 export const reorderReels = async (req, res) => {
   try {
-    const { items } = req.body;
-    // items = [{ id, sort_order }]
+    const ids = Array.isArray(req.body.ids) ? req.body.ids.map(Number) : null;
 
-    if (!Array.isArray(items)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid payload",
-      });
-    }
+    if (!ids || ids.some((id) => !Number.isInteger(id) || id <= 0))
+      return res.status(400).json({ success: false, message: "Send the reel ids in their new order" });
 
-    const conn = await db.getConnection();
-    await conn.beginTransaction();
-
-    for (const item of items) {
-      await conn.query(
-        `UPDATE reels SET sort_order = ? WHERE id = ?`,
-        [item.sort_order, item.id]
-      );
-    }
-
-    await conn.commit();
-    conn.release();
-
-    res.json({
-      success: true,
-      message: "Reel order updated",
-    });
+    await reorderReelsInternal(ids);
+    return res.json({ success: true, message: "Reel order updated" });
   } catch (err) {
-    console.error("Reorder reels error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server Error",
-    });
+    console.error("Reorder Reels Error:", err);
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 export const toggleReel = async (req, res) => {
   try {
-    const { id, active } = req.body;
+    const active = Boolean(req.body.active);
+    const result = await setReelActive({ id: Number(req.body.id), active });
 
-    if (id === undefined || active === undefined) {
-      return res.status(400).json({
-        success: false,
-        message: "Reel ID and active status are required",
-      });
-    }
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
 
-    await db.query(
-      `UPDATE reels SET active = ? WHERE id = ?`,
-      [active, id]
-    );
-
-    res.json({
-      success: true,
-      message: active ? "Reel activated" : "Reel deactivated",
-    });
+    return res.json({ success: true, message: active ? "Reel shown on the home page" : "Reel hidden" });
   } catch (err) {
     console.error("Toggle Reel Error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 
 export const deleteReel = async (req, res) => {
   try {
-    const { id } = req.body;
+    const result = await removeReel(Number(req.body.id));
 
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Reel ID is required",
-      });
-    }
+    if (result.error)
+      return res.status(result.error.code).json({ success: false, message: result.error.message });
 
-    await db.query(`DELETE FROM reels WHERE id = ?`, [id]);
-
-    res.json({
-      success: true,
-      message: "Reel deleted successfully",
-    });
+    return res.json({ success: true, message: "Reel removed" });
   } catch (err) {
     console.error("Delete Reel Error:", err);
-    res.status(500).json({ success: false, message: "Server Error" });
+    return res.status(500).json({ success: false, message: "Server Error" });
   }
 };
 

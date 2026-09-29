@@ -22,6 +22,7 @@ import { seedDefaultUser } from "./seed/seedUser.js";
 import { seedDefaultAssets } from "./seed/seedDefaultAssets.js";
 import { refreshEmailLogo } from "./utils/emailTemplates.js";
 import { startAbandonedCheckoutSweep } from "./utils/abandonedCheckouts.js";
+import { startInstagramSync } from "./utils/instagram.js";
 
 
 dotenv.config();
@@ -84,6 +85,9 @@ app.listen(PORT, async () => {
   await refreshEmailLogo();
 
   startAbandonedCheckoutSweep();
+
+  // adopts INSTAGRAM_ACCESS_TOKEN and keeps renewing it for the home page reels
+  startInstagramSync();
 
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });

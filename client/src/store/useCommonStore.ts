@@ -31,17 +31,20 @@ interface SocialsState {
 }
 
 /* ---------- reels ---------- */
-interface ReelItem {
+export interface ReelItem {
   id: number;
-  video: string | null;
-  activeVideo: string | null;
-  views: string;
+  permalink: string;
+  // null for reels with licensed music: Instagram won't hand out the file and
+  // its embed won't play them either, so those link out to Instagram
+  videoUrl: string | null;
+  thumbnailUrl: string | null;
   product: {
     id: number;
     name: string;
     price: number;
-    originalPrice?: number | null;
-    discount?: string | null;
+    originalPrice: number;
+    image: string | null;
+    inStock: boolean;
   };
 }
 

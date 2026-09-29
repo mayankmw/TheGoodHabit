@@ -706,41 +706,66 @@ CREATE TABLE newsletters (
 -- REELS
 -- =====================================================
 
+-- A reel is an Instagram post plus the product it sells. The video stays on
+-- Instagram: its links are signed and expire, so they are fetched through the
+-- Instagram API when the page asks, never stored.
 CREATE TABLE reels (
 
-  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
-  short_video VARCHAR(255),
-  main_video VARCHAR(255),
+  instagramMediaId VARCHAR(64) NOT NULL,
+  permalink VARCHAR(255) NOT NULL,
 
-  product_id BIGINT UNSIGNED,
+  -- a snapshot, so the admin list can tell reels apart without a round trip
+  caption TEXT NULL,
 
-  active TINYINT(1) DEFAULT 1,
+  -- no FK, matching order_items — products.id has drifted
+  productId BIGINT NOT NULL,
 
-  sort_order INT DEFAULT 0,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  sortOrder INT NOT NULL DEFAULT 0,
 
-  views INT UNSIGNED DEFAULT 0,
-  likes INT UNSIGNED DEFAULT 0,
+  createdBy INT UNSIGNED NULL,
 
-  created_by BIGINT UNSIGNED,
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_reels_media (instagramMediaId),
+  KEY idx_reels_active_order (active, sortOrder),
+  KEY idx_reels_product (productId)
 
-  FOREIGN KEY (product_id)
-  REFERENCES products(id)
-  ON DELETE CASCADE
-
-);
-
-
-
-CREATE INDEX idx_reels_active_order
-ON reels(active, sort_order);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-CREATE INDEX idx_reels_product
-ON reels(product_id);
+
+-- The one Instagram account reels are taken from. Its access token lasts 60
+-- days and the server renews it, so the live token is stored here;
+-- INSTAGRAM_ACCESS_TOKEN in .env only seeds this row.
+CREATE TABLE instagram_connection (
+
+  -- always 1: the shop connects a single account
+  id TINYINT UNSIGNED NOT NULL PRIMARY KEY,
+
+  accountId VARCHAR(64) NOT NULL,
+  username VARCHAR(255) NOT NULL,
+
+  accessToken TEXT NOT NULL,
+  -- unknown until the first renewal, which is when Instagram reports it
+  tokenExpiresAt DATETIME NULL,
+  tokenRefreshedAt DATETIME NULL,
+
+  -- sha256 of the .env token this row was seeded from; a different token in
+  -- .env replaces the row
+  sourceTokenHash CHAR(64) NOT NULL,
+
+  -- why Instagram last refused the token, shown in the admin panel
+  lastError VARCHAR(500) NULL,
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 
 
 

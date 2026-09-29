@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { isAxiosError } from "axios";
 import api from "@/lib/api";
 
 function toNumber(value: any, fallback = 0) {
@@ -44,20 +45,49 @@ type DashboardFilterParams = {
 
 /* ================= REELS ================= */
 
-interface ReelItem {
+export interface AdminReel {
   id: number;
-  short_video: string;
-  short_video_url: string;
-  main_video: string;
-  main_video_url: string;
-  product_id: number;
-  product_name?: string;
-  active: number;
-  sort_order: number;
-  views: number;
-  likes: number;
-  created_at: string;
+  instagramMediaId: string;
+  permalink: string;
+  caption: string | null;
+  productId: number;
+  // null once the product itself is gone
+  productName: string | null;
+  active: boolean;
+  sortOrder: number;
+  thumbnailUrl: string | null;
+  // false once the post is gone from Instagram; null when Instagram couldn't be asked
+  available: boolean | null;
+  // false for licensed music, which Instagram only lets play on Instagram
+  playable: boolean | null;
 }
+
+export interface InstagramStatus {
+  connected: boolean;
+  username: string | null;
+  tokenExpiresAt: string | null;
+  problem: string | null;
+}
+
+export interface InstagramVideo {
+  id: string;
+  permalink: string;
+  caption: string | null;
+  thumbnailUrl: string | null;
+  timestamp: string | null;
+  added: boolean;
+  playable: boolean;
+}
+
+// what a reel action hands back to the page: enough for a toast
+export interface ReelActionResult {
+  success: boolean;
+  message?: string;
+}
+
+// the server explains its refusals, so its message beats a generic one
+const reelFailure = (e: unknown, message: string): ReelActionResult =>
+  (isAxiosError<ReelActionResult>(e) && e.response?.data) || { success: false, message };
 
 export interface AdminReview {
   id: number;
@@ -269,19 +299,21 @@ interface AdminState {
   /* ================= REELS ================= */
   loadingReels: boolean;
   savingReel: boolean;
-  togglingReel: boolean;
-  deletingReel: boolean;
+  reels: AdminReel[];
+  instagram: InstagramStatus | null;
 
-  reels: ReelItem[];
-  selectedReel: ReelItem | null;
+  // the connected account's videos, for picking a reel to add
+  instagramVideos: InstagramVideo[];
+  instagramVideosCursor: string | null;
+  loadingInstagramVideos: boolean;
 
   fetchReels: () => Promise<void>;
-  createReel: (payload: any) => Promise<any>;
-  updateReel: (payload: any) => Promise<any>;
-  reorderReels: (items: { id: number; sort_order: number }[]) => Promise<any>;
-  toggleReel: (id: number, active: number) => Promise<any>;
-  deleteReel: (id: number) => Promise<any>;
-  clearSelectedReel: () => void;
+  fetchInstagramVideos: (options?: { more?: boolean }) => Promise<ReelActionResult>;
+  createReel: (payload: { instagramMediaId: string; productId: number }) => Promise<ReelActionResult>;
+  updateReel: (payload: { id: number; productId: number }) => Promise<ReelActionResult>;
+  reorderReels: (ids: number[]) => Promise<ReelActionResult>;
+  toggleReel: (id: number, active: boolean) => Promise<ReelActionResult>;
+  deleteReel: (id: number) => Promise<ReelActionResult>;
 
 }
 
@@ -391,11 +423,12 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   /* ================= REELS ================= */
   loadingReels: false,
   savingReel: false,
-  togglingReel: false,
-  deletingReel: false,
-
   reels: [],
-  selectedReel: null,
+  instagram: null,
+
+  instagramVideos: [],
+  instagramVideosCursor: null,
+  loadingInstagramVideos: false,
 
 
   /* ================= STATS ================= */
@@ -1183,7 +1216,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       const { data } = await api.post("/admin/reels");
       if (!data?.success) return;
 
-      set({ reels: data.reels || [] });
+      set({ reels: data.reels || [], instagram: data.instagram || null });
     } catch (e) {
       console.error("Fetch reels error", e);
     } finally {
@@ -1191,30 +1224,40 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     }
   },
 
-  createReel: async (payload) => {
+  fetchInstagramVideos: async ({ more = false } = {}) => {
     try {
-      set({ savingReel: true });
+      set({ loadingInstagramVideos: true });
 
-      const formData = new FormData();
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        formData.append(key, value as any);
-      });
+      const after = more ? get().instagramVideosCursor : null;
+      const { data } = await api.post("/admin/reel/instagram-videos", { after });
 
-      const { data } = await api.post(
-        "/admin/reel/create",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      if (data.success) {
-        get().fetchReels();
+      if (data?.success) {
+        set({
+          instagramVideos: more ? [...get().instagramVideos, ...data.videos] : data.videos,
+          instagramVideosCursor: data.nextCursor || null,
+        });
       }
 
       return data;
     } catch (e) {
+      console.error("Fetch Instagram videos error", e);
+      return reelFailure(e, "Couldn't load videos from Instagram");
+    } finally {
+      set({ loadingInstagramVideos: false });
+    }
+  },
+
+  createReel: async (payload) => {
+    try {
+      set({ savingReel: true });
+
+      const { data } = await api.post("/admin/reel/create", payload);
+      if (data.success) get().fetchReels();
+
+      return data;
+    } catch (e) {
       console.error("Create reel error", e);
-      return { success: false };
+      return reelFailure(e, "Couldn't add the reel");
     } finally {
       set({ savingReel: false });
     }
@@ -1224,85 +1267,56 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     try {
       set({ savingReel: true });
 
-      const formData = new FormData();
-      Object.entries(payload).forEach(([key, value]) => {
-        if (value === undefined || value === null) return;
-        formData.append(key, value as any);
-      });
-
-      const { data } = await api.post(
-        "/admin/reel/update",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      if (data.success) {
-        get().fetchReels();
-      }
+      const { data } = await api.post("/admin/reel/update", payload);
+      if (data.success) get().fetchReels();
 
       return data;
     } catch (e) {
       console.error("Update reel error", e);
-      return { success: false };
+      return reelFailure(e, "Couldn't update the reel");
     } finally {
       set({ savingReel: false });
     }
   },
 
-  reorderReels: async (items) => {
+  reorderReels: async (ids) => {
     try {
-      const { data } = await api.post("/admin/reel/reorder", { items });
-
-      if (data.success) {
-        get().fetchReels();
-      }
+      const { data } = await api.post("/admin/reel/reorder", { ids });
       return data;
     } catch (e) {
-      console.log("Reorder slider error", e);
-      return { success: false };
+      console.error("Reorder reels error", e);
+      // the page moved the rows before saving; put the stored order back
+      get().fetchReels();
+      return reelFailure(e, "Couldn't save the new order");
     }
   },
 
   toggleReel: async (id, active) => {
+    // flipped straight away so the switch responds, and back if the save fails
+    const setActive = (value: boolean) =>
+      set({ reels: get().reels.map((r) => (r.id === id ? { ...r, active: value } : r)) });
+    setActive(active);
+
     try {
-      set({ togglingReel: true });
-
-      const { data } = await api.post("/admin/reel/toggle", {
-        id,
-        active,
-      });
-
-      if (data.success) {
-        get().fetchReels();
-      }
-
+      const { data } = await api.post("/admin/reel/toggle", { id, active });
+      if (!data?.success) setActive(!active);
       return data;
     } catch (e) {
       console.error("Toggle reel error", e);
-      return { success: false };
-    } finally {
-      set({ togglingReel: false });
+      setActive(!active);
+      return reelFailure(e, "Couldn't update the reel");
     }
   },
 
   deleteReel: async (id) => {
     try {
-      set({ deletingReel: true });
-
       const { data } = await api.post("/admin/reel/delete", { id });
-
-      if (data.success) {
-        get().fetchReels();
-      }
+      if (data.success) set({ reels: get().reels.filter((r) => r.id !== id) });
 
       return data;
     } catch (e) {
       console.error("Delete reel error", e);
-      return { success: false };
-    } finally {
-      set({ deletingReel: false });
+      return reelFailure(e, "Couldn't remove the reel");
     }
   },
-
-  clearSelectedReel: () => set({ selectedReel: null }),
 }));

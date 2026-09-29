@@ -43,6 +43,7 @@ import {
   getNewsletters,
   sendNewsletter,
   getAllReels,
+  getInstagramVideos,
   createReel,
   updateReel,
   reorderReels,
@@ -160,32 +161,9 @@ router.post(
 /* ================= REELS ================= */
 
 router.post("/reels", auth, isAdmin, getAllReels);
-
-router.post(
-  "/reel/create",
-  auth,
-  isAdmin,
-  handleMulterImageUpload(
-    uploadImage("uploads/reels").fields([
-      { name: "short_video", maxCount: 1 },
-      { name: "main_video", maxCount: 1 },
-    ])
-  ),
-  createReel
-);
-
-router.post(
-  "/reel/update",
-  auth,
-  isAdmin,
-  handleMulterImageUpload(
-    uploadImage("uploads/reels").fields([
-      { name: "short_video", maxCount: 1 },
-      { name: "main_video", maxCount: 1 },
-    ])
-  ),
-  updateReel
-);
+router.post("/reel/instagram-videos", auth, isAdmin, getInstagramVideos);
+router.post("/reel/create", auth, isAdmin, createReel);
+router.post("/reel/update", auth, isAdmin, updateReel);
 router.post("/reel/reorder", auth, isAdmin, reorderReels);
 
 router.post("/reel/toggle", auth, isAdmin, toggleReel);
