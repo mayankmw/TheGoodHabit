@@ -40,6 +40,7 @@ export interface ReelItem {
   thumbnailUrl: string | null;
   product: {
     id: number;
+    slug: string | null;
     name: string;
     price: number;
     originalPrice: number;

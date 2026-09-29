@@ -32,6 +32,11 @@ CREATE TABLE products (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
 
   name VARCHAR(255) NOT NULL,
+
+  -- the product's URL: /products/<slug>. Filled in by the server from the
+  -- name (utils/productSlugs.js), and never changed by a rename.
+  slug VARCHAR(191) NULL,
+
   images JSON DEFAULT (JSON_ARRAY()),
 
   category VARCHAR(100),
@@ -50,7 +55,24 @@ CREATE TABLE products (
   ingredients JSON DEFAULT (JSON_ARRAY()),
 
   createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+  UNIQUE KEY uq_products_slug (slug)
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Every slug a product has had before its current one, so links shared
+-- before a change in the admin panel still resolve and redirect.
+CREATE TABLE product_slug_redirects (
+
+  slug VARCHAR(191) NOT NULL PRIMARY KEY,
+
+  -- no FK, matching order_items — products.id has drifted
+  productId BIGINT NOT NULL,
+
+  createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+  KEY idx_slug_redirect_product (productId)
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

@@ -6,10 +6,12 @@ import { Link } from "react-router-dom";
 import { useUIStore } from "@/store/useUIStore";
 import { calcDiscountPercent } from "@/lib/pricing";
 import { toast } from "sonner";
+import { productPath } from "@/lib/productUrl";
 import { isOutOfStock, isLowStock } from "@/lib/stock";
 
 interface ProductCardProps {
   id: string;
+  slug?: string | null;
   image: string;
   name: string;
   originalPrice: number;
@@ -21,6 +23,7 @@ interface ProductCardProps {
 
 export const ProductCard = ({
   id,
+  slug,
   image,
   name,
   originalPrice,
@@ -57,7 +60,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
     <Card className="group overflow-hidden rounded-2xl border-2 border-border transition-all duration-300 hover:-translate-y-1 hover:border-primary hover:shadow-lift">
       <CardContent className="p-0">
         {/* Image */}
-        <Link to={`/products/${id}`}>
+        <Link to={productPath({ id, slug })}>
           <div className="relative aspect-square overflow-hidden bg-muted/40">
             <img
               src={image}
@@ -98,7 +101,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
           </div>
 
           {/* Name */}
-          <Link to={`/products/${id}`}>
+          <Link to={productPath({ id, slug })}>
             <h3 className="font-bold text-lg leading-tight min-h-[3rem] hover:text-primary transition">
               {name}
             </h3>

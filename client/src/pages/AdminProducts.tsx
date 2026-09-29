@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus } from "lucide-react";
 import { useAdminStore } from "@/store/useAdminStore";
+import { slugify } from "@/lib/productUrl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,6 +24,8 @@ import {
 
 type ProductForm = {
   name: string;
+  // blank on a new product means "make it from the name"
+  slug: string;
   category: string;
   originalPrice: string | number;
   discountedPrice: string | number;
@@ -36,6 +39,7 @@ type ProductForm = {
 
 type ProductRecord = {
   id: string | number;
+  slug?: string | null;
   stock?: number | null;
   name: string;
   image?: string | null;
@@ -60,6 +64,7 @@ const PRODUCT_CATEGORIES = [
 
 const createEmptyForm = (): ProductForm => ({
   name: "",
+  slug: "",
   category: "",
   originalPrice: "",
   discountedPrice: "",
@@ -155,6 +160,41 @@ const getProductImages = (product: ProductRecord | null | undefined): string[] =
   return Array.from(images);
 };
 
+// the product's page address; the server normalises whatever is typed, and
+// the preview shows what it will become
+const SlugField = ({
+  value,
+  name,
+  onChange,
+  editing = false,
+}: {
+  value: string;
+  name: string;
+  onChange: (slug: string) => void;
+  editing?: boolean;
+}) => {
+  const preview = slugify(value) || slugify(name);
+
+  return (
+    <>
+      <Label>Page URL</Label>
+      <Input
+        value={value}
+        placeholder={slugify(name) || "made-from-the-product-name"}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <p className="text-xs text-muted-foreground -mt-1 break-all">
+        {window.location.origin}/products/
+        <span className="font-medium text-foreground">{preview || "…"}</span>
+        <br />
+        {editing
+          ? "Changing it keeps old links working: they redirect to the new URL."
+          : "Leave blank to make it from the name."}
+      </p>
+    </>
+  );
+};
+
 // The file input is cleared after every pick so the same file can be added
 // again, which would leave a visible native input stuck on "No file chosen"
 // while images are attached. The button and count say what is really there.
@@ -229,6 +269,7 @@ export default function AdminProducts() {
   const hydrateFormFromProduct = (product: ProductRecord | null | undefined) => {
     setForm({
       name: product?.name || "",
+      slug: product?.slug || "",
       category: product?.category || "",
       originalPrice: product?.originalPrice || "",
       discountedPrice: product?.discountedPrice || "",
@@ -416,6 +457,12 @@ export default function AdminProducts() {
               <Label>Name</Label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
 
+              <SlugField
+                value={form.slug}
+                name={form.name}
+                onChange={(slug) => setForm({ ...form, slug })}
+              />
+
               <Label>Category</Label>
               <Select
                 value={form.category}
@@ -542,6 +589,13 @@ export default function AdminProducts() {
 
                 <Label>Name</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+
+                <SlugField
+                  value={form.slug}
+                  name={form.name}
+                  onChange={(slug) => setForm({ ...form, slug })}
+                  editing
+                />
 
                 <Label>Category</Label>
                 <Select

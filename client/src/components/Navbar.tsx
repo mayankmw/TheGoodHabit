@@ -1060,7 +1060,7 @@ export const Navbar = () => {
                 <>
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                     {results.map((product) => (
-                      <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                      <ProductCardMini key={product.id} id={product.id} slug={product.slug} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                     ))}
                   </div>
 
@@ -1077,7 +1077,7 @@ export const Navbar = () => {
               {query.length === 0 && (
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
                   {recommended.map((product) => (
-                    <ProductCardMini key={product.id} id={product.id} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
+                    <ProductCardMini key={product.id} id={product.id} slug={product.slug} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                   ))}
                 </div>
               )}

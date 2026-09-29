@@ -23,6 +23,7 @@ import { seedDefaultAssets } from "./seed/seedDefaultAssets.js";
 import { refreshEmailLogo } from "./utils/emailTemplates.js";
 import { startAbandonedCheckoutSweep } from "./utils/abandonedCheckouts.js";
 import { startInstagramSync } from "./utils/instagram.js";
+import { ensureProductSlugs } from "./utils/productSlugs.js";
 
 
 dotenv.config();
@@ -80,6 +81,9 @@ app.listen(PORT, async () => {
   await connectDB();
   await seedDefaultUser();
   await seedDefaultAssets();
+
+  // products created before slugs, or inserted straight into the database
+  await ensureProductSlugs();
 
   // emails render the logo the admin panel uploaded
   await refreshEmailLogo();

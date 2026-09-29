@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
@@ -14,12 +14,17 @@ import { useUIStore } from "@/store/useUIStore";
 import { useCommonStore } from "@/store/useCommonStore";
 import HeroImage from "@/components/HeroImage";
 import { HERO_FALLBACKS } from "@/lib/assetFallbacks";
+import { productPath } from "@/lib/productUrl";
 
 export const Product = () => {
-  const { id } = useParams();
+  // a slug, or a numeric id from a link shared before slugs
+  const { slug } = useParams();
+  const navigate = useNavigate();
 
   const {
     product,
+    productKey,
+    productNotFound,
     fetchSingleProduct,
     fetchFrequentlyBought,
     frequentlyBought,
@@ -36,10 +41,27 @@ export const Product = () => {
   const hero3Image = assets?.hero?.find(h => h.position === 3)?.image || HERO_FALLBACKS[2];
 
   useEffect(() => {
-    if (!id) return;
-    fetchSingleProduct(id);
-    fetchFrequentlyBought(id);
-  }, [id, fetchSingleProduct, fetchFrequentlyBought]);
+    if (!slug) return;
+    // already on screen: this render is the redirect from an old link below
+    if (useProductStore.getState().product?.slug === slug) return;
+    fetchSingleProduct(slug);
+  }, [slug, fetchSingleProduct]);
+
+  // keyed on the real id, which the URL no longer carries
+  useEffect(() => {
+    if (product?.id) fetchFrequentlyBought(String(product.id));
+  }, [product?.id, fetchFrequentlyBought]);
+
+  // an old /products/18 link, or a slug the product used to have: swap in the
+  // current URL, without leaving the old one in history. Only once the product
+  // on screen is the one this URL asked for: right after a click through to
+  // another product, it's still the previous one, and "correcting" the URL to
+  // it would bounce the shopper back.
+  useEffect(() => {
+    if (product?.slug && productKey === slug && slug !== product.slug) {
+      navigate(productPath(product), { replace: true });
+    }
+  }, [product, productKey, slug, navigate]);
 
   const galleryImages = useMemo(() => {
     if (!product) return [];
@@ -92,6 +114,17 @@ export const Product = () => {
       setSelectedImage(galleryImages[0]);
     }
   }, [galleryImages]);
+
+  if (productNotFound) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-2xl opacity-70">We couldn't find that product</p>
+        <Button asChild className="rounded-full">
+          <Link to="/">Back to the shop</Link>
+        </Button>
+      </div>
+    );
+  }
 
   if (loading || !product) {
     return (
@@ -350,6 +383,7 @@ export const Product = () => {
       <FrequentlyBoughtTogether
         currentProduct={{
           id: product.id,
+          slug: product.slug,
           name: product.name,
           image: galleryImages[0] || product.image,
           originalPrice: product.originalPrice,

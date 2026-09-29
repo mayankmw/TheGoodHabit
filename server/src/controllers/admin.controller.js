@@ -17,6 +17,7 @@ import {
   reorderReels as reorderReelsInternal,
 } from "../utils/reels.js";
 import { listAccountVideos, getConnectionStatus, InstagramError } from "../utils/instagram.js";
+import { slugForNewProduct, slugForUpdate, recordSlugChange } from "../utils/productSlugs.js";
 import {
   refreshEmailLogo,
   renderEmail,
@@ -546,16 +547,22 @@ export const createProduct = async (req, res) => {
       ...uploadedImageFiles,
     ])];
 
+    const slugResult = await slugForNewProduct({ name, requested: req.body.slug });
+    if (slugResult.error) {
+      return res.status(slugResult.error.code).json({ success: false, message: slugResult.error.message });
+    }
+
     await db.query(
       `
       INSERT INTO products (
-        name, images, category,
+        name, slug, images, category,
         originalPrice, discountedPrice, stock,
         description, ingredients
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         name,
+        slugResult.slug,
         JSON.stringify(imageFiles),
         category || null,
         parsedOriginalPrice,
@@ -569,9 +576,14 @@ export const createProduct = async (req, res) => {
     res.status(201).json({
       success: true,
       message: "Product created successfully",
+      slug: slugResult.slug,
     });
 
   } catch (err) {
+    // two products saved at once can race for the same slug
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ success: false, message: "That URL was just taken by another product, try again" });
+    }
     console.error("Create Product Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
   }
@@ -590,7 +602,7 @@ export const updateProduct = async (req, res) => {
       stock
     } = req.body;
 
-    const [[existing]] = await db.query(`SELECT images FROM products WHERE id = ?`, [id]);
+    const [[existing]] = await db.query(`SELECT images, slug FROM products WHERE id = ?`, [id]);
 
     if (!existing) {
       return res.status(404).json({ success: false, message: "Product not found" });
@@ -678,6 +690,24 @@ export const updateProduct = async (req, res) => {
       values.push(JSON.stringify(parseIngredientsInput(ingredients) || []));
     }
 
+    // a rename leaves the slug alone; only an explicit change moves the URL
+    let newSlug = null;
+    if (req.body.slug !== undefined) {
+      const slugResult = await slugForUpdate({
+        productId: Number(id),
+        current: existing.slug,
+        requested: req.body.slug,
+      });
+      if (slugResult.error) {
+        return res.status(slugResult.error.code).json({ success: false, message: slugResult.error.message });
+      }
+      if (slugResult.slug) {
+        newSlug = slugResult.slug;
+        updates.push("slug = ?");
+        values.push(newSlug);
+      }
+    }
+
     if (shouldUpdateImages) {
       updates.push("images = ?");
       values.push(JSON.stringify(mergedImages));
@@ -701,9 +731,14 @@ export const updateProduct = async (req, res) => {
       values
     );
 
+    if (newSlug) await recordSlugChange(Number(id), existing.slug, newSlug);
+
     res.json({ success: true, message: "Product updated successfully" });
 
   } catch (err) {
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ success: false, message: "That URL was just taken by another product, try again" });
+    }
     console.error("Update Product Error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
   }

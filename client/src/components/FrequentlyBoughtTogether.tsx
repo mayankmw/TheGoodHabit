@@ -5,11 +5,13 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { toast } from "sonner";
 import { isOutOfStock } from "@/lib/stock";
+import { productPath } from "@/lib/productUrl";
 import { useCartStore } from "@/store/useCartStore";
 import { useUIStore } from "@/store/useUIStore";
 
 type BundleProduct = {
   id: string | number;
+  slug?: string | null;
   name: string;
   image: string;
   originalPrice: number;
@@ -113,7 +115,7 @@ export const FrequentlyBoughtTogether = ({
             <div key={product.id} className="flex items-center">
               <Card className="w-52 shadow-md hover:shadow-lg transition-all duration-200">
                 <CardContent className="p-4 flex flex-col items-center">
-                  <Link to={`/products/${product.id}`} className="w-full flex flex-col items-center">
+                  <Link to={productPath(product)} className="w-full flex flex-col items-center">
                     <img
                       src={product.image}
                       alt={product.name}

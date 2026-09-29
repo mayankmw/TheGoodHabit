@@ -54,7 +54,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   fetchReviews: async (productId) => {
     const key = String(productId);
 
-    // clear first — /products/:id has no route key, so navigating product A to
+    // clear first — /products/:slug has no route key, so navigating product A to
     // product B never unmounts the page and A's reviews would otherwise show
     // under B's name for a frame
     set({

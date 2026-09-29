@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, Instagram, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { productPath } from "@/lib/productUrl";
 import { useCommonStore, type ReelItem } from "@/store/useCommonStore";
 
 type ReelProduct = ReelItem["product"];
@@ -48,7 +49,7 @@ const BuyButton = ({
       className
     )}
   >
-    <Link to={`/products/${product.id}`} onClick={onNavigate}>
+    <Link to={productPath(product)} onClick={onNavigate}>
       {product.inStock ? "Buy Now" : "Sold out"}
     </Link>
   </Button>

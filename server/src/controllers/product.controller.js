@@ -1,4 +1,5 @@
 import { db } from "../config/db.js";
+import { findProductBySlug } from "../utils/productSlugs.js";
 
 const PRODUCT_IMAGE_URL = process.env.PRODUCT_IMAGE_URL || "";
 const UPLOADS_APP_URL = process.env.UPLOADS_APP_URL || "";
@@ -116,22 +117,21 @@ export const fetchProducts = async (req, res) => {
 };
 
 export const fetchSingleProduct = async (req, res) => {
-  const { id } = req.body;
+  const { id, slug } = req.body;
 
-  if (!id) {
+  if (!id && !slug) {
     return res.status(400).json({
       success: false,
-      message: "Product ID is required",
+      message: "Product ID or slug is required",
     });
   }
 
   try {
-    const [rows] = await db.query(
-      "SELECT * FROM products WHERE id = ? LIMIT 1",
-      [id]
-    );
-
-    const product = rows[0];
+    // an old /products/<id> link still resolves; the page then redirects to
+    // the product's slug, as it does for a slug the product used to have
+    const product = slug
+      ? await findProductBySlug(String(slug))
+      : (await db.query("SELECT * FROM products WHERE id = ? LIMIT 1", [id]))[0][0];
 
     if (!product) {
       return res.status(404).json({

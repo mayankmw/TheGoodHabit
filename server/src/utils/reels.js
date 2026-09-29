@@ -31,7 +31,7 @@ const productExists = async (productId) => {
 export const listPublicReels = async () => {
   const [rows] = await db.query(
     `SELECT r.id, r.instagramMediaId, r.permalink,
-            p.id AS productId, p.name, p.images, p.originalPrice, p.discountedPrice, p.stock
+            p.id AS productId, p.slug, p.name, p.images, p.originalPrice, p.discountedPrice, p.stock
      FROM reels r
      JOIN products p ON p.id = r.productId
      WHERE r.active = 1
@@ -59,6 +59,7 @@ export const listPublicReels = async () => {
         thumbnailUrl: m.thumbnail_url || null,
         product: {
           id: Number(r.productId),
+          slug: r.slug || null,
           name: r.name,
           price: discounted > 0 ? discounted : originalPrice,
           originalPrice,
