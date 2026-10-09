@@ -242,60 +242,37 @@ export const Product = () => {
             {product.description}
           </motion.p>
 
-          {/* Storytelling for dates */}
+          {/* Image flanked by floating dates */}
           {isDatesProduct && (
-            <div className="space-y-4 mt-8">
-              <motion.div
-                className="flex items-center gap-3"
-                initial={{ opacity: 0, x: -40 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.8 }}
-              >
-                <motion.img
-                  src="/images/elements/dates.png"
-                  className="w-20 h-20"
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity }}
+            <motion.div
+              className="flex items-center gap-3 mt-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.8 }}
+            >
+              <motion.img
+                src="/images/elements/dates.png"
+                alt=""
+                className="w-14 h-14 md:w-20 md:h-20 shrink-0"
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
+              <div className="flex-1 min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm">
+                <img
+                  src="/images/elements/dates-conversation.png"
+                  alt="“We’ve traveled from the warm palms of nature...” “Soaked in sunshine, filled with natural sweetness...” “We’re your humble dates — your energy partners!”"
+                  className="aspect-[16/9] w-full object-cover"
+                  loading="lazy"
                 />
-                <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-xs shadow">
-                  “We’ve traveled from the warm palms of nature...”
-                </div>
-              </motion.div>
-
-              <motion.div
-                className="flex items-center justify-end gap-3 text-right"
-                initial={{ opacity: 0, x: 40 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 1.8 }}
-              >
-                <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-xs shadow">
-                  “Soaked in sunshine, filled with natural sweetness...”
-                </div>
-                <motion.img
-                  src="/images/elements/dates.png"
-                  className="w-20 h-20"
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3.5, repeat: Infinity }}
-                />
-              </motion.div>
-
-              <motion.div
-                className="flex items-center gap-3"
-                initial={{ opacity: 0, x: -40 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 2.8 }}
-              >
-                <motion.img
-                  src="/images/elements/dates.png"
-                  className="w-20 h-20"
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                />
-                <div className="bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-xs shadow">
-                  “We’re your humble dates — your energy partners!”
-                </div>
-              </motion.div>
-            </div>
+              </div>
+              <motion.img
+                src="/images/elements/dates.png"
+                alt=""
+                className="w-14 h-14 md:w-20 md:h-20 shrink-0"
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 3.5, repeat: Infinity }}
+              />
+            </motion.div>
           )}
 
           {/* Price */}
