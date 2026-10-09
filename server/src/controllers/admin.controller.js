@@ -1161,6 +1161,26 @@ export const getCouponById = async (req, res) => {
   }
 };
 
+// Flat (₹ off) or percent (% off, optionally capped). There is no free-gift
+// type: it could be applied, but nothing ever put the gift on the order.
+const COUPON_TYPES = ["flat", "percent"];
+
+/** null when the type and amounts are usable, or the message to reject with. */
+const couponValueProblem = (type, value, maxDiscount) => {
+  if (!COUPON_TYPES.includes(type)) return "Discount type must be flat or percent";
+
+  const amount = Number(value);
+  if (value === undefined || value === null || value === "" || !Number.isFinite(amount) || amount <= 0)
+    return "Discount value must be greater than 0";
+
+  if (type === "percent" && amount > 100) return "A percentage discount can't be more than 100";
+
+  if (maxDiscount !== undefined && maxDiscount !== null && maxDiscount !== "" && !(Number(maxDiscount) > 0))
+    return "Max discount must be greater than 0";
+
+  return null;
+};
+
 export const createCoupon = async (req, res) => {
   try {
     let {
@@ -1175,7 +1195,6 @@ export const createCoupon = async (req, res) => {
       expires_at,
       auto_award = 0,
       single_use_per_user = 0,
-      gift_product_id,
     } = req.body;
 
     if (!code || !title) {
@@ -1198,47 +1217,30 @@ export const createCoupon = async (req, res) => {
       });
     }
 
-    if (discount_type === "free_gift") {
-      if (!gift_product_id) {
-        return res.status(400).json({
-          success: false,
-          message: "Gift product is required for free gift coupons",
-        });
-      }
+    const problem = couponValueProblem(discount_type, value, max_discount);
+    if (problem) {
+      return res.status(400).json({ success: false, message: problem });
+    }
 
-      value = null;
+    // a cap only means something on a percentage
+    if (discount_type === "flat") {
       max_discount = null;
-    } else {
-      gift_product_id = null;
-
-      if (!value) {
-        return res.status(400).json({
-          success: false,
-          message: "Discount value is required",
-        });
-      }
-
-      if (discount_type === "flat") {
-        max_discount = null;
-      }
     }
 
     await db.query(
       `
       INSERT INTO coupons (
         code, title, description, discount_type,
-        gift_product_id,
         value, max_discount, min_order,
         starts_at, expires_at,
         auto_award, single_use_per_user
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         code,
         title,
         description || null,
         discount_type,
-        gift_product_id,
         value,
         max_discount,
         min_order,
@@ -1273,7 +1275,6 @@ export const updateCoupon = async (req, res) => {
       expires_at,
       auto_award,
       single_use_per_user,
-      gift_product_id,
     } = req.body;
 
     if (!id) {
@@ -1283,27 +1284,24 @@ export const updateCoupon = async (req, res) => {
       });
     }
 
-    if (discount_type === "free_gift") {
-      if (!gift_product_id) {
-        return res.status(400).json({
-          success: false,
-          message: "Gift product is required for free gift coupons",
-        });
+    // judged against what the coupon will be after the update, since the
+    // form may send only some of these
+    if (discount_type !== undefined || value !== undefined || max_discount !== undefined) {
+      const [[current]] = await db.query(
+        "SELECT discount_type, value, max_discount FROM coupons WHERE id = ?",
+        [id]
+      );
+      if (!current) {
+        return res.status(404).json({ success: false, message: "Coupon not found" });
       }
 
-      value = null;
-      max_discount = null;
-    } else if (discount_type) {
-      gift_product_id = null;
-
-      if (!value) {
-        return res.status(400).json({
-          success: false,
-          message: "Discount value is required",
-        });
+      const type = discount_type ?? current.discount_type;
+      const problem = couponValueProblem(type, value ?? current.value, max_discount ?? current.max_discount);
+      if (problem) {
+        return res.status(400).json({ success: false, message: problem });
       }
 
-      if (discount_type === "flat") {
+      if (type === "flat") {
         max_discount = null;
       }
     }
@@ -1314,7 +1312,6 @@ export const updateCoupon = async (req, res) => {
         title = COALESCE(?, title),
         description = COALESCE(?, description),
         discount_type = COALESCE(?, discount_type),
-        gift_product_id = COALESCE(?, gift_product_id),
         value = COALESCE(?, value),
         max_discount = COALESCE(?, max_discount),
         min_order = COALESCE(?, min_order),
@@ -1328,7 +1325,6 @@ export const updateCoupon = async (req, res) => {
         title,
         description,
         discount_type,
-        gift_product_id,
         value,
         max_discount,
         min_order,

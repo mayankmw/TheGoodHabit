@@ -12,10 +12,7 @@ import { db } from "../config/db.js";
 
 const asNumber = (value) => Number(value || 0);
 
-/**
- * How much this coupon takes off a given subtotal.
- * free_gift is worth nothing numerically — the gift is handled separately.
- */
+/** How much this coupon (flat or percent) takes off a given subtotal. */
 export const couponDiscountFor = (coupon, subtotal) => {
   const total = asNumber(subtotal);
 
@@ -95,7 +92,7 @@ export const validateCartCoupons = async ({ cartId, userId, subtotal, connection
     `SELECT cc.id AS cartCouponId, cc.couponId, cc.code AS appliedCode,
             c.id, c.code, c.title, c.discount_type, c.value, c.max_discount,
             c.min_order, c.starts_at, c.expires_at, c.active,
-            c.single_use_per_user, c.auto_award, c.gift_product_id
+            c.single_use_per_user, c.auto_award
      FROM cart_coupons cc
      JOIN coupons c ON c.id = cc.couponId
      WHERE cc.cartId = ? AND cc.is_applied = 1

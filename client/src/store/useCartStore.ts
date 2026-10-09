@@ -143,6 +143,9 @@ interface CartState {
   cartCoupons: CartCoupon[];
   availableCoupons: AvailableCoupon[];
   loading: boolean;
+  // true once the first fetch has settled: the cart drawer's confetti waits for
+  // it, so the jump from an empty store to the real cart isn't taken for a milestone
+  cartLoaded: boolean;
   error: unknown;
   fetchCart: () => Promise<CartResponse | null>;
   addToCart: (
@@ -168,6 +171,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   cartCoupons: [],       // coupons already applied/awarded for this cart
   availableCoupons: [],  // all active coupons + availability for this cart
   loading: false,
+  cartLoaded: false,
   error: null,
 
   // FETCH CART - returns the raw server response too
@@ -182,6 +186,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         cartCoupons: [],
         availableCoupons: [],
         loading: false,
+        cartLoaded: true,
         error: null,
       });
       return response;
@@ -199,6 +204,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         cartCoupons: data.cartCoupons || [],
         availableCoupons: data.availableCoupons || [],
         loading: false,
+        cartLoaded: true,
       });
 
       // the server detaches coupons that stopped qualifying; without this the
@@ -210,7 +216,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       return data;
     } catch (err) {
       console.error("fetchCart error", err);
-      set({ loading: false, error: err?.response?.data || err.message });
+      set({ loading: false, cartLoaded: true, error: err?.response?.data || err.message });
       return null;
     }
   },

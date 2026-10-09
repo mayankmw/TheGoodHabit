@@ -23,7 +23,6 @@ import { Switch } from "@/components/ui/switch";
 const DISCOUNT_TYPES = [
   { label: "Flat Discount (₹)", value: "flat" },
   { label: "Percentage (%)", value: "percent" },
-  { label: "Free Gift", value: "free_gift" },
 ];
 
 export default function AdminCoupons() {
@@ -39,16 +38,6 @@ export default function AdminCoupons() {
     clearSelectedCoupon,
   } = useAdminStore();
 
-  const {
-    products,
-    loadingProducts,
-    fetchProducts,
-    fetchProductById,
-    createProduct,
-    updateProduct,
-    selectedProduct,
-  } = useAdminStore();
-
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
   const [openView, setOpenView] = useState(false);
@@ -58,7 +47,6 @@ export default function AdminCoupons() {
     title: "",
     description: "",
     discount_type: "",
-    gift_product_id: "",
     value: "",
     max_discount: "",
     min_order: "",
@@ -71,7 +59,6 @@ export default function AdminCoupons() {
 
   useEffect(() => {
     fetchCoupons();
-    fetchProducts();
   }, []);
 
   /* ================= HANDLERS ================= */
@@ -212,11 +199,7 @@ export default function AdminCoupons() {
                 </td>
 
                 <td className="px-4 py-3">
-                  {c.discount_type === "percent"
-                    ? `${c.value}%`
-                    : c.discount_type === "flat"
-                      ? `₹${c.value}`
-                      : "Free Gift"}
+                  {c.discount_type === "percent" ? `${c.value}%` : `₹${c.value}`}
                 </td>
 
                 <td className="px-4 py-3">₹{c.min_order}</td>
@@ -364,7 +347,6 @@ function CouponDialog({
                     discount_type: v,
                     value: "",
                     max_discount: "",
-                    gift_product_id: "",
                   })
                 }
               >
@@ -381,23 +363,21 @@ function CouponDialog({
               </Select>
             </div>
 
-            {/* DISCOUNT + MIN ORDER */}
-            {form.discount_type !== "free_gift" && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label>
-                    Discount Value {form.discount_type === "percent" ? "(%)" : "(₹)"}
-                  </Label>
-                  <Input
-                    type="number"
-                    value={form.value}
-                    onChange={(e) =>
-                      setForm({ ...form, value: e.target.value })
-                    }
-                  />
-                </div>
+            {/* DISCOUNT VALUE */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>
+                  Discount Value {form.discount_type === "percent" ? "(%)" : "(₹)"}
+                </Label>
+                <Input
+                  type="number"
+                  value={form.value}
+                  onChange={(e) =>
+                    setForm({ ...form, value: e.target.value })
+                  }
+                />
               </div>
-            )}
+            </div>
 
             {/* MAX DISCOUNT (only for %) */}
             {form.discount_type === "percent" && (
@@ -423,31 +403,6 @@ function CouponDialog({
                 }
               />
             </div>
-
-            {/* FREE GIFT PRODUCT */}
-            {form.discount_type === "free_gift" && (
-              <div>
-                <Label>Gift Product</Label>
-                <Select
-                  value={form.gift_product_id}
-                  onValueChange={(v) =>
-                    setForm({ ...form, gift_product_id: v })
-                  }
-                >
-                  <SelectTrigger className="bg-white border border-input">
-                    <SelectValue placeholder="Select gift product" />
-                  </SelectTrigger>
-
-                  <SelectContent className="bg-white border shadow-lg z-50">
-                    {useAdminStore.getState().products.map((p: any) => (
-                      <SelectItem key={p.id} value={String(p.id)}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             {/* DATES */}
             <div className="grid grid-cols-2 gap-3">
@@ -531,21 +486,8 @@ function ViewCouponDialog(open: boolean, setOpen: any, coupon: any) {
 
           <Detail
             label="Discount Value"
-            value={
-              coupon.discount_type === "percent"
-                ? `${coupon.value}%`
-                : coupon.discount_type === "flat"
-                  ? `₹${coupon.value}`
-                  : "Free Gift"
-            }
+            value={coupon.discount_type === "percent" ? `${coupon.value}%` : `₹${coupon.value}`}
           />
-
-          {coupon.discount_type === "free_gift" && (
-            <Detail
-              label="Gift Product ID"
-              value={coupon.gift_product_id}
-            />
-          )}
 
           <Detail
             label="Max Discount"
@@ -648,13 +590,6 @@ function validateCoupon(form: any) {
 
     if (!form.max_discount || Number(form.max_discount) <= 0) {
       return "Max discount is required for percentage coupons";
-    }
-  }
-
-  /* ---------- FREE GIFT ---------- */
-  if (form.discount_type === "free_gift") {
-    if (!form.gift_product_id) {
-      return "Please select a gift product";
     }
   }
 

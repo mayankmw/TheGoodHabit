@@ -146,3 +146,26 @@ export const getReels = async (req, res) => {
     });
   }
 };
+
+/**
+ * Active coupons that need a minimum order: what the cart's "add ₹X more to
+ * unlock" bar counts towards. Public, because guests see the bar too; signed
+ * in customers already see every active coupon in their cart.
+ */
+export const getCouponMilestones = async (req, res) => {
+  try {
+    const [coupons] = await db.query(
+      `SELECT code, title, discount_type, value, max_discount, min_order
+       FROM coupons
+       WHERE active = 1 AND min_order > 0
+         AND (starts_at IS NULL OR starts_at <= NOW())
+         AND (expires_at IS NULL OR expires_at > NOW())
+       ORDER BY min_order ASC`
+    );
+
+    res.json({ success: true, coupons });
+  } catch (err) {
+    console.error("Public coupon milestones error:", err);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+};

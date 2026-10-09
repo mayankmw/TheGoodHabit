@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import {
@@ -35,11 +35,10 @@ import { useAddressStore } from "@/store/useAddressStore";
 import Lottie from "lottie-react";
 import orderSuccessAnim from "@/assets/animations/orders-success.json";
 import { useAuthStore } from "@/store/useAuthStore";
-import { useCommonStore } from "@/store/useCommonStore";
+import { useCommonStore, type CouponMilestone } from "@/store/useCommonStore";
 import { LOGO_FALLBACK } from "@/lib/assetFallbacks";
 
 export const Navbar = () => {
-  const FREE_GIFT_THRESHOLD = 999;
   const [open, setOpen] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [showCoupons, setShowCoupons] = useState(false);
@@ -54,7 +53,8 @@ export const Navbar = () => {
   const searchSentinelRef = useRef<HTMLDivElement | null>(null);
   const searchResultsContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const { assets, fetchAssets, assetsSettled } = useCommonStore();
+  const { assets, fetchAssets, assetsSettled, couponMilestones, couponMilestonesLoaded, fetchCouponMilestones } =
+    useCommonStore();
   const logoImage =
   assets?.logo?.[0]?.image || LOGO_FALLBACK;
 
@@ -75,6 +75,7 @@ export const Navbar = () => {
   const cartId = useCartStore((s) => s.cartId);
   const cartCoupons = useCartStore((s) => s.cartCoupons || []); // applied/awarded for this cart
   const availableCoupons = useCartStore((s) => s.availableCoupons || []); // server-provided availability
+  const cartLoaded = useCartStore((s) => s.cartLoaded);
   const fetchCart = useCartStore((s) => s.fetchCart);
   const storeAddToCart = useCartStore((s) => s.addToCart);
   const applyCouponStore = useCartStore((s) => s.applyCoupon);
@@ -149,13 +150,35 @@ export const Navbar = () => {
 
   // --- seen coupons ref to avoid duplicate animations ---
   const seenCouponCodesRef = useRef(new Set());
-  const hasReachedGiftMilestoneRef = useRef(false);
+  const unlockedCountRef = useRef<number | null>(null);
   const offerConfettiCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const offerConfettiRef = useRef<ReturnType<typeof confetti.create> | null>(null);
 
   // cart count
   const cartCount = cart.reduce((acc, item) => acc + (item.quantity || 0), 0);
-  const hasReachedGiftMilestone = cartTotalBeforeDiscount >= FREE_GIFT_THRESHOLD;
+
+  // The cart's offer bar: the next coupon it can unlock by reaching that
+  // coupon's minimum, and the highest one it already has. Coupons arrive
+  // lowest minimum first; a signed-in customer's spent single-use ones are out.
+  const milestone = useMemo(() => {
+    const spent = new Set(availableCoupons.filter((c) => c.alreadyUsed).map((c) => c.code));
+    const tiers = couponMilestones.filter((c) => !spent.has(c.code));
+    const unlocked = tiers.filter((c) => cartTotalBeforeDiscount >= Number(c.min_order));
+    const next = tiers.find((c) => cartTotalBeforeDiscount < Number(c.min_order)) || null;
+    return { unlocked, best: unlocked[unlocked.length - 1] || null, next };
+  }, [couponMilestones, availableCoupons, cartTotalBeforeDiscount]);
+
+  const milestonePct = milestone.next
+    ? Math.min(100, Math.round((cartTotalBeforeDiscount / Number(milestone.next.min_order)) * 100))
+    : 100;
+
+  const appliedCouponCode = cartCoupons.find((c) => c.is_applied)?.code;
+
+  // "₹100 off", "30% off up to ₹2000"
+  const offerText = (c: CouponMilestone) =>
+    c.discount_type === "flat"
+      ? `₹${Number(c.value)} off`
+      : `${Number(c.value)}% off${c.max_discount ? ` up to ₹${Number(c.max_discount)}` : ""}`;
 
   const fmt = (n) => `₹${Number(n || 0).toFixed(0)}`;
 
@@ -418,14 +441,21 @@ export const Navbar = () => {
   }, [cartCoupons, cartId]);
 
   useEffect(() => {
-    if (!cartId) return;
+    fetchCouponMilestones();
+  }, [fetchCouponMilestones]);
 
-    if (hasReachedGiftMilestone && !hasReachedGiftMilestoneRef.current) {
+  // confetti each time the cart reaches another coupon's minimum. Whatever it
+  // had already reached when it loaded is the baseline, not a celebration.
+  useEffect(() => {
+    if (!cartLoaded || !couponMilestonesLoaded) return;
+
+    const count = milestone.unlocked.length;
+    if (unlockedCountRef.current !== null && count > unlockedCountRef.current) {
       triggerOfferPoppers();
     }
 
-    hasReachedGiftMilestoneRef.current = hasReachedGiftMilestone;
-  }, [cartId, hasReachedGiftMilestone]);
+    unlockedCountRef.current = count;
+  }, [cartLoaded, couponMilestonesLoaded, milestone.unlocked.length]);
 
   // ---------- wrappers to handle immediate awarded coupons returned by API ----------
   const handleAddToCart = async (product) => {
@@ -717,34 +747,62 @@ export const Navbar = () => {
                         {/* 📍 Delivery address */}
                         <CartAddressSelector />
 
-                        {/* 🎁 Free Gift / progress + poppers */}
-                        <div className="bg-secondary/10 rounded-xl p-3 mb-4 relative overflow-hidden">
-                          <p className="text-center text-xs font-semibold text-green-700">
-                            {hasReachedGiftMilestone ? <span>You have reached a offer milestone 🎉</span> : <span>Get a free gift by adding items worth ₹{FREE_GIFT_THRESHOLD}</span>}
-                          </p>
+                        {/* coupon milestones: the next coupon this cart can unlock, confetti on the way */}
+                        {(milestone.next || milestone.best) && (
+                          <div className="bg-secondary/10 rounded-xl p-3 mb-4 relative overflow-hidden">
+                            <p className="text-center text-xs font-semibold text-green-700">
+                              {milestone.next
+                                ? `Add ${fmt(Number(milestone.next.min_order) - cartTotalBeforeDiscount)} more to unlock ${offerText(milestone.next)}`
+                                : `You've unlocked ${offerText(milestone.best)} 🎉`}
+                            </p>
 
-                          <div className="relative mt-2">
-                            <div className="w-full bg-secondary/20 h-1.5 rounded-full overflow-hidden">
+                            <div className="relative mt-2">
+                              <div className="w-full bg-secondary/20 h-1.5 rounded-full overflow-hidden">
+                                <div
+                                  className="bg-secondary h-1.5 rounded-full transition-all duration-500"
+                                  style={{ width: `${milestonePct}%` }}
+                                />
+                              </div>
+
                               <div
-                                className="bg-secondary h-1.5 rounded-full transition-all duration-500"
-                                style={{ width: `${Math.min(100, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100))}%` }}
-                              />
-                            </div>
+                                className="absolute top-[-9px] bg-white border border-secondary rounded-full w-7 h-7 flex items-center justify-center text-secondary text-xs font-bold shadow transition-transform"
+                                style={{
+                                  right: `${100 - milestonePct}%`,
+                                  transform: `translateX(${Math.min(0, milestonePct - 100)}%)`,
+                                }}
+                                aria-hidden
+                              >
+                                %
+                              </div>
 
-                            <div
-                              className="absolute top-[-9px] bg-white border border-secondary rounded-full w-7 h-7 flex items-center justify-center text-secondary text-xs font-bold shadow transition-transform"
-                              style={{
-                                right: `${Math.max(0, 100 - Math.min(100, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100)))}%`,
-                                transform: `translateX(${Math.min(0, Math.round((cartTotalBeforeDiscount / FREE_GIFT_THRESHOLD) * 100) - 100)}%)`,
-                              }}
-                              aria-hidden
-                            >
-                              🎁
+                              <div className="mt-3 flex items-center justify-between gap-2 text-xs font-medium text-green-700">
+                                <span>
+                                  {milestone.best &&
+                                    (appliedCouponCode === milestone.best.code ? (
+                                      `${milestone.best.code} applied ✓`
+                                    ) : appliedCouponCode ? (
+                                      `${milestone.best.code} unlocked`
+                                    ) : (
+                                      <>
+                                        {milestone.best.code} unlocked ·{" "}
+                                        <button
+                                          className="underline hover:no-underline"
+                                          onClick={() => handleApplyCoupon(milestone.best.code)}
+                                        >
+                                          Apply
+                                        </button>
+                                      </>
+                                    ))}
+                                </span>
+                                {milestone.next && (
+                                  <span>
+                                    {fmt(milestone.next.min_order)} · {milestone.next.code}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-
-                            <p className="text-xs text-right mt-1.5 text-green-700 font-medium">₹{FREE_GIFT_THRESHOLD} Free Gift</p>
                           </div>
-                        </div>
+                        )}
 
                         {/* cart items */}
                         <div className="space-y-2.5">
@@ -947,7 +1005,12 @@ export const Navbar = () => {
                                       );
                                     }
                                     // fallback message
-                                    return <div className="font-semibold">No coupons available yet</div>;
+                                    // a guest has no coupon list, though the offer bar above still shows what's on offer
+                                    return (
+                                      <div className="font-semibold">
+                                        {token ? "No coupons available yet" : "Sign in to use coupons"}
+                                      </div>
+                                    );
                                   })()
                                 )}
 

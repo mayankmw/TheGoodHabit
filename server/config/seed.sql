@@ -48,31 +48,6 @@ code,
 title,
 description,
 discount_type,
-min_order,
-active,
-auto_award
-)
-VALUES
-
-(
-'FREEGIFT',
-'Get 1 item for free',
-'Auto-awarded free gift when cart value reaches ₹999',
-'free_gift',
-999.00,
-1,
-1
-);
-
-
-
-
-INSERT INTO coupons
-(
-code,
-title,
-description,
-discount_type,
 value,
 max_discount,
 min_order,

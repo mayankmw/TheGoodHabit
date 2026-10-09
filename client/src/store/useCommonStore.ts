@@ -49,6 +49,15 @@ export interface ReelItem {
   };
 }
 
+export interface CouponMilestone {
+  code: string;
+  title: string;
+  discount_type: "flat" | "percent";
+  value: number | string;
+  max_discount: number | string | null;
+  min_order: number | string;
+}
+
 interface CommonState {
   /* ---------- assets ---------- */
   loadingAssets: boolean;
@@ -78,6 +87,13 @@ interface CommonState {
   loadingReels: boolean;
   reels: ReelItem[];
   fetchReels: () => Promise<void>;
+
+  /* ---------- coupon milestones ---------- */
+  // coupons with a minimum order, for the cart's "add ₹X more to unlock" bar;
+  // public so guests get the bar too
+  couponMilestones: CouponMilestone[];
+  couponMilestonesLoaded: boolean;
+  fetchCouponMilestones: () => Promise<void>;
 
   /* ---------- newsletter ---------- */
   loadingNewsletter: boolean;
@@ -182,6 +198,21 @@ export const useCommonStore = create<CommonState>((set) => ({
       console.error("Public reels fetch error", e);
     } finally {
       set({ loadingReels: false });
+    }
+  },
+
+  /* ================= COUPON MILESTONES ================= */
+  couponMilestones: [],
+  couponMilestonesLoaded: false,
+
+  fetchCouponMilestones: async () => {
+    try {
+      const { data } = await api.get("/coupon-milestones");
+      if (data?.success) set({ couponMilestones: data.coupons || [] });
+    } catch (e) {
+      console.error("Coupon milestones fetch error", e);
+    } finally {
+      set({ couponMilestonesLoaded: true });
     }
   },
 

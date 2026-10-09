@@ -167,9 +167,8 @@ CREATE TABLE coupons (
   title VARCHAR(255) NOT NULL,
   description TEXT,
 
-  discount_type ENUM('flat','percent','free_gift') DEFAULT 'flat',
-
-  gift_product_id BIGINT UNSIGNED,
+  -- flat: ₹ off; percent: % off, capped by max_discount
+  discount_type ENUM('flat','percent') DEFAULT 'flat',
 
   value DECIMAL(10,2),
   max_discount DECIMAL(10,2),
