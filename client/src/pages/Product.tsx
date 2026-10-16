@@ -242,7 +242,7 @@ export const Product = () => {
             {product.description}
           </motion.p>
 
-          {/* Image flanked by floating dates */}
+          {/* Image flanked by a floating date (top-left) and man (bottom-right) */}
           {isDatesProduct && (
             <motion.div
               className="flex items-center gap-3 mt-8"
@@ -253,7 +253,7 @@ export const Product = () => {
               <motion.img
                 src="/images/elements/dates.png"
                 alt=""
-                className="w-14 h-14 md:w-20 md:h-20 shrink-0"
+                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-start"
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 3, repeat: Infinity }}
               />
@@ -266,9 +266,9 @@ export const Product = () => {
                 />
               </div>
               <motion.img
-                src="/images/elements/dates.png"
+                src="/images/elements/man.svg"
                 alt=""
-                className="w-14 h-14 md:w-20 md:h-20 shrink-0"
+                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-end"
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 3.5, repeat: Infinity }}
               />
