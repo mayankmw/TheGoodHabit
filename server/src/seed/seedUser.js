@@ -2,8 +2,8 @@ import bcrypt from "bcrypt";
 import { db } from "../config/db.js";
 
 export const seedDefaultUser = async () => {
-  const email = "mayankwadhwahp7@gmail.com";
-  const password = "mayank@123";
+  const email = "sanjaymalviya.cr7@gmail.com";
+  const password = process.env.SEED_ADMIN_PASSWORD;
 
   try {
     const [exists] = await db.query(
@@ -13,6 +13,11 @@ export const seedDefaultUser = async () => {
 
     if (exists.length > 0) {
       console.log("Default user already exists.");
+      return;
+    }
+
+    if (!password) {
+      console.warn("⚠️ SEED_ADMIN_PASSWORD not set — skipping default user seed.");
       return;
     }
 
