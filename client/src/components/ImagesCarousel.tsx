@@ -67,9 +67,9 @@ export const ImagesCarousel = () => {
                 {images.map((src, i) => (
                   <div
                     key={i}
-                    className="flex-[0_0_75%] sm:flex-[0_0_45%] lg:flex-[0_0_23%]"
+                    className="flex-[0_0_85%] sm:flex-[0_0_48%] lg:flex-[0_0_32%]"
                   >
-                    <div className="aspect-[4/5] overflow-hidden rounded-3xl bg-muted">
+                    <div className="aspect-[5/4] overflow-hidden rounded-3xl bg-muted">
                       <img
                         src={src}
                         alt={`NoshBOB lifestyle photo ${i + 1}`}
@@ -124,9 +124,9 @@ export const ImagesCarousel = () => {
             {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
-                className="flex-[0_0_75%] sm:flex-[0_0_45%] lg:flex-[0_0_23%]"
+                className="flex-[0_0_85%] sm:flex-[0_0_48%] lg:flex-[0_0_32%]"
               >
-                <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
+                <Skeleton className="aspect-[5/4] w-full rounded-3xl" />
               </div>
             ))}
           </div>

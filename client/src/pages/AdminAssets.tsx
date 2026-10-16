@@ -31,7 +31,7 @@ import {
 /* ================= SUGGESTED SIZES ================= */
 // Based on the dimensions of the images this app ships/renders with today —
 // logo.png (457×116), the default banners (16:9), hero-1 (1600×500),
-// hero-2/3 (1920×1200), and the images-carousel slides (rendered at 4:5).
+// hero-2/3 (1920×1200), and the images-carousel slides (rendered at 5:4).
 const SUGGESTED_SIZES: Record<string, string | ((position: number) => string)> = {
   logo: "460 × 120px, transparent PNG (~4:1)",
   banner: "1920 × 1080px (16:9)",
@@ -39,7 +39,7 @@ const SUGGESTED_SIZES: Record<string, string | ((position: number) => string)> =
     position === 1
       ? "1600 × 500px, wide strip (~3.2:1)"
       : "1920 × 1200px (8:5)" + (position === 3 ? " — shown on the product page" : ""),
-  imagesCarousel: "800 × 1000px, portrait (4:5)",
+  imagesCarousel: "1400 × 1120px, landscape (5:4)",
 };
 
 function getSuggestedSize(type?: string, position?: number) {
@@ -208,7 +208,7 @@ export default function AdminAssets() {
 
                 return (
                   <div key={position} className="relative w-full max-w-[220px]">
-                    <div className="aspect-[4/5] w-full overflow-hidden rounded-xl border bg-muted">
+                    <div className="aspect-[5/4] w-full overflow-hidden rounded-xl border bg-muted">
                       <img
                         src={image}
                         alt={`Images carousel photo ${position}`}
