@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
 import { FrequentlyBoughtTogether } from "@/components/FrequentlyBoughtTogether";
 import { ProductReviews } from "@/components/ProductReviews";
+import { ProductDescription } from "@/components/ProductDescription";
 import { calcDiscountPercent } from "@/lib/pricing";
 import { toast } from "sonner";
 import { isOutOfStock, isLowStock } from "@/lib/stock";
@@ -356,6 +357,8 @@ export const Product = () => {
 
         </motion.div>
       </div>
+
+      <ProductDescription productName={product.name} />
 
       <FrequentlyBoughtTogether
         currentProduct={{
