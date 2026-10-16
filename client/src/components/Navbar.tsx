@@ -1112,12 +1112,19 @@ export const Navbar = () => {
               {query.length > 0 ? "Search Results" : "Or Select From Our Recommended Products"}
             </h3>
 
-            <div ref={searchResultsContainerRef} className="max-h-[50vh] overflow-y-auto pb-6 text-center">
+            {/* picking a product (any link in a card) closes the overlay */}
+            <div
+              ref={searchResultsContainerRef}
+              className="max-h-[50vh] overflow-y-auto pb-6 text-center"
+              onClickCapture={(e) => {
+                if ((e.target as HTMLElement).closest("a")) setOpenSearch(false);
+              }}
+            >
               {searching && <p className="text-sm text-muted-foreground">Searching...</p>}
 
               {query.length > 0 && !searching && results.length > 0 && (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 max-w-4xl mx-auto px-2">
                     {results.map((product) => (
                       <ProductCardMini key={product.id} id={product.id} slug={product.slug} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                     ))}
@@ -1134,7 +1141,7 @@ export const Navbar = () => {
               {query.length > 0 && !searching && results.length === 0 && <p className="text-sm text-muted-foreground">No products found.</p>}
 
               {query.length === 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 max-w-5xl mx-auto px-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 max-w-4xl mx-auto px-2">
                   {recommended.map((product) => (
                     <ProductCardMini key={product.id} id={product.id} slug={product.slug} image={resolveProductImage(product)} name={product.name} rating={product.rating} reviews={product.reviews} stock={product.stock} originalPrice={product.originalPrice} discountedPrice={product.discountedPrice} />
                   ))}

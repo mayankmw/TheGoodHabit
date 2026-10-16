@@ -88,7 +88,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
         </Link>
 
         {/* Content */}
-        <div className="p-2.5 space-y-1.5">
+        <div className="p-2 space-y-1">
           
           {/* Rating — see ProductCard: no star frame until a review exists */}
           <div className="flex items-center gap-1 min-h-[0.875rem]">
@@ -119,7 +119,7 @@ const setOpenSearch = useUIStore((s) => s.setOpenSearch);
 
           {/* Add Button */}
           <Button
-            className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground text-[10px] font-bold py-1.5 rounded-md disabled:opacity-60"
+            className="w-full h-7 bg-secondary hover:bg-secondary/90 text-secondary-foreground text-[10px] font-bold py-1 rounded-md disabled:opacity-60"
             disabled={outOfStock}
             onClick={async (e) => {
               e.preventDefault();
