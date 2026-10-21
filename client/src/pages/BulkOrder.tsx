@@ -331,13 +331,13 @@ export const BulkOrder = () => {
                     selectedItems.map(({ product, quantity }) => (
                       <div
                         key={product.id}
-                        className="flex items-center justify-between rounded-2xl bg-secondary/10 px-4 py-3"
+                        className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/10 px-4 py-3"
                       >
-                        <div>
+                        <div className="min-w-0">
                           <p className="font-semibold text-foreground">{product.name}</p>
                           <p className="text-sm text-muted-foreground">₹{product.discountedPrice} each</p>
                         </div>
-                        <div className="rounded-full bg-white px-3 py-1 text-sm font-bold text-foreground shadow-sm">
+                        <div className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-1 text-sm font-bold text-foreground shadow-sm">
                           Qty {quantity}
                         </div>
                       </div>
