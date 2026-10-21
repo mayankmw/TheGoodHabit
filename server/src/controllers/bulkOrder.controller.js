@@ -7,6 +7,26 @@ import {
 } from "../utils/emailTemplates.js";
 
 const MIN_BULK_QUANTITY = 10;
+const MAX_BULK_QUANTITY = 100000;
+const MAX_BULK_ITEMS = 100;
+
+// limits mirror the bulk_orders columns and the client form
+const NAME_MAX = 150;
+const EMAIL_MAX = 150;
+const ADDRESS_MIN = 10;
+const ADDRESS_MAX = 1000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
+
+const getCustomerValidationError = ({ name, email, phone, address }) => {
+  if (!name || !email || !phone || !address) return "All customer details are required";
+  if (name.length < 2 || name.length > NAME_MAX) return "Enter a valid name";
+  if (email.length > EMAIL_MAX || !EMAIL_REGEX.test(email)) return "Enter a valid email address";
+  if (!PHONE_REGEX.test(phone)) return "Enter a valid 10-digit mobile number";
+  if (address.length < ADDRESS_MIN || address.length > ADDRESS_MAX)
+    return "Enter a valid address";
+  return null;
+};
 
 const normalizeItems = (items) => {
   const grouped = new Map();
@@ -27,12 +47,19 @@ const normalizeItems = (items) => {
 };
 
 export const submitBulkOrder = async (req, res) => {
-  const { name, email, phone, address, items } = req.body;
+  const { items } = req.body;
+  const name = String(req.body.name ?? "").trim();
+  const email = String(req.body.email ?? "").trim();
+  // accept "+91 98765-43210" style input and keep the 10-digit national number
+  const phone = String(req.body.phone ?? "").replace(/\D/g, "").replace(/^(91|0)(?=\d{10}$)/, "");
+  const address = String(req.body.address ?? "").trim();
 
-  if (!name || !email || !phone || !address) {
+  const customerError = getCustomerValidationError({ name, email, phone, address });
+
+  if (customerError) {
     return res.status(400).json({
       success: false,
-      message: "All customer details are required",
+      message: customerError,
     });
   }
 
@@ -40,6 +67,13 @@ export const submitBulkOrder = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Select at least one product for bulk order",
+    });
+  }
+
+  if (items.length > MAX_BULK_ITEMS) {
+    return res.status(400).json({
+      success: false,
+      message: "Too many products in a single bulk order",
     });
   }
 
@@ -56,13 +90,14 @@ export const submitBulkOrder = async (req, res) => {
     (item) =>
       !Number.isInteger(item.productId) ||
       !Number.isInteger(item.quantity) ||
-      item.quantity < MIN_BULK_QUANTITY
+      item.quantity < MIN_BULK_QUANTITY ||
+      item.quantity > MAX_BULK_QUANTITY
   );
 
   if (invalidItem) {
     return res.status(400).json({
       success: false,
-      message: `Each selected product must have a quantity of at least ${MIN_BULK_QUANTITY}`,
+      message: `Each selected product must have a quantity between ${MIN_BULK_QUANTITY} and ${MAX_BULK_QUANTITY}`,
     });
   }
 
@@ -96,7 +131,7 @@ export const submitBulkOrder = async (req, res) => {
       INSERT INTO bulk_orders (name, email, phone, address)
       VALUES (?, ?, ?, ?)
       `,
-      [name.trim(), email.trim(), phone.trim(), address.trim()]
+      [name, email, phone, address]
     );
 
     const bulkOrderId = bulkOrderResult.insertId;
@@ -126,13 +161,13 @@ export const submitBulkOrder = async (req, res) => {
       })
       .join("\n");
 
-    const subject = `New Bulk Order Inquiry from ${name.trim()}`;
+    const subject = `New Bulk Order Inquiry from ${name}`;
     const text = [
       "New Bulk Order Inquiry",
-      `Name: ${name.trim()}`,
-      `Email: ${email.trim()}`,
-      `Phone: ${phone.trim()}`,
-      `Address: ${address.trim()}`,
+      `Name: ${name}`,
+      `Email: ${email}`,
+      `Phone: ${phone}`,
+      `Address: ${address}`,
       "",
       "Selected Products:",
       plainTextItems,
@@ -154,10 +189,10 @@ export const submitBulkOrder = async (req, res) => {
       title: "New bulk order enquiry",
       preheader: `${totalUnits} units across ${normalizedItems.length} product${normalizedItems.length === 1 ? "" : "s"}`,
       rows: [
-        ["Name", escapeHtml(name.trim())],
-        ["Email", `<a href="mailto:${escapeHtml(email.trim())}" style="color:${EMAIL_THEME.BRAND};">${escapeHtml(email.trim())}</a>`],
-        ["Phone", escapeHtml(phone.trim())],
-        ["Address", escapeHtml(address.trim()).replace(/\n/g, "<br />")],
+        ["Name", escapeHtml(name)],
+        ["Email", `<a href="mailto:${escapeHtml(email)}" style="color:${EMAIL_THEME.BRAND};">${escapeHtml(email)}</a>`],
+        ["Phone", escapeHtml(phone)],
+        ["Address", escapeHtml(address).replace(/\n/g, "<br />")],
       ],
       // a real table rather than a <ul>: quantities line up and stay readable
       // on mobile Gmail

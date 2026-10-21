@@ -3,11 +3,22 @@ import { toast } from "sonner";
 import { Minus, Plus, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { useProductStore } from "@/store/useProductStore";
 import { useBulkOrderStore } from "@/store/useBulkOrderStore";
 
 const MIN_BULK_QUANTITY = 10;
+const MAX_BULK_QUANTITY = 100000;
+
+// limits mirror the bulk_orders columns and server-side checks
+const NAME_MAX = 150;
+const EMAIL_MAX = 150;
+const ADDRESS_MIN = 10;
+const ADDRESS_MAX = 1000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const PHONE_REGEX = /^[6-9]\d{9}$/;
 
 type BulkOrderForm = {
   name: string;
@@ -16,6 +27,9 @@ type BulkOrderForm = {
   address: string;
 };
 
+type BulkOrderField = keyof BulkOrderForm;
+type BulkOrderErrors = Partial<Record<BulkOrderField, string>>;
+
 const emptyForm = (): BulkOrderForm => ({
   name: "",
   email: "",
@@ -23,7 +37,44 @@ const emptyForm = (): BulkOrderForm => ({
   address: "",
 });
 
-const isValidEmail = (email: string) => /\S+@\S+\.\S+/.test(email);
+const validateForm = (form: BulkOrderForm): BulkOrderErrors => {
+  const errors: BulkOrderErrors = {};
+  const name = form.name.trim();
+  const email = form.email.trim();
+  const address = form.address.trim();
+
+  if (!name) {
+    errors.name = "Name is required";
+  } else if (name.length < 2) {
+    errors.name = "Name must be at least 2 characters";
+  } else if (name.length > NAME_MAX) {
+    errors.name = `Name must be under ${NAME_MAX} characters`;
+  }
+
+  if (!email) {
+    errors.email = "Email is required";
+  } else if (email.length > EMAIL_MAX || !EMAIL_REGEX.test(email)) {
+    errors.email = "Enter a valid email address";
+  }
+
+  if (!form.phone) {
+    errors.phone = "Mobile number is required";
+  } else if (!PHONE_REGEX.test(form.phone)) {
+    errors.phone = "Enter a valid 10-digit mobile number";
+  }
+
+  if (!address) {
+    errors.address = "Address is required";
+  } else if (address.length < ADDRESS_MIN) {
+    errors.address = "Please enter your complete address";
+  } else if (address.length > ADDRESS_MAX) {
+    errors.address = `Address must be under ${ADDRESS_MAX} characters`;
+  }
+
+  return errors;
+};
+
+const RequiredMark = () => <span className="text-destructive"> *</span>;
 
 export const BulkOrder = () => {
   const { products, fetchProducts, loading } = useProductStore();
@@ -31,6 +82,8 @@ export const BulkOrder = () => {
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [form, setForm] = useState<BulkOrderForm>(emptyForm());
+  const [touched, setTouched] = useState<Partial<Record<BulkOrderField, boolean>>>({});
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -52,17 +105,25 @@ export const BulkOrder = () => {
     [quantities]
   );
 
-  const isFormValid =
-    form.name.trim().length > 0 &&
-    isValidEmail(form.email.trim()) &&
-    form.phone.trim().length > 0 &&
-    form.address.trim().length > 0;
+  const errors = useMemo(() => validateForm(form), [form]);
+  const isFormValid = Object.keys(errors).length === 0;
 
   const canSubmit = selectedItems.length > 0 && isFormValid && !hasPartialSelection && !submitting;
 
+  const showError = (field: BulkOrderField) =>
+    Boolean((touched[field] || submitAttempted) && errors[field]);
+
+  const fieldClassName = (field: BulkOrderField) =>
+    cn(showError(field) && "border-destructive focus-visible:ring-destructive");
+
+  const markTouched = (field: BulkOrderField) =>
+    setTouched((prev) => ({ ...prev, [field]: true }));
+
   const setProductQuantity = (productId: string | number, nextQuantity: number) => {
     const key = String(productId);
-    const safeQuantity = Number.isFinite(nextQuantity) ? Math.max(0, Math.floor(nextQuantity)) : 0;
+    const safeQuantity = Number.isFinite(nextQuantity)
+      ? Math.min(MAX_BULK_QUANTITY, Math.max(0, Math.floor(nextQuantity)))
+      : 0;
 
     setQuantities((prev) => {
       if (safeQuantity === 0) {
@@ -79,6 +140,7 @@ export const BulkOrder = () => {
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setSubmitAttempted(true);
 
     if (selectedItems.length === 0) {
       toast.error("Select at least one product with a quantity of 10 or more");
@@ -91,12 +153,12 @@ export const BulkOrder = () => {
     }
 
     if (!isFormValid) {
-      toast.error("Please complete all required details");
+      toast.error("Please fix the highlighted details");
       return;
     }
 
     const response = await submitBulkOrder({
-      ...form,
+      name: form.name.trim(),
       email: form.email.trim(),
       phone: form.phone.trim(),
       address: form.address.trim(),
@@ -110,6 +172,8 @@ export const BulkOrder = () => {
       toast.success(response.message);
       setQuantities({});
       setForm(emptyForm());
+      setTouched({});
+      setSubmitAttempted(false);
       return;
     }
 
@@ -211,6 +275,7 @@ export const BulkOrder = () => {
                             <Input
                               type="number"
                               min={0}
+                              max={MAX_BULK_QUANTITY}
                               value={quantity || ""}
                               onChange={(e) =>
                                 setProductQuantity(product.id, Number(e.target.value || 0))
@@ -287,57 +352,98 @@ export const BulkOrder = () => {
                   Share your information and we will contact you about pricing, logistics, and next steps.
                 </p>
 
-                <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
                   <div>
-                    <label className="mb-2 block text-sm font-semibold">Name</label>
+                    <Label htmlFor="bulk-name" className="mb-2 block text-sm font-semibold">
+                      Name<RequiredMark />
+                    </Label>
                     <Input
+                      id="bulk-name"
                       value={form.name}
                       onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                      onBlur={() => markTouched("name")}
                       placeholder="Your full name"
-                      required
+                      autoComplete="name"
+                      maxLength={NAME_MAX}
+                      aria-invalid={showError("name")}
+                      className={fieldClassName("name")}
                     />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-semibold">Email</label>
-                    <Input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-                      placeholder="you@example.com"
-                      required
-                    />
-                    {form.email.length > 0 && !isValidEmail(form.email) ? (
-                      <p className="mt-2 text-xs font-medium text-destructive">
-                        Enter a valid email address.
-                      </p>
+                    {showError("name") ? (
+                      <p className="mt-2 text-xs font-medium text-destructive">{errors.name}</p>
                     ) : null}
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold">Phone Number</label>
+                    <Label htmlFor="bulk-email" className="mb-2 block text-sm font-semibold">
+                      Email<RequiredMark />
+                    </Label>
                     <Input
-                      value={form.phone}
-                      onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
-                      placeholder="+91 98765 43210"
-                      required
+                      id="bulk-email"
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                      onBlur={() => markTouched("email")}
+                      placeholder="you@example.com"
+                      autoComplete="email"
+                      maxLength={EMAIL_MAX}
+                      aria-invalid={showError("email")}
+                      className={fieldClassName("email")}
                     />
+                    {showError("email") ? (
+                      <p className="mt-2 text-xs font-medium text-destructive">{errors.email}</p>
+                    ) : null}
                   </div>
 
                   <div>
-                    <label className="mb-2 block text-sm font-semibold">Address</label>
+                    <Label htmlFor="bulk-phone" className="mb-2 block text-sm font-semibold">
+                      Mobile Number<RequiredMark />
+                    </Label>
+                    <Input
+                      id="bulk-phone"
+                      type="tel"
+                      inputMode="numeric"
+                      value={form.phone}
+                      onChange={(e) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          phone: e.target.value.replace(/\D/g, "").slice(0, 10),
+                        }))
+                      }
+                      onBlur={() => markTouched("phone")}
+                      placeholder="9876543210"
+                      autoComplete="tel-national"
+                      maxLength={10}
+                      aria-invalid={showError("phone")}
+                      className={fieldClassName("phone")}
+                    />
+                    {showError("phone") ? (
+                      <p className="mt-2 text-xs font-medium text-destructive">{errors.phone}</p>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="bulk-address" className="mb-2 block text-sm font-semibold">
+                      Address<RequiredMark />
+                    </Label>
                     <Textarea
+                      id="bulk-address"
                       value={form.address}
                       onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
+                      onBlur={() => markTouched("address")}
                       placeholder="Complete delivery address"
-                      className="min-h-28"
-                      required
+                      autoComplete="street-address"
+                      maxLength={ADDRESS_MAX}
+                      aria-invalid={showError("address")}
+                      className={cn("min-h-28", fieldClassName("address"))}
                     />
+                    {showError("address") ? (
+                      <p className="mt-2 text-xs font-medium text-destructive">{errors.address}</p>
+                    ) : null}
                   </div>
 
                   <Button
                     type="submit"
-                    disabled={!canSubmit}
+                    disabled={submitting}
                     className="w-full rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                   >
                     {submitting ? "Submitting..." : "Submit Bulk Order Inquiry"}

@@ -22,7 +22,7 @@ const FAQS: Faq[] = [
   {
     question: "Are NoshBOB products suitable for vegans and vegetarians?",
     answer:
-      "Most of our range is vegetarian and vegan-friendly. Each product page lists the exact dietary tags so you can check before you buy.",
+      "All of our range is vegetarian and vegan-friendly. Each product page lists the exact dietary tags so you can check before you buy.",
     bg: "bg-lime-200",
     arrowBg: "bg-lime-400 text-lime-950",
     angle: 2.5,
