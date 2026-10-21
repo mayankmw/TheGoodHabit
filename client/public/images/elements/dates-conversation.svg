@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#FFF9E6"/>
+
+  <g font-family="Helvetica Neue, Helvetica, Arial, sans-serif" font-size="54" fill="#97400F" text-anchor="middle">
+    <!-- man (top-right) asks: white bubble, tail up-right toward him -->
+    <!-- one outline for bubble + tail, so the border has no seam at the join -->
+    <path d="M325 60 H1085 A125 125 0 0 1 1127.8 67.5 L1262 22 L1198.3 132.2 A125 125 0 0 1 1085 310 H325 A125 125 0 0 1 325 60 Z" fill="#FFFFFF" stroke="#FCE38A" stroke-width="6" stroke-linejoin="round"/>
+    <text x="705" y="170">“Hey, what makes you</text>
+    <text x="705" y="242">my go-to snack?”</text>
+
+    <!-- date (bottom-left) replies: yellow bubble, tail down-left toward it -->
+    <path d="M130 570 L 18 698 L 210 640 Z" fill="#FCE38A"/>
+    <rect x="70" y="410" width="1010" height="250" rx="125" fill="#FCE38A"/>
+    <text x="575" y="520">“I’m naturally sweet &amp; full of</text>
+    <text x="575" y="592">energy — your perfect partner!”</text>
+  </g>
+</svg>

@@ -243,7 +243,8 @@ export const Product = () => {
             {product.description}
           </motion.p>
 
-          {/* Image flanked by a floating date (top-left) and man (bottom-right) */}
+          {/* Conversation flanked by a floating date (bottom-left) and man (top-right),
+              each next to their own bubble in the image */}
           {isDatesProduct && (
             <motion.div
               className="flex items-center gap-3 mt-8"
@@ -254,14 +255,14 @@ export const Product = () => {
               <motion.img
                 src="/images/elements/dates.png"
                 alt=""
-                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-start"
+                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-end"
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 3, repeat: Infinity }}
               />
               <div className="flex-1 min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm">
                 <img
-                  src="/images/elements/dates-conversation.png"
-                  alt="“We’ve traveled from the warm palms of nature...” “Soaked in sunshine, filled with natural sweetness...” “We’re your humble dates — your energy partners!”"
+                  src="/images/elements/dates-conversation.svg"
+                  alt="Man: “Hey, what makes you my go-to snack?” Date: “I’m naturally sweet & full of energy — your perfect partner!”"
                   className="aspect-[16/9] w-full object-cover"
                   loading="lazy"
                 />
@@ -269,7 +270,7 @@ export const Product = () => {
               <motion.img
                 src="/images/elements/man.svg"
                 alt=""
-                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-end"
+                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-start"
                 animate={{ y: [0, -6, 0] }}
                 transition={{ duration: 3.5, repeat: Infinity }}
               />
