@@ -10,6 +10,10 @@ export interface BannerItem {
   position: number;
 }
 
+// Wider than the site-wide `container` (which snaps to 1280/1400px) so the
+// hero banner gets a bit more presence than the content sections below it.
+const FRAME_CLASS = "mx-auto w-full max-w-[1500px] px-4 pt-6";
+
 export const BannerSlider = ({
   banners = [],
   onSlideChange,
@@ -56,9 +60,9 @@ export const BannerSlider = ({
   }, [emblaApi, onSelect]);
 
   if (loading) {
-    const skeleton = <Skeleton className={`aspect-[21/9] w-full ${framed ? "rounded-3xl" : ""}`} />;
+    const skeleton = <Skeleton className={`aspect-[4/3] sm:aspect-[16/9] w-full ${framed ? "rounded-3xl" : ""}`} />;
     return framed ? (
-      <div className="container mx-auto px-4 pt-6">{skeleton}</div>
+      <div className={FRAME_CLASS}>{skeleton}</div>
     ) : (
       skeleton
     );
@@ -75,7 +79,7 @@ export const BannerSlider = ({
               <img
                 src={banner.image}
                 alt={`Banner ${index + 1}`}
-                className="w-full object-cover"
+                className="w-full aspect-[4/3] object-cover object-center sm:aspect-auto"
                 loading="eager"
               />
             </div>
@@ -120,5 +124,5 @@ export const BannerSlider = ({
 
   if (!framed) return slider;
 
-  return <div className="container mx-auto px-4 pt-6">{slider}</div>;
+  return <div className={FRAME_CLASS}>{slider}</div>;
 };

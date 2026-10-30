@@ -53,8 +53,10 @@ export const SignIn = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gradient-to-b from-amber-50 to-white px-4">
-      <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl shadow-md p-8 animate-fadeIn">
+    // On mobile the navbar already eats into 100vh, so centring pushes the
+    // card too low; pin it near the top there and centre only from sm up.
+    <div className="min-h-screen flex flex-col justify-start sm:justify-center items-center bg-gradient-to-b from-amber-50 to-white px-4 pt-10 pb-16 sm:py-0">
+      <div className="w-full max-w-md bg-card text-card-foreground rounded-2xl shadow-md p-6 sm:p-8 animate-fadeIn">
 
         <h2 className="text-2xl font-bold text-center mb-2">Sign in</h2>
         <p className="text-center text-muted-foreground mb-6">
