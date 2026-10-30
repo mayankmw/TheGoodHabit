@@ -12,7 +12,7 @@ export interface BannerItem {
 
 // Wider than the site-wide `container` (which snaps to 1280/1400px) so the
 // hero banner gets a bit more presence than the content sections below it.
-const FRAME_CLASS = "mx-auto w-full max-w-[1500px] px-4 pt-6";
+const FRAME_CLASS = "mx-auto w-full max-w-[1500px] sm:px-4 sm:pt-6";
 
 export const BannerSlider = ({
   banners = [],
@@ -60,7 +60,7 @@ export const BannerSlider = ({
   }, [emblaApi, onSelect]);
 
   if (loading) {
-    const skeleton = <Skeleton className={`aspect-[4/3] sm:aspect-[16/9] w-full ${framed ? "rounded-3xl" : ""}`} />;
+    const skeleton = <Skeleton className={`aspect-[16/9] w-full ${framed ? "sm:rounded-3xl" : ""}`} />;
     return framed ? (
       <div className={FRAME_CLASS}>{skeleton}</div>
     ) : (
@@ -71,7 +71,7 @@ export const BannerSlider = ({
   if (!banners.length) return null;
 
   const slider = (
-    <div className={`relative overflow-hidden ${framed ? "rounded-3xl shadow-soft" : ""}`}>
+    <div className={`relative overflow-hidden ${framed ? "sm:rounded-3xl sm:shadow-soft" : ""}`}>
       <div className="overflow-hidden" ref={emblaRef}>
         <div className="flex">
           {banners.map((banner, index) => (
@@ -79,7 +79,7 @@ export const BannerSlider = ({
               <img
                 src={banner.image}
                 alt={`Banner ${index + 1}`}
-                className="w-full aspect-[4/3] object-cover object-center sm:aspect-auto"
+                className="block w-full h-auto"
                 loading="eager"
               />
             </div>
@@ -92,7 +92,7 @@ export const BannerSlider = ({
         type="button"
         aria-label="Previous banner"
         onClick={scrollPrev}
-        className="absolute left-4 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground shadow-soft transition-colors hover:bg-white"
+        className="absolute left-4 top-1/2 -translate-y-1/2 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground shadow-soft transition-colors hover:bg-white"
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
@@ -101,13 +101,13 @@ export const BannerSlider = ({
         type="button"
         aria-label="Next banner"
         onClick={scrollNext}
-        className="absolute right-4 top-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground shadow-soft transition-colors hover:bg-white"
+        className="absolute right-4 top-1/2 -translate-y-1/2 hidden sm:flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground shadow-soft transition-colors hover:bg-white"
       >
         <ChevronRight className="h-5 w-5" />
       </button>
 
       {/* Dots */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
         {banners.map((_, index) => (
           <button
             key={index}
