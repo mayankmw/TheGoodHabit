@@ -669,21 +669,21 @@ export const Navbar = () => {
                   <img
                       src={logoImage}
                       alt="Logo"
-                      className="h-20 w-auto object-contain drop-shadow-md"
+                      className="h-14 sm:h-20 w-auto object-contain drop-shadow-md"
                       loading="eager"
                     />
                 </a>
               ) : (
-                <Skeleton className="h-20 w-28 rounded-md bg-primary-foreground/20" />
+                <Skeleton className="h-14 w-24 sm:h-20 sm:w-28 rounded-md bg-primary-foreground/20" />
               )}
             </div>
 
             {/* Right: Icons */}
-            <div className="flex items-center gap-0.2 sm:gap-2">
-              <Button variant="ghost" size="icon" className="text-primary-foreground hover:bg-primary/80" onClick={handleOpenSearch}>
+            <div className="flex items-center gap-0 sm:gap-2">
+              <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-10 sm:w-10 text-primary-foreground hover:bg-primary/80" onClick={handleOpenSearch}>
                 <Search className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={handleUserClick} className="text-primary-foreground hover:bg-primary/80">
+              <Button variant="ghost" size="icon" onClick={handleUserClick} className="h-9 w-9 sm:h-10 sm:w-10 text-primary-foreground hover:bg-primary/80">
                 <User className="h-6 w-6 cursor-pointer" />
               </Button>
 
@@ -693,7 +693,7 @@ export const Navbar = () => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="text-primary-foreground hover:bg-primary/80 relative"
+                    className="h-9 w-9 sm:h-10 sm:w-10 text-primary-foreground hover:bg-primary/80 relative"
                     onClick={handleOpenCart}
                   >
                     <ShoppingCart className="h-5 w-5" />
