@@ -243,37 +243,62 @@ export const Product = () => {
             {product.description}
           </motion.p>
 
-          {/* Conversation flanked by a floating date (bottom-left) and man (top-right),
-              each next to their own bubble in the image */}
+          {/* Conversation: man asks (top-right), date answers (bottom-left).
+              Real text rather than an image so the long answer wraps and stays legible on mobile. */}
           {isDatesProduct && (
             <motion.div
-              className="flex items-center gap-3 mt-8"
+              className="mt-8 space-y-4 text-[#97400F]"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.8 }}
             >
-              <motion.img
-                src="/images/elements/dates.png"
-                alt=""
-                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-end"
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 3, repeat: Infinity }}
-              />
-              <div className="flex-1 min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm">
-                <img
-                  src="/images/elements/dates-conversation.svg"
-                  alt="Man: “Hey, what makes you my go-to snack?” Date: “I’m naturally sweet & full of energy — your perfect partner!”"
-                  className="aspect-[16/9] w-full object-cover"
-                  loading="lazy"
+              <div className="flex items-start justify-end gap-3">
+                <p className="max-w-[80%] rounded-2xl rounded-tr-sm border-2 border-[#FCE38A] bg-white px-4 py-3 text-sm md:text-base font-semibold shadow-sm">
+                  Why did you pair Medjool dates with nut butter?
+                </p>
+                <motion.img
+                  src="/images/elements/man.svg"
+                  alt=""
+                  className="w-14 h-14 md:w-20 md:h-20 shrink-0"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 3.5, repeat: Infinity }}
                 />
               </div>
-              <motion.img
-                src="/images/elements/man.svg"
-                alt=""
-                className="w-14 h-14 md:w-20 md:h-20 shrink-0 self-start"
-                animate={{ y: [0, -6, 0] }}
-                transition={{ duration: 3.5, repeat: Infinity }}
-              />
+
+              <div className="flex items-end gap-3">
+                <motion.img
+                  src="/images/elements/dates.png"
+                  alt=""
+                  className="w-14 h-14 md:w-20 md:h-20 shrink-0"
+                  animate={{ y: [0, -6, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                />
+                <div className="flex-1 min-w-0 space-y-2 rounded-2xl rounded-bl-sm bg-[#FCE38A] px-4 py-3 text-sm md:text-base leading-relaxed shadow-sm">
+                  <p>
+                    We chose Jumbo Medjool Dates for a reason. Medjool is one of the world’s most premium
+                    and valuable date varieties, and we wanted to pair this naturally rich fruit with
+                    something that makes it even more balanced — nut butter.
+                  </p>
+                  <p>
+                    Dates naturally contain sugars, while nut butter provides protein, healthy fats and
+                    some fibre.{" "}
+                    <strong>
+                      When enjoyed together, this combination may help slow down the rise in blood sugar
+                      compared with eating dates alone, which can support a more steady release of energy.
+                    </strong>
+                  </p>
+                  <p>
+                    So, what does that mean for you?{" "}
+                    <strong>
+                      More sustained energy, fewer sudden cravings and a fuller feeling for longer.
+                    </strong>
+                  </p>
+                  <p>
+                    We didn’t just pair two delicious ingredients. We paired them with a purpose — natural
+                    sweetness + nourishing fats and protein, in every bite.
+                  </p>
+                </div>
+              </div>
             </motion.div>
           )}
 
