@@ -1,3 +1,4 @@
+import { SUPPORT_EMAIL } from "@/lib/contact";
 import { Mail, Phone, MapPin, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,14 +107,14 @@ const handleSubmit = async (e) => {
 
     {/* Email */}
     <a
-      href="mailto:support@noshbob.com"
+      href={`mailto:${SUPPORT_EMAIL}`}
       className="flex items-start gap-4 hover:bg-muted/40 p-2 rounded-lg transition"
     >
       <Mail className="text-primary mt-1" />
       <div>
         <h3 className="font-semibold">Email</h3>
         <p className="text-sm text-muted-foreground">
-          support@noshbob.com
+          {SUPPORT_EMAIL}
         </p>
       </div>
     </a>

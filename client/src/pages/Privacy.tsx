@@ -1,3 +1,5 @@
+import { SUPPORT_EMAIL } from "@/lib/contact";
+
 export const Privacy = () => {
   return (
     <section className="min-h-screen bg-gradient-to-b from-amber-50 to-white py-16 px-6">
@@ -84,7 +86,7 @@ export const Privacy = () => {
             <p>
               If you have questions about this Privacy Policy, contact us at{" "}
               <span className="font-medium text-foreground">
-                support@noshbob.com
+                {SUPPORT_EMAIL}
               </span>
               .
             </p>
